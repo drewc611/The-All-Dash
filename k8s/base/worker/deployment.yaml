@@ -1,0 +1,131 @@
+# Celery worker (scaled) and Celery beat (exactly one) as two Deployments,
+# so scaling workers never doubles the schedule.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: alldash
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: alldash-app
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: alldash-backend
+          command: ["celery", "-A", "app.worker", "worker", "--loglevel=INFO", "--concurrency=2", "--max-tasks-per-child=200", "--without-gossip", "--without-mingle"]
+          envFrom:
+            - configMapRef:
+                name: alldash-config
+            - secretRef:
+                name: postgres-credentials
+            - secretRef:
+                name: alldash-api
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "celery -A app.worker inspect ping -d celery@$HOSTNAME --timeout 10"]
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 15
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "celery -A app.worker inspect ping -d celery@$HOSTNAME --timeout 10"]
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beat
+  namespace: alldash
+  labels:
+    app.kubernetes.io/name: beat
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: beat
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: beat
+        app.kubernetes.io/component: scheduler
+    spec:
+      serviceAccountName: alldash-app
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: beat
+          image: alldash-backend
+          command: ["celery", "-A", "app.worker", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+          envFrom:
+            - configMapRef:
+                name: alldash-config
+            - secretRef:
+                name: postgres-credentials
+            - secretRef:
+                name: alldash-api
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "test -f /tmp/celerybeat-schedule"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

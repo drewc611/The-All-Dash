@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alldash
+  labels:
+    app.kubernetes.io/part-of: alldash
+    # Baseline Pod Security Standard is enforced; every pod here also meets "restricted".
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted

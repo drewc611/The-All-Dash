@@ -1,0 +1,140 @@
+# Local development stack for the platform tier: Postgres, Redis, the API,
+# the Celery worker and beat, and the Next.js workspace.
+#
+#   cp .env.example .env            # then edit the keys
+#   docker compose up --build       # http://localhost:3000, API on :8000
+#   docker compose --profile seed run --rm seed
+#
+# Data lives in named volumes so `down` keeps it and `down -v` wipes it.
+
+name: alldash
+
+x-backend-env: &backend-env
+  ALLDASH_ENVIRONMENT: ${ALLDASH_ENVIRONMENT:-local}
+  ALLDASH_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-alldash}:${POSTGRES_PASSWORD:-alldash}@postgres:5432/${POSTGRES_DB:-alldash}
+  ALLDASH_REDIS_URL: redis://redis:6379/0
+  ALLDASH_API_KEYS: ${ALLDASH_API_KEYS:-dev-key-change-me}
+  ALLDASH_CORS_ORIGINS: http://localhost:3000
+  ALLDASH_TIMEZONE: ${ALLDASH_TIMEZONE:-UTC}
+  ALLDASH_DAILY_BRIEF_HOUR: ${ALLDASH_DAILY_BRIEF_HOUR:-4}
+  ALLDASH_LOG_LEVEL: ${ALLDASH_LOG_LEVEL:-INFO}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alldash}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alldash}
+      POSTGRES_DB: ${POSTGRES_DB:-alldash}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alldash} -d ${POSTGRES_DB:-alldash}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+    environment: *backend-env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    environment: *backend-env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/readyz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    environment: *backend-env
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=INFO", "--concurrency=2", "--max-tasks-per-child=200"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ./backend
+    environment: *backend-env
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      BACKEND_API_KEY: ${ALLDASH_API_KEYS:-dev-key-change-me}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/readyz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 6
+    restart: unless-stopped
+
+  seed:
+    profiles: ["seed"]
+    build:
+      context: ./backend
+    environment: *backend-env
+    command: ["python", "-m", "scripts.seed"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata:
+  redisdata:

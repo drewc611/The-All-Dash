@@ -1,0 +1,26 @@
+# Production overlay. Set the registry, tag and host once, then
+#   kubectl apply -k k8s/overlays/prod
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: alldash
+resources:
+  - ../../base
+  - ../../ingress/alb
+  # For Let's Encrypt through ingress-nginx, swap the line above for:
+  # - ../../ingress/nginx-letsencrypt
+images:
+  - name: alldash-backend
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/alldash-backend
+    newTag: 0.1.0
+  - name: alldash-frontend
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/alldash-frontend
+    newTag: 0.1.0
+patches:
+  - path: host-patch.yaml
+    target:
+      kind: Ingress
+      name: alldash
+  - path: config-patch.yaml
+    target:
+      kind: ConfigMap
+      name: alldash-config

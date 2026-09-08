@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alldash-config
+  namespace: alldash
+data:
+  ALLDASH_ENVIRONMENT: production
+  ALLDASH_REDIS_URL: redis://redis.alldash.svc.cluster.local:6379/0
+  ALLDASH_CORS_ORIGINS: https://alldash.example.com
+  ALLDASH_TIMEZONE: UTC
+  ALLDASH_DAILY_BRIEF_HOUR: "4"
+  ALLDASH_BURN_RATE_WINDOW_DAYS: "30"
+  ALLDASH_LOG_LEVEL: INFO
+  BACKEND_URL: http://backend.alldash.svc.cluster.local:8000
+  POSTGRES_DB: alldash

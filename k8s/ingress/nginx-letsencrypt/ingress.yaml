@@ -1,0 +1,39 @@
+# Path B: ingress-nginx in front, cert-manager issuing from Let's Encrypt.
+#
+# ingress-nginx's own Service is provisioned as an NLB by the AWS Load
+# Balancer Controller (install ingress-nginx with the annotations in the
+# README). cert-manager answers the HTTP-01 challenge through this Ingress,
+# stores the certificate in the alldash-tls Secret, and renews it 30 days
+# before expiry. Every plain-HTTP request is redirected to HTTPS.
+#
+# Apply this file or ingress-alb.yaml, never both.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alldash
+  namespace: alldash
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - alldash.example.com
+      secretName: alldash-tls
+  rules:
+    - host: alldash.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http
