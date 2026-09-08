@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { dayKey, formatDate, addDays, startOfDay, endOfDay, isSameDay, toDate } from '../../core/time.js'
+import { dayKey, formatDate, formatWeekday, addDays, startOfDay, endOfDay, isSameDay, toDate } from '../../core/time.js'
 import { EntityList, Empty, Segmented } from '../components.jsx'
 
 const LENSES = [
@@ -74,7 +74,7 @@ export function Timeline({ entityList, onOpen }) {
                 <div className="timeline__day" key={day.key}>
                   <div className="timeline__date" data-today={today}>
                     <strong>{formatDate(day.key)}</strong>
-                    <span>{today ? 'Today' : formatDate(day.key, { weekday: 'long', month: undefined, day: undefined })}</span>
+                    <span>{today ? 'Today' : formatWeekday(day.key)}</span>
                   </div>
                   <div className="timeline__items">
                     <EntityList entities={day.rows} onOpen={onOpen} />

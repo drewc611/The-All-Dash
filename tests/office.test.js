@@ -75,6 +75,16 @@ test('a truncated or mangled zip fails with a message, not a RangeError', async 
   eocd.writeUInt32LE(46, 12)
   eocd.writeUInt32LE(999999, 16)
   await assert.rejects(readZip(eocd.buffer.slice(eocd.byteOffset, eocd.byteOffset + 22)), /Corrupt zip/)
+  // A central directory whose entry carries the wrong signature is an error,
+  // not an archive with no files in it.
+  const bad = Buffer.alloc(46 + 22)
+  bad.writeUInt32LE(0xdeadbeef, 0)
+  bad.writeUInt32LE(0x06054b50, 46)
+  bad.writeUInt16LE(1, 46 + 8)
+  bad.writeUInt16LE(1, 46 + 10)
+  bad.writeUInt32LE(46, 46 + 12)
+  bad.writeUInt32LE(0, 46 + 16)
+  await assert.rejects(readZip(bad.buffer.slice(bad.byteOffset, bad.byteOffset + bad.length)), /bad signature/)
 })
 
 test('pptx: slides become sections', () => {

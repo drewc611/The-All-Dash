@@ -22,3 +22,14 @@ export function hashId(prefix, ...parts) {
   }
   return `${prefix}_${h1.toString(36)}${h2.toString(36)}`
 }
+
+/** Same idea for raw bytes, so a binary file can be fingerprinted without decoding it. */
+export function hashBytes(prefix, bytes) {
+  let h1 = 0x811c9dc5
+  let h2 = 0x01000193
+  for (let i = 0; i < bytes.length; i++) {
+    h1 = Math.imul(h1 ^ bytes[i], 16777619) >>> 0
+    h2 = Math.imul(h2 + bytes[i], 2246822519) >>> 0
+  }
+  return `${prefix}_${h1.toString(36)}${h2.toString(36)}`
+}

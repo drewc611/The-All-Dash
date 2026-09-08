@@ -30,7 +30,8 @@ export async function readZip(buffer) {
   const files = new Map()
 
   for (let i = 0; i < count; i++) {
-    if (!within(offset, 46) || view.getUint32(offset, true) !== CDH_SIG) break
+    if (!within(offset, 46)) throw corrupt(`central directory entry ${i + 1} of ${count} is outside the file`)
+    if (view.getUint32(offset, true) !== CDH_SIG) throw corrupt(`central directory entry ${i + 1} of ${count} has a bad signature`)
     const method = view.getUint16(offset + 10, true)
     const compressedSize = view.getUint32(offset + 20, true)
     const nameLength = view.getUint16(offset + 28, true)

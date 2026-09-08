@@ -67,6 +67,13 @@ export function formatDate(d, opts = {}) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...opts })
 }
 
+export function formatWeekday(d, style = 'long') {
+  if (!d) return ''
+  const date = toDate(d)
+  if (Number.isNaN(Number(date))) return ''
+  return date.toLocaleDateString(undefined, { weekday: style })
+}
+
 export function formatTime(d) {
   if (!d) return ''
   const date = toDate(d)

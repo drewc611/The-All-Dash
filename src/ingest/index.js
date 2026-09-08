@@ -1,7 +1,7 @@
 import { listParsers } from '../core/registry.js'
-import { addEntities, registerDoc } from '../core/store.js'
+import { addEntities, registerDoc, syncDoc } from '../core/store.js'
 import { makeDoc } from '../data/schema.js'
-import { hashId } from '../core/id.js'
+import { hashId, hashBytes } from '../core/id.js'
 
 import './parsers/text.js'
 import './parsers/csv.js'
@@ -39,7 +39,12 @@ export async function ingestFile(file) {
   const binary = BINARY_EXTENSIONS.test(name)
   const buffer = binary ? await file.arrayBuffer() : null
   const text = binary ? '' : await file.text()
-  const docId = hashId('doc', name, String(file.size ?? text.length))
+  // A document's identity is its name: importing "Weekly sync.md" again means
+  // "here is the newer version", and syncDoc() replaces what the old one
+  // produced. The content fingerprint is kept on the doc so the version is
+  // still visible.
+  const docId = hashId('doc', name.trim().toLowerCase())
+  const version = binary ? hashBytes('v', new Uint8Array(buffer)) : hashId('v', text)
 
   const input = { name, text, buffer, mime: file.type || '', docId, kind: extensionOf(name) }
   const parser = pickParser(input)
@@ -48,8 +53,8 @@ export async function ingestFile(file) {
   const produced = (await parser.parse(input)) || []
   // A parser may add its own source fields (the line number); the document
   // identity and the parser id are set here so every entity agrees on them.
-  const entities = addEntities(produced.map((e) => ({ ...e, source: { ...e.source, docId, name, kind: parser.id } })))
-  const doc = makeDoc({ id: docId, name, kind: parser.id, size: file.size ?? text.length, text, produced: entities.length })
+  const entities = syncDoc(docId, produced.map((e) => ({ ...e, source: { ...e.source, docId, name, kind: parser.id } })))
+  const doc = makeDoc({ id: docId, name, kind: parser.id, size: file.size ?? text.length, text, produced: entities.length, version })
   registerDoc(doc)
   // The document is an entity too, so search and the activity feed can see it.
   addEntities([doc])

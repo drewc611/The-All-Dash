@@ -63,13 +63,18 @@ function urgencyFor(delta, lead) {
  */
 const announced = new Set()
 
+/** A reminder is "the same" only while it fires at the same instant, so a
+    snooze or a moved due date produces a fresh notification. */
+export const announceKey = (reminder) => `${reminder.id}:${reminder.fireAt}`
+
 export function runNotifications(reminders, enabled) {
   if (!enabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
   const now = Date.now()
   for (const reminder of reminders) {
-    if (announced.has(reminder.id)) continue
+    const key = announceKey(reminder)
+    if (announced.has(key)) continue
     if (reminder.fireAt > now || reminder.delta < -MS.day) continue
-    announced.add(reminder.id)
+    announced.add(key)
     try {
       const n = new Notification(reminder.entity.title, {
         body: `${reminder.kind === 'due' ? 'Due' : 'Starts'} ${reminder.label}`,

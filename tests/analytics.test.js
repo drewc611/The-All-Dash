@@ -4,10 +4,13 @@ import zlib from 'node:zlib'
 
 import { q, daily, trend, momentum, anomalies, streak, movingAverage } from '../src/core/query.js'
 import { makeEntity, mergeEntity } from '../src/data/schema.js'
-import { buildReminders } from '../src/engine/reminders.js'
+import { buildReminders, announceKey } from '../src/engine/reminders.js'
 import { buildInsights } from '../src/engine/insights.js'
 import { evaluate, discoveredSeries, compileCustom, availableMetrics } from '../src/engine/metrics.js'
 import { readZip } from '../src/ingest/zip.js'
+import { importWorkspace, getState, syncDoc, updateEntity, clearWorkspace } from '../src/core/store.js'
+import { ingestFile } from '../src/ingest/index.js'
+import { formatWeekday } from '../src/core/time.js'
 import { rangeFor, addDays, dayKey, iso } from '../src/core/time.js'
 import { format, compact } from '../src/core/format.js'
 
@@ -242,3 +245,51 @@ function buildZip(name, content) {
 
   return Buffer.concat([localBlock, centralBlock, eocd])
 }
+
+test('a snoozed reminder gets a fresh notification key', () => {
+  const before = { id: 'r1', fireAt: 1000 }
+  const after = { id: 'r1', fireAt: 5000 }
+  assert.notEqual(announceKey(before), announceKey(after))
+  assert.equal(announceKey(before), announceKey({ ...before }))
+})
+
+test('importing a workspace normalises every entity', () => {
+  clearWorkspace()
+  importWorkspace({ entities: { x: { id: 'x', type: 'task', title: 'Loose', people: 'Sam', tags: null } } })
+  const e = getState().entities.x
+  assert.deepEqual(e.people, [])
+  assert.deepEqual(e.tags, [])
+  assert.equal(e.status, 'open')
+})
+
+test('re-importing a document replaces what it produced but keeps hand edits', async () => {
+  clearWorkspace()
+  const v1 = new File(['## Action items\n- [ ] Keep me\n- [ ] Drop me'], 'Sync.md', { type: 'text/plain' })
+  const first = await ingestFile(v1)
+  const keep = first.entities.find((e) => e.title === 'Keep me')
+  const drop = first.entities.find((e) => e.title === 'Drop me')
+  updateEntity(keep.id, { status: 'done' })
+
+  const v2 = new File(['## Action items\n- [ ] Keep me\n- [ ] New one'], 'Sync.md', { type: 'text/plain' })
+  const second = await ingestFile(v2)
+  assert.equal(second.doc.id, first.doc.id, 'same name is the same document')
+  assert.notEqual(second.doc.meta.version, first.doc.meta.version, 'but a different version')
+  const state = getState()
+  assert.equal(state.entities[drop.id], undefined, 'stale item is gone')
+  assert.equal(state.entities[keep.id].status, 'done', 'hand edit survives')
+  assert.ok(Object.values(state.entities).some((e) => e.title === 'New one'))
+})
+
+test('syncDoc leaves other documents alone', () => {
+  clearWorkspace()
+  syncDoc('doc_a', [{ type: 'task', title: 'A1', source: { docId: 'doc_a' } }])
+  syncDoc('doc_b', [{ type: 'task', title: 'B1', source: { docId: 'doc_b' } }])
+  syncDoc('doc_a', [{ type: 'task', title: 'A2', source: { docId: 'doc_a' } }])
+  const titles = Object.values(getState().entities).map((e) => e.title).sort()
+  assert.deepEqual(titles, ['A2', 'B1'])
+})
+
+test('formatWeekday gives only the weekday', () => {
+  assert.equal(formatWeekday('2026-03-04'), new Date(2026, 2, 4).toLocaleDateString(undefined, { weekday: 'long' }))
+  assert.equal(formatWeekday(null), '')
+})

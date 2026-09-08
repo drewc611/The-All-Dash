@@ -120,6 +120,31 @@ export function addEntity(raw) {
   return addEntities([raw])[0]
 }
 
+/**
+ * Replace what one document produced. Items the new version no longer
+ * contains are dropped; items it still contains are merged, which keeps any
+ * status, priority or due date the user set by hand. This is what makes
+ * "import the updated file" do the obvious thing.
+ */
+export function syncDoc(docId, list) {
+  const next = (list || []).map(makeEntity)
+  const keep = new Set(next.map((e) => e.id))
+  const created = []
+  set((s) => {
+    const entities = {}
+    for (const [id, e] of Object.entries(s.entities)) {
+      if (e.source?.docId === docId && e.type !== 'doc' && !keep.has(id)) continue
+      entities[id] = e
+    }
+    for (const entity of next) {
+      entities[entity.id] = mergeEntity(entities[entity.id], entity)
+      created.push(entities[entity.id])
+    }
+    return { ...s, entities }
+  })
+  return created
+}
+
 export function updateEntity(id, patch) {
   set((s) => {
     const current = s.entities[id]
@@ -248,13 +273,37 @@ export function exportWorkspace() {
 export function importWorkspace(json, { merge = false } = {}) {
   const incoming = typeof json === 'string' ? JSON.parse(json) : json
   if (!incoming || typeof incoming !== 'object') throw new Error('Not a workspace file')
+  // Every entity goes back through the schema, so a hand-edited or older
+  // export cannot put a record without people/tags arrays into the store.
+  const entities = {}
+  for (const raw of Object.values(incoming.entities || {})) {
+    if (!raw || typeof raw !== 'object') continue
+    const entity = makeEntity(raw)
+    entities[entity.id] = entity
+  }
+  const docs = Array.isArray(incoming.docs) ? incoming.docs.filter((d) => d && d.id) : []
+  const customMetrics = Array.isArray(incoming.customMetrics) ? incoming.customMetrics.filter((m) => m && m.id) : []
   set((s) => {
-    if (!merge) return { ...initialState(), ...incoming, version: SCHEMA_VERSION }
+    if (!merge) {
+      const base = initialState()
+      return {
+        ...base,
+        ...incoming,
+        version: SCHEMA_VERSION,
+        entities,
+        docs,
+        customMetrics,
+        boards: incoming.boards && typeof incoming.boards === 'object' ? { ...base.boards, ...incoming.boards } : base.boards,
+        settings: { ...base.settings, ...(incoming.settings || {}) },
+        ui: { ...base.ui, ...(incoming.ui || {}) },
+        reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
+      }
+    }
     return {
       ...s,
-      entities: { ...s.entities, ...incoming.entities },
-      docs: [...(incoming.docs || []), ...s.docs].slice(0, 200),
-      customMetrics: [...s.customMetrics, ...(incoming.customMetrics || [])],
+      entities: { ...s.entities, ...entities },
+      docs: [...docs, ...s.docs].slice(0, 200),
+      customMetrics: [...s.customMetrics, ...customMetrics],
     }
   })
 }
