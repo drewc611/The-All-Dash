@@ -9,6 +9,7 @@ import { requestNotificationPermission } from '../../engine/reminders.js'
 import { REDUCERS } from '../../core/query.js'
 import { ENTITY_TYPES, TYPE_LABEL } from '../../data/schema.js'
 import { format } from '../../core/format.js'
+import { dayKey } from '../../core/time.js'
 import { Card, Segmented, Empty } from '../components.jsx'
 import { Sparkline } from '../viz/charts.jsx'
 import { IconTrash, IconPlus, IconUpload } from '../icons.jsx'
@@ -239,7 +240,7 @@ function MetricBuilder({ state, entities, range, onToast }) {
 
 function Data({ onToast }) {
   const download = () =>
-    downloadText(exportWorkspace(), `all-dash-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    downloadText(exportWorkspace(), `all-dash-${dayKey(new Date())}.json`, 'application/json')
 
   const restore = async (files) => {
     const file = files?.[0]

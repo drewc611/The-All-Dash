@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { defineWidget } from '../../core/registry.js'
 import { buildReport } from '../../engine/report.js'
 import { Empty } from '../components.jsx'
+import { dayKey } from '../../core/time.js'
 import { downloadText } from '../download.js'
 import { IconDoc, IconUpload } from '../icons.jsx'
 
@@ -46,7 +47,7 @@ defineWidget({
       }
     }
 
-    const download = () => downloadText(markdown, `status-${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
+    const download = () => downloadText(markdown, `status-${dayKey(new Date())}.md`, 'text/markdown')
 
     return (
       <div className="stack" style={{ gap: 'var(--gap-3)' }}>

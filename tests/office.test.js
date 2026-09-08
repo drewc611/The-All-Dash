@@ -46,8 +46,8 @@ test('docx: tables are pulled out as rows', () => {
 test('docx: entities survive the &amp; round trip, hex and decimal alike', () => {
   const { text } = docxToText(p('', 'R&amp;D &lt;plan&gt; it&#x2019;s &#8220;done&#8221;'))
   assert.equal(text, 'R&D <plan> it\u2019s \u201cdone\u201d')
-  // An entity that is not valid hex stays literal rather than vanishing.
-  assert.equal(unescapeXml('&#x1F600;&#xZZ;'), '\u{1F600}&#xZZ;')
+  // Invalid or out-of-range entities stay literal rather than vanishing.
+  assert.equal(unescapeXml('&#x1F600;&#xZZ;&#x110000;&#55296;'), '\u{1F600}&#xZZ;&#x110000;&#55296;')
 })
 
 test('a Word doc gets the same project tag and table handling as Markdown', () => {

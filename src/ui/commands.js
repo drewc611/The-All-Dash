@@ -2,7 +2,7 @@ import { defineCommand } from '../core/registry.js'
 import { addEntity, updateSettings, getState, exportWorkspace, resetBoard } from '../core/store.js'
 import { seedWorkspace } from '../data/seed.js'
 import { buildReport } from '../engine/report.js'
-import { rangeFor } from '../core/time.js'
+import { rangeFor, dayKey } from '../core/time.js'
 import { downloadText } from './download.js'
 
 /** Built-in commands. Plugins add their own with AllDash.defineCommand. */
@@ -94,7 +94,7 @@ defineCommand({
   name: 'Export workspace',
   hint: 'Download everything as JSON',
   keywords: ['backup', 'download', 'save'],
-  run: () => downloadText(exportWorkspace(), `all-dash-${new Date().toISOString().slice(0, 10)}.json`, 'application/json'),
+  run: () => downloadText(exportWorkspace(), `all-dash-${dayKey(new Date())}.json`, 'application/json'),
 })
 
 defineCommand({

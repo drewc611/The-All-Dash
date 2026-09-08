@@ -239,11 +239,13 @@ test('xlsx: shared strings, cell refs and date styles', () => {
 
   const rows = parseSheet(
     '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>' +
-    '<row r="2"><c r="A2" s="1"><v>45658</v></c><c r="B2"><v>120.5</v></c></row></sheetData>',
+    '<row r="2"><c r="A2" s="1"><v>45658</v></c><c r="B2"><v>120.5</v></c></row>' +
+    '<row r="3"><c r="A3" s="1"><v>45658.9999</v></c><c r="B3"><v>1</v></c></row></sheetData>',
     ['Date', 'Rev'],
     styles
   )
-  assert.deepEqual(rows, [['Date', 'Rev'], ['2025-01-01', 120.5]])
+  // A time of day late in the serial's fraction does not roll the date over.
+  assert.deepEqual(rows, [['Date', 'Rev'], ['2025-01-01', 120.5], ['2025-01-01', 1]])
 })
 
 test('ranges are inclusive of today', () => {

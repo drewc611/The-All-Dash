@@ -78,7 +78,9 @@ function readCell(type, style, content, shared, dateStyles) {
   if (type === 'b') return raw === '1' ? 'TRUE' : 'FALSE'
   const num = Number(raw)
   if (!Number.isFinite(num)) return unescapeXml(raw)
-  if (dateStyles.has(style)) return serialToDate(num).toISOString().slice(0, 10)
+  // The calendar day is the serial's whole part; the fraction is time of day
+  // and must not be allowed to round the date forward.
+  if (dateStyles.has(style)) return serialToDate(Math.floor(num)).toISOString().slice(0, 10)
   return num
 }
 
