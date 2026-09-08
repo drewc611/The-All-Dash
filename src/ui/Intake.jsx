@@ -169,7 +169,7 @@ export function FilePicker({ onFiles, children, className = 'btn' }) {
         type="file"
         multiple
         hidden
-        accept=".md,.markdown,.txt,.csv,.tsv,.json,.ndjson,.ics,.ical,.vtt,.srt,.html,.htm,.xlsx,.xlsm"
+        accept=".md,.markdown,.txt,.csv,.tsv,.json,.ndjson,.ics,.ical,.vtt,.srt,.html,.htm,.xlsx,.xlsm,.docx,.pptx"
         onChange={(e) => { onFiles(e.target.files); e.target.value = '' }}
       />
     </>

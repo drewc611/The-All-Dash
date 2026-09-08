@@ -1,0 +1,14 @@
+{
+  "name": "The All Dash",
+  "short_name": "All Dash",
+  "description": "One command center for meetings, calendars, spreadsheets, timelines and metrics.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f4f1",
+  "theme_color": "#2a78d6",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

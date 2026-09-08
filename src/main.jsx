@@ -13,3 +13,11 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>
 )
+
+// Installable and offline-capable in production. Skipped in dev so the
+// service worker never caches the dev server.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}

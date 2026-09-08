@@ -107,6 +107,7 @@ const BLANK = {
   unit: '',
   goal: 'up',
   tags: '',
+  target: '',
   onlyOpen: false,
 }
 
@@ -184,6 +185,10 @@ function MetricBuilder({ state, entities, range, onToast }) {
             <label className="field__label" htmlFor="m-unit">Unit</label>
             <input id="m-unit" className="input" value={draft.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="$, %, h" />
           </div>
+          <div className="field" style={{ flex: 1, minWidth: 100 }}>
+            <label className="field__label" htmlFor="m-target">Target</label>
+            <input id="m-target" className="input" type="number" value={draft.target} onChange={(e) => set({ target: e.target.value })} placeholder="optional" />
+          </div>
           <div className="field" style={{ flex: 1, minWidth: 120 }}>
             <span className="field__label">Good is</span>
             <Segmented
@@ -199,7 +204,11 @@ function MetricBuilder({ state, entities, range, onToast }) {
           <div className="stat">
             <span className="stat__label">{config.name}</span>
             <span className="stat__value">{preview ? format(preview.value, preview.unit) : '0'}</span>
-            <span className="stat__foot">{range.label.toLowerCase()}</span>
+            <span className="stat__foot">
+              {range.label.toLowerCase()}
+              {preview?.change !== null && preview?.change !== undefined && Number.isFinite(preview.previous) ? ` - ${preview.change >= 0 ? '+' : ''}${Math.round(preview.change * 100)}% vs previous` : ''}
+              {preview?.target ? ` - ${Math.round((preview.progress || 0) * 100)}% of target` : ''}
+            </span>
           </div>
           <div style={{ width: 180 }}>{preview?.series?.length > 1 && <Sparkline points={preview.series} height={44} />}</div>
         </div>
@@ -215,7 +224,7 @@ function MetricBuilder({ state, entities, range, onToast }) {
             {state.customMetrics.map((m) => (
               <div key={m.id} className="row" style={{ padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-sm)' }}>
                 <span style={{ fontWeight: 520 }}>{m.name}</span>
-                <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{m.reduce} over {m.entityType}{m.seriesName ? ` / ${m.seriesName}` : ''}</span>
+                <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{m.reduce} over {m.entityType}{m.seriesName ? ` / ${m.seriesName}` : ''}{m.target ? ` - target ${m.target}` : ''}</span>
                 <div className="spacer" />
                 <button className="btn btn--icon btn--danger btn--sm" onClick={() => removeCustomMetric(m.id)} aria-label={`Delete ${m.name}`}><IconTrash width={13} height={13} /></button>
               </div>

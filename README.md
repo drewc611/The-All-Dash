@@ -12,7 +12,7 @@ no account, and no runtime dependency beyond React.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 42 tests, no browser needed
+npm test         # 51 tests, no browser needed
 npm run build
 ```
 
@@ -53,6 +53,8 @@ file ──▶ parser registry ──▶ entities ──▶ store ──▶ quer
 | `.ics` `.ical` | Events with attendees, location and duration; recurrence expanded a year each way; action items hidden in invite descriptions |
 | `.csv` `.tsv` | Task tables (owner, status, due, priority) or metric tables (a date column plus any numeric columns) |
 | `.xlsx` `.xlsm` | Every sheet, via a 90-line ZIP reader over the browser's own `DecompressionStream`. No dependency |
+| `.docx` | Headings, lists, checkboxes and tables, through the same ZIP reader, then read as notes |
+| `.pptx` | Every slide's title and bullets, then read as notes |
 | `.json` `.ndjson` | An exported workspace, an entity array, or any array of records treated as a table |
 | `.html` | Flattened to text, then read as notes |
 
@@ -120,9 +122,15 @@ Three kinds, all the same shape downstream:
   (count/sum/avg/min/max/last), a date field, and optional tag or series filters.
   Live preview, then save. It shows up in every metric widget at once.
 
-Analytics on top of those: least-squares trend with an R², half-window momentum,
-z-score anomalies, streaks, and moving averages — about 60 lines in
-`src/core/query.js`, no dependency.
+Every metric is evaluated against the window immediately before it, so the
+headline delta is a real period-over-period comparison. A custom metric can
+carry a **target**; the app reports progress and, from the fitted trend, how
+many days until it is reached. Discovered series are checked pairwise for
+correlation and the strongest pair is surfaced.
+
+Analytics underneath: least-squares trend with an R², half-window momentum,
+straight-line forecast, Pearson correlation, z-score anomalies, streaks, and
+moving averages — about 100 lines in `src/core/query.js`, no dependency.
 
 ## What needs attention
 
@@ -133,6 +141,21 @@ Overdue work · tasks aging with no date · one person holding most of the open 
 · heavy meeting weeks with the focus time left over · commitments with no owner ·
 risks nobody has touched in a week · questions that never became decisions ·
 metrics moving more than 35% across the window · daily closing streaks.
+
+## Status update
+
+The weekly message every team writes by hand is assembled from the store:
+done, in progress, blocked and at risk, overdue, decisions, numbers that moved,
+the next seven days, the calendar, open questions. Every line is a real entity;
+nothing is invented. It is a widget on Today (copy or download as Markdown) and
+a command (`Copy my status update`).
+
+## Filters
+
+Chips above a board scope it to a person or a tag. They are derived from what
+is in the data, most common first. Widgets also take per-instance settings
+from the gear in their header, generated from the `options` each widget
+declares — a plugin widget gets that panel for free.
 
 ## Reminders
 
@@ -186,6 +209,12 @@ mouse, a thumb and a keyboard). No state library — one object, one
 extracting text from PDFs without a dependency is unreliable, and shipping
 something that half-works would be worse than saying so. Add it as a parser
 plugin when you need it.
+
+## Install it
+
+The build ships a web manifest and a small service worker, so it installs to a
+phone's home screen or a desktop dock and opens offline. The worker caches the
+app shell only; there is no network traffic to cache.
 
 ## Storage
 

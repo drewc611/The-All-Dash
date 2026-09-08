@@ -47,10 +47,17 @@ defineWidget({
   description: 'Open tasks ranked by how much they need you today: overdue, then due, then priority.',
   category: 'Day',
   size: 'md',
-  options: [{ key: 'limit', label: 'Rows', type: 'number', min: 3, max: 30 }],
+  options: [
+    { key: 'limit', label: 'Rows', type: 'number', min: 3, max: 30, default: 8 },
+    { key: 'person', label: 'Only this person', type: 'people' },
+    { key: 'tag', label: 'Only this tag', type: 'tags' },
+  ],
   render: ({ entityList, onOpen, config }) => {
     const now = new Date()
-    const tasks = q(entityList).type('task').open().all()
+    let scope = q(entityList).type('task').open()
+    if (config.person) scope = scope.person(config.person)
+    if (config.tag) scope = scope.tagged(config.tag)
+    const tasks = scope.all()
     const ranked = tasks
       .map((t) => ({ t, score: focusScore(t, now) }))
       .sort((a, b) => b.score - a.score)
@@ -84,8 +91,9 @@ defineWidget({
   description: 'Everything with a date attached, in the order it will hit you. Snooze or dismiss inline.',
   category: 'Day',
   size: 'sm',
-  render: ({ entityList, state, onOpen }) => {
-    const reminders = buildReminders(entityList, state).slice(0, 8)
+  options: [{ key: 'limit', label: 'Rows', type: 'number', min: 3, max: 30, default: 8 }],
+  render: ({ entityList, state, onOpen, config }) => {
+    const reminders = buildReminders(entityList, state).slice(0, config.limit || 8)
     if (!reminders.length) {
       return <Empty title="Nothing scheduled" hint="Tasks with a due date and calendar events show up here." />
     }
@@ -162,11 +170,17 @@ defineWidget({
   description: 'The last things to land, whatever they were and wherever they came from.',
   category: 'Day',
   size: 'md',
-  render: ({ entityList, onOpen }) => {
-    const rows = q(entityList)
-      .where((e) => e.type !== 'person')
-      .sort('createdAt', 'desc')
-      .take(10)
+  options: [
+    { key: 'limit', label: 'Rows', type: 'number', min: 3, max: 40, default: 10 },
+    { key: 'type', label: 'Only this type', type: 'select', choices: [
+      { value: 'task', label: 'Tasks' }, { value: 'event', label: 'Events' }, { value: 'decision', label: 'Decisions' },
+      { value: 'risk', label: 'Risks' }, { value: 'metric', label: 'Metrics' }, { value: 'note', label: 'Notes' }, { value: 'doc', label: 'Documents' },
+    ] },
+  ],
+  render: ({ entityList, onOpen, config }) => {
+    let scope = q(entityList).where((e) => e.type !== 'person')
+    if (config.type) scope = scope.type(config.type)
+    const rows = scope.sort('createdAt', 'desc').take(config.limit || 10)
     return <div style={{ margin: 'calc(var(--gap-4) * -1)' }}><EntityList entities={rows} onOpen={onOpen} /></div>
   },
 })

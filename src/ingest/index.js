@@ -9,8 +9,9 @@ import './parsers/json.js'
 import './parsers/ics.js'
 import './parsers/transcript.js'
 import './parsers/xlsx.js'
+import './parsers/office.js'
 
-const BINARY_EXTENSIONS = /\.(xlsx|xlsm|xls|zip|pptx|docx)$/i
+const BINARY_EXTENSIONS = /\.(xlsx|xlsm|docx|pptx|zip)$/i
 
 /** Highest-priority parser whose match() accepts the input. */
 export function pickParser(input) {

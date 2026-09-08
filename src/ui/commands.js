@@ -1,6 +1,8 @@
 import { defineCommand } from '../core/registry.js'
 import { addEntity, updateSettings, getState, exportWorkspace, resetBoard } from '../core/store.js'
 import { seedWorkspace } from '../data/seed.js'
+import { buildReport } from '../engine/report.js'
+import { rangeFor } from '../core/time.js'
 
 /** Built-in commands. Plugins add their own with AllDash.defineCommand. */
 
@@ -43,6 +45,24 @@ defineCommand({
   run: () => {
     const title = prompt('New task')
     if (title?.trim()) addEntity({ type: 'task', title: title.trim(), source: { kind: 'manual', name: 'Command bar' } })
+  },
+})
+
+defineCommand({
+  id: 'status-update',
+  name: 'Copy my status update',
+  hint: 'Done, in progress, blocked, decisions, numbers that moved, next 7 days - as Markdown',
+  keywords: ['report', 'weekly', 'standup', 'summary', 'update'],
+  run: async () => {
+    const state = getState()
+    const markdown = buildReport(state.entities, { range: rangeFor(state.ui.range), customMetrics: state.customMetrics })
+    const say = (message, tone) => window.dispatchEvent(new CustomEvent('alldash:toast', { detail: { message, tone } }))
+    try {
+      await navigator.clipboard.writeText(markdown)
+      say('Status update copied as Markdown.', 'good')
+    } catch {
+      say('Clipboard blocked. Open the Status update widget on Today and copy from there.', 'critical')
+    }
   },
 })
 

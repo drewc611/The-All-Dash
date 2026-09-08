@@ -22,6 +22,7 @@ const DEFAULT_BOARDS = {
     { id: 'w4', widgetId: 'pulse', size: 'sm' },
     { id: 'w5', widgetId: 'recent-activity', size: 'md' },
     { id: 'w6', widgetId: 'open-questions', size: 'md' },
+    { id: 'w7', widgetId: 'status-update', size: 'xl' },
   ],
   analytics: [
     { id: 'a1', widgetId: 'metric-grid', size: 'xl' },

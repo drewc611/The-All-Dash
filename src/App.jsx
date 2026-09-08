@@ -14,6 +14,7 @@ import { Timeline } from './ui/views/Timeline.jsx'
 import { Library } from './ui/views/Library.jsx'
 import { Settings } from './ui/views/Settings.jsx'
 import { Segmented } from './ui/components.jsx'
+import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
   IconSearch, IconUpload, IconBell, IconCommand,
@@ -24,7 +25,7 @@ import './ui/commands.js'
 
 const VIEWS = [
   { id: 'today', label: 'Today', Icon: IconToday, board: true },
-  { id: 'timeline', label: 'Timeline', Icon: IconTimeline },
+  { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
   { id: 'library', label: 'Library', Icon: IconLibrary },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
@@ -48,7 +49,13 @@ export default function App() {
   // Re-render when a plugin registers something after first paint.
   useSyncExternalStore(onRegistryChange, () => null, () => null)
 
-  const entityList = useMemo(() => Object.values(state.entities), [state.entities])
+  const allEntities = useMemo(() => Object.values(state.entities), [state.entities])
+  // Boards see the filtered world; the library and inspector always see everything.
+  const entityList = useMemo(() => applyFilters(allEntities, state.ui), [allEntities, state.ui.filterPeople, state.ui.filterTags])
+  const scopedEntities = useMemo(
+    () => (entityList === allEntities ? state.entities : Object.fromEntries(entityList.map((e) => [e.id, e]))),
+    [entityList, allEntities, state.entities]
+  )
   const range = useMemo(() => rangeFor(state.ui.range), [state.ui.range])
 
   const navigate = useCallback((next) => {
@@ -90,12 +97,15 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     const onPaste = () => setPasting(true)
+    const onToast = (e) => toast(e.detail?.message || '', e.detail?.tone || 'info')
     window.addEventListener('alldash:paste', onPaste)
+    window.addEventListener('alldash:toast', onToast)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('alldash:paste', onPaste)
+      window.removeEventListener('alldash:toast', onToast)
     }
-  }, [navigate])
+  }, [navigate, toast])
 
   // Reminders tick on a minute, plus whenever the tab comes back into focus.
   const [, setTick] = useState(0)
@@ -107,8 +117,8 @@ export default function App() {
   }, [])
 
   const reminders = useMemo(
-    () => buildReminders(entityList, state),
-    [entityList, state.reminders, state.settings.reminderLeadMinutes]
+    () => buildReminders(allEntities, state),
+    [allEntities, state.reminders, state.settings.reminderLeadMinutes]
   )
 
   useEffect(() => {
@@ -116,7 +126,7 @@ export default function App() {
   }, [reminders, state.settings.notifications])
 
   const context = {
-    entities: state.entities,
+    entities: scopedEntities,
     entityList,
     range,
     state,
@@ -126,10 +136,10 @@ export default function App() {
 
   const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
-  const empty = entityList.length === 0
+  const empty = allEntities.length === 0
 
   const related = inspecting
-    ? q(entityList).where((e) => e.source?.docId === inspecting.source?.docId && e.id !== inspecting.id).take(8)
+    ? q(allEntities).where((e) => e.source?.docId === inspecting.source?.docId && e.id !== inspecting.id).take(8)
     : []
 
   return (
@@ -195,6 +205,8 @@ export default function App() {
           </div>
         </header>
 
+        {(active.board || active.filters) && !empty && <FilterBar entityList={allEntities} ui={state.ui} />}
+
         <div className="scroller">
           {empty && view !== 'settings' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} />
@@ -203,7 +215,7 @@ export default function App() {
           ) : view === 'timeline' ? (
             <Timeline entityList={entityList} onOpen={setInspecting} />
           ) : view === 'library' ? (
-            <Library entityList={entityList} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
+            <Library entityList={allEntities} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}
@@ -253,7 +265,7 @@ function FirstRun({ onSeed, onFiles, onPaste }) {
           </div>
           <div className="divider" style={{ margin: 'var(--gap-3) 0' }} />
           <div className="row row--wrap" style={{ gap: 'var(--gap-1)' }}>
-            {['.md', '.txt', '.csv', '.tsv', '.xlsx', '.json', '.ics', '.vtt', '.srt', '.html'].map((ext) => (
+            {['.md', '.txt', '.docx', '.pptx', '.xlsx', '.csv', '.json', '.ics', '.vtt', '.html'].map((ext) => (
               <span key={ext} className="chip mono">{ext}</span>
             ))}
           </div>

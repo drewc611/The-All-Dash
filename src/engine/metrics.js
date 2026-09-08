@@ -1,5 +1,6 @@
 import { defineMetric, getMetric, listMetrics } from '../core/registry.js'
-import { q, daily, trend, momentum } from '../core/query.js'
+import { q, daily, trend, momentum, forecast } from '../core/query.js'
+import { addDays } from '../core/time.js'
 import { OPEN_STATUSES } from '../data/schema.js'
 
 /**
@@ -106,6 +107,7 @@ export function compileCustom(config) {
     name: config.name,
     unit: config.unit || '',
     goal: config.goal || 'up',
+    target: Number.isFinite(Number(config.target)) && config.target !== '' && config.target !== null ? Number(config.target) : null,
     custom: true,
     config,
     compute: (entities, range) => {
@@ -146,17 +148,46 @@ export function availableMetrics(entities, customMetrics = []) {
   return [...listMetrics(), ...discovered, ...customMetrics.map(compileCustom)]
 }
 
-export function evaluate(metric, entities, range) {
+/**
+ * Evaluate a metric over a window. Alongside the value and its daily series
+ * this returns the same metric over the window immediately before, so the
+ * headline change is a real period-over-period comparison rather than a
+ * guess from the shape of one line.
+ */
+export function evaluate(metric, entities, range, { compare = true } = {}) {
   const spec = typeof metric === 'string' ? getMetric(metric) : metric
   if (!spec) return null
-  const result = spec.compute(Object.values(entities), range) || { value: 0, series: [] }
+  const list = Array.isArray(entities) ? entities : Object.values(entities)
+  const result = spec.compute(list, range) || { value: 0, series: [] }
   const points = result.series || []
+
+  let previous = null
+  let change = null
+  if (compare && range?.from && range?.to && range.days && range.days < 3000) {
+    const span = range.days
+    // The previous window ends the instant before this one starts.
+    const prevRange = { from: addDays(range.from, -span), to: new Date(new Date(range.from).getTime() - 1), label: 'previous', days: span }
+    const prev = spec.compute(list, prevRange) || { value: 0, series: [] }
+    previous = prev.value
+    if (Number.isFinite(previous) && previous !== 0) change = (result.value - previous) / Math.abs(previous)
+    else if (Number.isFinite(previous) && previous === 0 && result.value !== 0) change = 1
+    else change = 0
+  }
+
+  const target = spec.target ?? null
+  const projection = points.length >= 3 ? forecast(points, { days: 7, target }) : null
+
   return {
     id: spec.id,
     name: spec.name,
     unit: spec.unit || '',
     goal: spec.goal || 'up',
     value: result.value,
+    previous,
+    change,
+    target,
+    progress: target ? Math.max(0, Math.min(1, result.value / target)) : null,
+    projection,
     series: points,
     trend: trend(points),
     momentum: momentum(points),

@@ -1,4 +1,4 @@
-import { q, daily, trend, momentum, anomalies, streak } from '../core/query.js'
+import { q, daily, trend, momentum, anomalies, streak, correlation } from '../core/query.js'
 import { addDays, dayKey, relative } from '../core/time.js'
 import { availableMetrics, evaluate } from './metrics.js'
 import { format } from '../core/format.js'
@@ -26,6 +26,8 @@ export function buildInsights(entitiesMap, range, customMetrics = [], now = new 
   stalledRisks(entities, now, add)
   decisionDebt(entities, add)
   metricMovement(entitiesMap, range, customMetrics, add)
+  targetPace(entitiesMap, range, customMetrics, add)
+  pairedSeries(entitiesMap, range, customMetrics, add)
   completionRhythm(entities, range, add)
 
   return found.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]).slice(0, 12)
@@ -162,6 +164,66 @@ function metricMovement(entitiesMap, range, customMetrics, add) {
       })
     }
   }
+}
+
+/** Custom metrics with a target: are we on pace, and when do we get there. */
+function targetPace(entitiesMap, range, customMetrics, add) {
+  for (const metric of availableMetrics(entitiesMap, customMetrics)) {
+    if (!metric.target) continue
+    const result = evaluate(metric, entitiesMap, range, { compare: false })
+    if (!result) continue
+    const pct = Math.round((result.progress ?? 0) * 100)
+    const eta = result.projection?.daysToTarget
+    if (result.value >= result.target) {
+      add({
+        id: `target:${result.id}`,
+        severity: 'good',
+        title: `${result.name} hit its target`,
+        detail: `${format(result.value, result.unit)} against a target of ${format(result.target, result.unit)}.`,
+        metric: result,
+      })
+    } else if (eta !== null && eta !== undefined && eta <= 60) {
+      add({
+        id: `target:${result.id}`,
+        severity: 'info',
+        title: `${result.name} is ${pct}% of the way, on pace in ~${eta} days`,
+        detail: `${format(result.value, result.unit)} of ${format(result.target, result.unit)}. Projection is a straight line through ${range.label.toLowerCase()}.`,
+        metric: result,
+      })
+    } else {
+      add({
+        id: `target:${result.id}`,
+        severity: 'warning',
+        title: `${result.name} is ${pct}% of target and not trending toward it`,
+        detail: `${format(result.value, result.unit)} of ${format(result.target, result.unit)}. At the current slope the target is not reached in the next two months.`,
+        metric: result,
+      })
+    }
+  }
+}
+
+/** Two imported series that move together are worth knowing about. */
+function pairedSeries(entitiesMap, range, customMetrics, add) {
+  const discovered = availableMetrics(entitiesMap, customMetrics).filter((m) => m.config?.discovered)
+  if (discovered.length < 2) return
+  const evaluated = discovered
+    .map((m) => evaluate(m, entitiesMap, range, { compare: false }))
+    .filter((r) => r && r.series.filter((p) => p.value).length >= 10)
+  let best = null
+  for (let i = 0; i < evaluated.length; i++) {
+    for (let j = i + 1; j < evaluated.length; j++) {
+      const r = correlation(evaluated[i].series, evaluated[j].series)
+      if (Math.abs(r) >= 0.8 && (!best || Math.abs(r) > Math.abs(best.r))) best = { a: evaluated[i], b: evaluated[j], r }
+    }
+  }
+  if (!best) return
+  add({
+    id: `pair:${best.a.id}:${best.b.id}`,
+    severity: 'info',
+    title: `${best.a.name} and ${best.b.name} move ${best.r > 0 ? 'together' : 'in opposite directions'}`,
+    detail: `Correlation ${best.r.toFixed(2)} across ${range.label.toLowerCase()}. Correlation is not cause, but it is worth a look.`,
+    metric: best.a,
+  })
 }
 
 function completionRhythm(entities, range, add) {

@@ -48,7 +48,7 @@ const STATUS_FOR_BOX = { ' ': 'open', '/': 'doing', x: 'done', X: 'done', '~': '
 export function extractFromText(text, source, refDate = new Date()) {
   const lines = String(text || '').split(/\r?\n/)
   const entities = []
-  const meta = { people: [], project: null, date: null, headings: [] }
+  const meta = { people: [], project: null, date: null, title: null, headings: [] }
 
   let section = null
   let sectionKind = null
@@ -63,8 +63,16 @@ export function extractFromText(text, source, refDate = new Date()) {
 
     const heading = line.match(HEADING)
     if (heading) {
-      section = heading[2].replace(/[#*_`]/g, '').trim()
-      meta.headings.push(section)
+      const label = heading[2].replace(/[#*_`]/g, '').trim()
+      meta.headings.push(label)
+      if (heading[1].length === 1 && !meta.title) {
+        // The document's own title names the document, not a topic.
+        meta.title = label
+        section = null
+        sectionKind = null
+        continue
+      }
+      section = label
       sectionKind = classifySection(section)
       continue
     }
@@ -287,6 +295,20 @@ export function strip(text, refDate = new Date()) {
 
   title = title.replace(/\s{2,}/g, ' ').replace(/^[\s\-:,]+|[\s\-:,]+$/g, '').trim()
   return { title: title || String(text).trim(), people, tags, due, priority }
+}
+
+/**
+ * "@Dev" in an action item and "Dev Kaur" in the attendee list are the same
+ * person. When a bare first name matches exactly one known full name, use the
+ * full name so the person shows up once everywhere.
+ */
+export function canonicalPeople(names, known) {
+  if (!names?.length || !known?.length) return names || []
+  return names.map((name) => {
+    if (name.includes(' ')) return name
+    const matches = known.filter((k) => k.toLowerCase().split(' ')[0] === name.toLowerCase())
+    return matches.length === 1 ? matches[0] : name
+  })
 }
 
 export function splitPeople(text) {

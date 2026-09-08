@@ -215,6 +215,45 @@ export function streak(series) {
   return current
 }
 
+/**
+ * Project the fitted trend forward. Returns the value expected `days` after
+ * the last point, plus how many days until `target` is reached (null when the
+ * trend does not point at it).
+ */
+export function forecast(series, { days = 7, target = null } = {}) {
+  const fit = trend(series)
+  const n = series.length
+  if (n < 3) return { value: series.at(-1)?.value ?? 0, daysToTarget: null, slope: 0, r2: 0 }
+  const value = fit.intercept + fit.slope * (n - 1 + days)
+  let daysToTarget = null
+  if (target !== null && Number.isFinite(target) && fit.slope !== 0) {
+    const current = fit.intercept + fit.slope * (n - 1)
+    const eta = (target - current) / fit.slope
+    daysToTarget = eta >= 0 ? Math.ceil(eta) : null
+  }
+  return { value, daysToTarget, slope: fit.slope, r2: fit.r2 }
+}
+
+/** Pearson correlation between two equal-length value series, -1..1. */
+export function correlation(a, b) {
+  const n = Math.min(a.length, b.length)
+  if (n < 5) return 0
+  const xs = a.slice(0, n).map((p) => Number(p.value) || 0)
+  const ys = b.slice(0, n).map((p) => Number(p.value) || 0)
+  const mx = xs.reduce((s, v) => s + v, 0) / n
+  const my = ys.reduce((s, v) => s + v, 0) / n
+  let num = 0
+  let dx = 0
+  let dy = 0
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - mx) * (ys[i] - my)
+    dx += (xs[i] - mx) ** 2
+    dy += (ys[i] - my) ** 2
+  }
+  const den = Math.sqrt(dx * dy)
+  return den === 0 ? 0 : num / den
+}
+
 export function movingAverage(series, window = 7) {
   return series.map((p, i) => {
     const slice = series.slice(Math.max(0, i - window + 1), i + 1)

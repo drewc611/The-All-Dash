@@ -30,7 +30,8 @@ defineWidget({
             value={m.value}
             unit={m.unit}
             goal={m.goal}
-            delta={m.series.length >= 4 ? m.momentum : null}
+            delta={m.change}
+            footnote={m.change !== null && Math.abs(Math.round(m.change * 100)) >= 1 ? 'vs previous window' : undefined}
           />
         ))}
       </div>
@@ -59,7 +60,8 @@ defineWidget({
             value={m.value}
             unit={m.unit}
             goal={m.goal}
-            delta={m.series.length >= 4 ? m.momentum : null}
+            delta={m.change}
+            footnote={m.target ? `${Math.round((m.progress || 0) * 100)}% of ${format(m.target, m.unit)}` : undefined}
             points={m.series}
           />
         ))}
@@ -124,11 +126,23 @@ defineWidget({
 })
 
 function describeTrend(result) {
-  const change = result.momentum
   if (!result.series.length) return 'No data in this window.'
-  if (Math.abs(change) < 0.05) return `Flat across the window. Confidence in the fit: ${Math.round(result.trend.r2 * 100)}%.`
-  const direction = change > 0 ? 'up' : 'down'
-  return `Second half of the window is ${direction} ${Math.abs(Math.round(change * 100))}% against the first. Fit confidence ${Math.round(result.trend.r2 * 100)}%.`
+  const parts = []
+  if (result.change !== null && Number.isFinite(result.previous)) {
+    const pct = Math.round(result.change * 100)
+    parts.push(pct === 0 ? 'Level with the previous window.' : `${pct > 0 ? 'Up' : 'Down'} ${Math.abs(pct)}% on the previous window (${format(result.previous, result.unit)}).`)
+  }
+  const change = result.momentum
+  if (Math.abs(change) >= 0.05) {
+    parts.push(`Inside the window the second half is ${change > 0 ? 'up' : 'down'} ${Math.abs(Math.round(change * 100))}% on the first.`)
+  }
+  if (result.projection && result.trend.r2 >= 0.3) {
+    parts.push(`Straight-line projection for 7 days out: ${format(result.projection.value, result.unit)} (fit ${Math.round(result.trend.r2 * 100)}%).`)
+  }
+  if (result.target && result.projection?.daysToTarget !== null && result.projection?.daysToTarget !== undefined) {
+    parts.push(`Target ${format(result.target, result.unit)} reached in about ${result.projection.daysToTarget} days at this pace.`)
+  }
+  return parts.join(' ') || 'Flat across the window.'
 }
 
 defineWidget({
@@ -143,7 +157,7 @@ defineWidget({
     const total = done.length
     return (
       <div className="stack" style={{ gap: 'var(--gap-3)' }}>
-        <StatTile label="Closed in window" value={total} delta={points.length >= 4 ? momentum(points) : null} />
+        <StatTile label="Closed in window" value={total} delta={momentum(points) || null} />
         <BarChart points={points} height={150} />
       </div>
     )

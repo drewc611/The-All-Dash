@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { extractFromText, strip, splitPeople } from '../src/ingest/extract.js'
+import { extractFromText, strip, splitPeople, canonicalPeople } from '../src/ingest/extract.js'
 import { parseDelimited, toTable } from '../src/ingest/parsers/csv.js'
 import { entitiesFromTable, toNumber, profileColumns } from '../src/ingest/tabular.js'
 import { parseIcs, parseIcsDate, expand, unfold } from '../src/ingest/parsers/ics.js'
@@ -249,4 +249,18 @@ test('ranges are inclusive of today', () => {
   const range = rangeFor('7d', new Date(2026, 2, 10))
   assert.equal(dayKey(range.from), '2026-03-04')
   assert.equal(dayKey(range.to), '2026-03-10')
+})
+
+test('a bare first name resolves to the attendee with that name', () => {
+  const known = ['Dev Kaur', 'Sam Ojo', 'Sam Lee']
+  assert.deepEqual(canonicalPeople(['Dev'], known), ['Dev Kaur'])
+  assert.deepEqual(canonicalPeople(['Sam'], known), ['Sam'])
+  assert.deepEqual(canonicalPeople(['Priya Raman'], known), ['Priya Raman'])
+})
+
+test('the document title is not a topic tag', () => {
+  const { entities, meta } = extractFromText('# Atlas retro\n\n## Risks\n- Rollback untested', source)
+  assert.equal(meta.title, 'Atlas retro')
+  const risk = entities.find((e) => e.type === 'risk')
+  assert.deepEqual(risk.tags, ['risks'])
 })

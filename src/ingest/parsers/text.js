@@ -1,5 +1,5 @@
 import { defineParser } from '../../core/registry.js'
-import { extractFromText, titleCase } from '../extract.js'
+import { extractFromText, titleCase, canonicalPeople } from '../extract.js'
 import { iso } from '../../core/time.js'
 
 /**
@@ -15,7 +15,7 @@ function build({ name, text, docId, kind }) {
   const withDate = entities.map((e) => ({
     ...e,
     at: e.at || (e.type === 'metric' ? at : null),
-    people: e.people?.length ? e.people : meta.people.slice(0, 1),
+    people: e.people?.length ? canonicalPeople(e.people, meta.people) : meta.people.slice(0, 1),
     tags: meta.project ? [...(e.tags || []), slugish(meta.project)] : e.tags,
   }))
 

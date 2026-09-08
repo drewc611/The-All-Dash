@@ -130,6 +130,27 @@
 .row--between { justify-content: space-between; }
 .spacer { flex: 1; }
 
+/* ------------------------------------------------------------- filterbar */
+
+.filterbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-1);
+  padding: var(--gap-2) var(--gap-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  flex: none;
+  scrollbar-width: none;
+}
+
+.filterbar::-webkit-scrollbar { display: none; }
+.filterbar__sep { width: 1px; height: 16px; background: var(--line-strong); margin: 0 var(--gap-1); flex: none; }
+
+@media (max-width: 720px) {
+  .filterbar { padding: var(--gap-2) var(--gap-3); }
+}
+
 /* ----------------------------------------------------------------- board */
 
 .board {
