@@ -181,12 +181,17 @@ export function registerDoc(doc) {
   set((s) => ({ ...s, docs: [doc, ...s.docs.filter((d) => d.id !== doc.id)].slice(0, 200) }))
 }
 
+/** What one click on a task's checkbox does. Blocked and cancelled reopen. */
+export function nextTaskStatus(status) {
+  if (status === 'open') return 'doing'
+  if (status === 'doing') return 'done'
+  return 'open'
+}
+
 export function cycleTaskStatus(id) {
   const current = state.entities[id]
   if (!current) return
-  const order = ['open', 'doing', 'done']
-  const idx = order.indexOf(current.status)
-  updateEntity(id, { status: order[(idx + 1) % order.length] })
+  updateEntity(id, { status: nextTaskStatus(current.status) })
 }
 
 // ------------------------------------------------------------------ boards

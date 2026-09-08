@@ -121,10 +121,12 @@ export function parseLooseDate(input, ref = new Date()) {
   if (weekday) {
     const target = WEEKDAYS.indexOf(weekday[2])
     const modifier = (weekday[1] || '').trim()
-    let delta = (target - base.getDay() + 7) % 7
-    if (delta === 0) delta = 7
-    if (modifier === 'next' && delta < 7) delta += 7
-    if (modifier === 'last') delta -= 7
+    const ahead = (target - base.getDay() + 7) % 7 // 0..6, 0 when today is that day
+    let delta
+    if (modifier === 'this') delta = ahead // "this monday" on a Monday is today
+    else if (modifier === 'last') delta = ahead - 7 // always in the past, a week ago on that day
+    else if (modifier === 'next') delta = ahead === 0 ? 7 : ahead + 7 // the one after the coming one
+    else delta = ahead === 0 ? 7 : ahead // bare "monday" is the coming one, never today
     return iso(atHour(addDays(base, delta), 17))
   }
 

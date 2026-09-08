@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { cycleTaskStatus } from '../core/store.js'
+import { cycleTaskStatus, nextTaskStatus } from '../core/store.js'
 import { formatDate, formatTime, relative } from '../core/time.js'
 import { format } from '../core/format.js'
 import { IconCheck, IconClose, IconDash } from './icons.jsx'
@@ -60,12 +60,12 @@ const STATUS_MARK = {
   blocked: IconClose,
 }
 
-const NEXT_STATUS = { open: 'in progress', doing: 'done', done: 'open', blocked: 'in progress', cancelled: 'in progress' }
+const STATUS_WORD = { open: 'open', doing: 'in progress', done: 'done' }
 
 export function TaskRow({ entity, onOpen, showDate = true }) {
   const Mark = STATUS_MARK[entity.status]
   const overdue = entity.due && entity.status !== 'done' && new Date(entity.due) < new Date()
-  const next = NEXT_STATUS[entity.status] || 'in progress'
+  const next = STATUS_WORD[nextTaskStatus(entity.status)]
   return (
     <div className={`list__item list__item--interactive${entity.status === 'done' ? ' done' : ''}`}>
       <button

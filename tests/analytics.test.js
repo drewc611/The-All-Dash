@@ -8,7 +8,7 @@ import { buildReminders, announceKey } from '../src/engine/reminders.js'
 import { buildInsights } from '../src/engine/insights.js'
 import { evaluate, discoveredSeries, compileCustom, availableMetrics } from '../src/engine/metrics.js'
 import { readZip } from '../src/ingest/zip.js'
-import { importWorkspace, getState, syncDoc, updateEntity, clearWorkspace } from '../src/core/store.js'
+import { importWorkspace, getState, syncDoc, updateEntity, clearWorkspace, nextTaskStatus } from '../src/core/store.js'
 import { ingestFile } from '../src/ingest/index.js'
 import { formatWeekday } from '../src/core/time.js'
 import { rangeFor, addDays, dayKey, iso } from '../src/core/time.js'
@@ -303,4 +303,12 @@ test('a custom metric with reduce last takes the latest by date, not by import o
   const entities = Object.fromEntries(rows.map((r) => [r.id, r]))
   const metric = compileCustom({ id: 'c', name: 'S', entityType: 'metric', seriesName: 'S', reduce: 'last' })
   assert.equal(evaluate(metric, entities, rangeFor('7d')).value, 30)
+})
+
+test('a checkbox click cycles open, in progress, done, and reopens anything else', () => {
+  assert.equal(nextTaskStatus('open'), 'doing')
+  assert.equal(nextTaskStatus('doing'), 'done')
+  assert.equal(nextTaskStatus('done'), 'open')
+  assert.equal(nextTaskStatus('blocked'), 'open')
+  assert.equal(nextTaskStatus('cancelled'), 'open')
 })
