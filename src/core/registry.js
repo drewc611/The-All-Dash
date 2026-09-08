@@ -89,7 +89,7 @@ export function defineCommand(spec) {
  * @param {string} spec.id
  * @param {string} spec.name
  * @param {string} [spec.unit]       '', '$', '%', 'h'
- * @param {'up'|'down'|'flat'} [spec.goal]  which direction is good
+ * @param {'up'|'down'|'neutral'} [spec.goal]  which direction is good; neutral shows change without judging it
  * @param {(entities, range) => {value:number, series?:Array}} spec.compute
  */
 export function defineMetric(spec) {

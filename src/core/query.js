@@ -136,6 +136,12 @@ export function daily(rows, { from, to, field = 'at', reduce = 'count', valueFie
     const key = row[field] && dayKey(row[field])
     if (key && buckets.has(key)) buckets.get(key).push(row)
   }
+  // Rows arrive in import order, which says nothing about time of day. Sort
+  // each bucket by the date field so `last` is the latest value, not the one
+  // that happened to be appended last.
+  for (const group of buckets.values()) {
+    if (group.length > 1) group.sort((a, b) => new Date(a[field]) - new Date(b[field]))
+  }
   return [...buckets.entries()].map(([key, group]) => ({
     key,
     at: key,

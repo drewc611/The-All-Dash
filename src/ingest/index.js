@@ -40,7 +40,9 @@ export async function ingestFile(file) {
   if (!parser) throw new Error(`Nothing here can read ${name}`)
 
   const produced = (await parser.parse(input)) || []
-  const entities = addEntities(produced.map((e) => ({ ...e, source: { docId, name, kind: parser.id, ...e.source } })))
+  // A parser may add its own source fields (the line number); the document
+  // identity and the parser id are set here so every entity agrees on them.
+  const entities = addEntities(produced.map((e) => ({ ...e, source: { ...e.source, docId, name, kind: parser.id } })))
   const doc = makeDoc({ id: docId, name, kind: parser.id, size: file.size ?? text.length, text, produced: entities.length })
   registerDoc(doc)
   // The document is an entity too, so search and the activity feed can see it.

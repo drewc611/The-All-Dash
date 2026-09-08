@@ -74,6 +74,19 @@ test('daily supports sum and avg reducers', () => {
   assert.equal(daily(rows, { from, to: new Date(), reduce: 'avg' })[1].value, 15)
 })
 
+test('daily last takes the latest value by timestamp, whatever the input order', () => {
+  const day = new Date()
+  const stamp = (h) => { const d = new Date(day); d.setHours(h, 0, 0, 0); return d.toISOString() }
+  const rows = [
+    makeEntity({ type: 'metric', title: 'late', series: 'S', value: 30, at: stamp(18) }),
+    makeEntity({ type: 'metric', title: 'early', series: 'S', value: 10, at: stamp(8) }),
+    makeEntity({ type: 'metric', title: 'noon', series: 'S', value: 20, at: stamp(12) }),
+  ]
+  const [point] = daily(rows, { from: day, to: day, reduce: 'last' })
+  assert.equal(point.value, 30)
+  assert.deepEqual(point.rows.map((r) => r.title), ['early', 'noon', 'late'])
+})
+
 test('trend, momentum, anomalies and streak read a series correctly', () => {
   const rising = [1, 2, 3, 4, 5, 6].map((v, i) => ({ key: String(i), value: v }))
   assert.ok(trend(rising).slope > 0.9)
