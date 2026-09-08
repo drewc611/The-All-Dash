@@ -13,9 +13,15 @@ import './parsers/office.js'
 
 const BINARY_EXTENSIONS = /\.(xlsx|xlsm|docx|pptx|zip)$/i
 
-/** Highest-priority parser whose match() accepts the input. */
+/**
+ * Highest-priority parser whose match() accepts the input. A binary file only
+ * ever goes to a parser that declared it can read binary; otherwise a stray
+ * .zip would fall through to the plain-text reader and become an empty note.
+ */
 export function pickParser(input) {
+  const binary = Boolean(input.buffer)
   return listParsers().find((p) => {
+    if (binary && !p.binary) return false
     try {
       return p.match ? p.match(input) : p.extensions.some((ext) => input.name?.toLowerCase().endsWith(ext))
     } catch {
@@ -37,7 +43,7 @@ export async function ingestFile(file) {
 
   const input = { name, text, buffer, mime: file.type || '', docId, kind: extensionOf(name) }
   const parser = pickParser(input)
-  if (!parser) throw new Error(`Nothing here can read ${name}`)
+  if (!parser) throw new Error(`No reader for .${input.kind} files`)
 
   const produced = (await parser.parse(input)) || []
   // A parser may add its own source fields (the line number); the document

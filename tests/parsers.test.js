@@ -9,6 +9,7 @@ import { transcriptToTurns } from '../src/ingest/parsers/transcript.js'
 import { htmlToText } from '../src/ingest/parsers/text.js'
 import { parseSharedStrings, parseSheet, parseDateStyles, columnIndex, serialToDate } from '../src/ingest/parsers/xlsx.js'
 import { parseLooseDate, dayKey, rangeFor } from '../src/core/time.js'
+import { pickParser } from '../src/ingest/index.js'
 
 const source = { docId: 'd1', name: 'test.md', kind: 'markdown' }
 
@@ -263,4 +264,20 @@ test('the document title is not a topic tag', () => {
   assert.equal(meta.title, 'Atlas retro')
   const risk = entities.find((e) => e.type === 'risk')
   assert.deepEqual(risk.tags, ['risks'])
+})
+
+test('binary inputs only go to parsers that read binary', () => {
+  const zip = { name: 'archive.zip', text: '', buffer: new ArrayBuffer(8), kind: 'zip' }
+  assert.equal(pickParser(zip), undefined)
+  const xlsx = { name: 'sheet.xlsx', text: '', buffer: new ArrayBuffer(8), kind: 'xlsx' }
+  assert.equal(pickParser(xlsx)?.id, 'xlsx')
+  const notes = { name: 'notes.md', text: '# Hi', buffer: null, kind: 'md' }
+  assert.equal(pickParser(notes)?.id, 'markdown')
+})
+
+test('the plain-text fallback refuses bytes that are not text', () => {
+  const junk = { name: 'blob.bin', text: 'abc\u0000def', buffer: null, kind: 'bin' }
+  assert.equal(pickParser(junk), undefined)
+  const okay = { name: 'blob.unknown', text: 'just words', buffer: null, kind: 'unknown' }
+  assert.equal(pickParser(okay)?.id, 'plain')
 })

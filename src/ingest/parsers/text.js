@@ -71,13 +71,14 @@ defineParser({
   parse: (input) => build({ ...input, text: htmlToText(input.text) }),
 })
 
-/** Last resort: anything textual we could not place still gets read. */
+/** Last resort: anything textual we could not place still gets read. Bytes
+    that are clearly not text (a NUL in the first few kilobytes) are refused. */
 defineParser({
   id: 'plain',
   name: 'Any text',
   extensions: [],
   priority: -100,
-  match: () => true,
+  match: ({ text, buffer }) => !buffer && !String(text || '').slice(0, 4096).includes('\u0000'),
   parse: build,
 })
 
