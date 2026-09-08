@@ -22,3 +22,45 @@ jobs:
       - run: TZ=America/Los_Angeles npm test
       - run: TZ=Pacific/Auckland npm test
       - run: npm run build
+
+  platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Backend tests and lint
+        working-directory: backend
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check app tests scripts alembic
+          pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: MCP server tests
+        working-directory: mcp
+        run: |
+          npm ci
+          npm test
+      - name: Frontend typecheck, lint and build
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm run build
+      - name: Kubernetes manifests render and validate
+        run: |
+          curl -sSLo kubectl https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubectl && chmod +x kubectl
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          ./kubectl kustomize k8s/overlays/prod > rendered.yaml
+          ./kubectl kustomize k8s/ingress/nginx-letsencrypt > rendered-nginx.yaml
+          ./kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.31.0 rendered.yaml rendered-nginx.yaml k8s/secrets.example.yaml
+      - name: Compose file validates
+        run: docker compose -f docker-compose.yml config --quiet

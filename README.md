@@ -7,7 +7,11 @@ agenda, decisions, risks, milestones, live metrics, reminders, and analytics tha
 say what needs attention.
 
 Everything runs in the browser. Nothing is uploaded anywhere. There is no server,
-no account, and no runtime dependency beyond React. An optional assistant answers
+no account, and no runtime dependency beyond React. A separate, optional
+[platform tier](#platform-tier-api-workspace-and-eks) adds a FastAPI service, a
+Celery worker, a hash-chained AI audit ledger, a Next.js workspace, an MCP
+server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
+An optional assistant answers
 questions from your own data through a model you choose (Claude, any
 OpenAI-compatible endpoint, or a local Ollama), cites the items it used, and
 proposes changes for you to apply rather than making them.
@@ -335,6 +339,7 @@ src/
   ui/         shell, board, command bar, inspector, assistant, views, widgets, charts
   styles/     tokens, base, layout, components, viz
 tests/        97 node:test cases over parsing, querying, analytics, triage and the assistant protocol
+backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 
 ## Deliberately not here
@@ -348,6 +353,287 @@ a person applies. No PDF reading:
 extracting text from PDFs without a dependency is unreliable, and shipping
 something that half-works would be worse than saying so. Add it as a parser
 plugin when you need it.
+
+## Platform tier: API, workspace and EKS
+
+The browser app needs nothing but a browser. For a team that wants shared
+state, scheduled processing, money tracking and an API that agents can call,
+the repository also carries a containerised platform: a FastAPI service, a
+Celery worker, a hash-chained AI audit ledger, a Next.js 14 workspace, and the
+Kubernetes manifests to run it on AWS EKS. The two tiers share the entity idea
+and the MCP server exposes both.
+
+![The workspace: project pipelines, the day's checklist, the AI audit stream and the margin ribbon](docs/screenshots/workspace.png)
+
+### Repository tree
+
+```
+The-All-Dash/
+├── src/                        Browser app (React + Vite): parsers, engines, widgets, assistant
+├── public/  tests/  docs/      PWA assets, node:test suite, screenshots, docs/openapi.json
+├── backend/                    Platform API and worker (Python 3.12)
+│   ├── app/
+│   │   ├── main.py             FastAPI factory, request-id middleware, routers
+│   │   ├── config.py           ALLDASH_* settings; production refuses to start without keys
+│   │   ├── db.py  models.py    Async SQLAlchemy 2.0; money in cents; string enums with checks
+│   │   ├── schemas.py          Pydantic v2, strict (unknown fields rejected)
+│   │   ├── security.py         X-API-Key, constant-time compare
+│   │   ├── audit.py            The ledger: SHA-256 over row + previous hash, advisory-locked appends, verify
+│   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /healthz /readyz
+│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin)
+│   │   └── worker.py           Celery app, beat schedule, three periodic decisions
+│   ├── alembic/                Migrations; 0001 also installs the append-only trigger on ai_audit_logs
+│   ├── scripts/seed.py         Sample workspace, idempotent
+│   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief
+│   └── Dockerfile              Multi-stage slim, uid 10001, tini, healthcheck
+├── frontend/                   Next.js 14 App Router + Tailwind (TypeScript strict)
+│   ├── app/page.tsx            The three-column workspace (server component)
+│   ├── app/api/                Route handlers that carry the key so the browser never sees it
+│   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
+│   ├── lib/                    Typed API client (server-only), types mirroring schemas.py, formatting
+│   └── Dockerfile              Standalone output, three-stage alpine, uid 10001
+├── mcp/                        MCP server (Node 20): stdio and Streamable HTTP, workspace and platform adapters
+├── k8s/
+│   ├── base/                   Namespace (restricted PSS), ConfigMap, storage, Postgres, Redis, API, worker, beat,
+│   │                           frontend, MCP, HPA, PDBs, NetworkPolicies, CronJobs, kustomization
+│   ├── ingress/alb/            AWS Load Balancer Controller Ingress (ACM, 80→443)
+│   ├── ingress/nginx-letsencrypt/  ingress-nginx Ingress + cert-manager ClusterIssuers (Let's Encrypt)
+│   ├── overlays/prod/          Registry, tag and host patches; `kubectl apply -k k8s/overlays/prod`
+│   └── secrets.example.yaml    Templates for the three Secrets (never applied as-is)
+├── docker-compose.yml  .env.example
+├── .mcp.json  .vscode/mcp.json  .claude/skills/all-dash/  .github/copilot-instructions.md
+└── .github/workflows/ci.yml    Browser app in three timezones; backend, MCP, frontend, manifests
+```
+
+### Runtime architecture
+
+```mermaid
+flowchart TB
+  user([Browser / phone]) -->|HTTPS 443| lb[AWS Load Balancer<br/>ALB via AWS LB Controller, or NLB in front of ingress-nginx]
+  agents([Claude · Copilot · ChatGPT]) -->|HTTPS 443 · Bearer| lb
+  lb -->|"/"| ing[Ingress alldash<br/>TLS: ACM or cert-manager + Let's Encrypt]
+  lb -->|"/mcp"| ing
+  subgraph eks[EKS cluster · namespace alldash · default-deny NetworkPolicies]
+    ing -->|3000| fe[frontend ×2<br/>Next.js standalone]
+    ing -->|8080| mcp[mcp ×2<br/>Streamable HTTP]
+    fe -->|8000 · X-API-Key| api[backend ×2–6 HPA<br/>FastAPI + uvicorn<br/>init: alembic upgrade]
+    mcp -->|8000 · X-API-Key| api
+    cron[CronJob daily-brief<br/>0 4 * * * UTC] -->|POST /daily/run?sync=true| api
+    api -->|5432| pg[(postgres<br/>PVC 20Gi gp3, encrypted)]
+    api -->|6379| redis[(redis<br/>broker + results)]
+    worker[worker ×2<br/>Celery] --> redis
+    beat[beat ×1<br/>Celery beat] --> redis
+    worker --> pg
+    snap[CronJob postgres-snapshot<br/>30 3 * * *] -->|CHECKPOINT then VolumeSnapshot| pg
+  end
+  snap -.->|EBS CSI driver| ebs[(EBS snapshots<br/>VolumeSnapshotClass, Retain)]
+  api -.->|ai_audit_logs| ledger[[Hash chain<br/>SHA-256, append-only trigger]]
+```
+
+Traffic: the load balancer terminates TLS and forwards to the Ingress, which
+routes `/` to the workspace and `/mcp` to the MCP server. Only those two are
+public. The workspace reaches the API on the cluster network with the key from
+its own environment; browser writes go through Next.js route handlers, so the
+key never leaves the pod. The MCP server does the same for agents. The API is
+the only thing that talks to Postgres and Redis, apart from the worker, beat
+and the snapshot job.
+
+### The services
+
+**Backend (FastAPI).** `/projects` (with `/projects/pipeline` for the left
+column), `/tasks` with a `context` of `work` or `personal` and `/tasks/today`
+for the checklist, `/invoices` (with `/invoices/mark-overdue`), `/expenses`,
+`/finance/summary` and `/finance/burn-rate`, `/ai-audit-logs` (list, get,
+append, `/verify`), `/daily/run` (the daily update engine: `sync=true` builds
+inline for the cron ping, otherwise the worker does it), `/daily/latest`,
+`/daily/{date}`, `/healthz`, `/readyz`, `/docs`, `/openapi.json`. Every
+mutating route requires `X-API-Key`; production refuses to start without keys.
+
+**Daily update engine.** For a date: P1 tasks due that day, invoices past due
+(sent ones are marked overdue, each as an audited decision), yesterday's
+activity (tasks completed and created, invoices paid, spend, decisions
+logged), the money picture with a rolling burn rate against the window before
+it, and a one-paragraph summary. Stored per date; a rebuild replaces it, so the
+04:00 CronJob and Celery beat's 04:05 run agree.
+
+**Worker (Celery + Redis).** Three periodic jobs: the brief at 04:05, overdue
+marking hourly, and a six-hourly burn-rate decision. Each opens its own engine
+(Celery forks), commits once, and lands in the ledger. Beat runs as a separate
+single-replica Deployment so scaling workers never doubles the schedule.
+
+**AI audit ledger.** `ai_audit_logs` rows carry `seq`, `prev_hash` and
+`hash = SHA-256(prev_hash ‖ canonical JSON of the row)`. Appends take a Postgres
+advisory lock so two workers cannot both claim a sequence number. `/verify`
+recomputes the whole chain and names the first bad row. The initial migration
+installs a trigger that rejects UPDATE and DELETE on the table, so even a
+database client cannot edit history without leaving the chain broken.
+
+**Frontend (Next.js 14).** Left: project pipelines as stage tracks with task
+progress, open P1s, invoiced and spent against budget. Centre: the checklist
+with P1/P2/P3 colour coding, optimistic toggles, an add box and a priority
+filter; today's finished items stay visible. Right: the audit stream with a
+confidence ring per decision and the chain's verification state. A floating
+ribbon carries collected, spent, margin, burn per day and its change,
+outstanding and overdue. Context tabs scope everything to work or personal.
+
+### Run it locally
+
+```bash
+cp .env.example .env                      # set ALLDASH_API_KEYS and POSTGRES_PASSWORD
+docker compose up --build                 # migrate → api :8000, worker, beat, frontend :3000
+docker compose --profile seed run --rm seed
+open http://localhost:3000                # the workspace
+open http://localhost:8000/docs           # the API
+```
+
+Without Docker: `cd backend && python -m venv .venv && . .venv/bin/activate &&
+pip install -r requirements-dev.txt && pytest`, then `uvicorn app.main:app`
+with `ALLDASH_DATABASE_URL` pointing at a Postgres (or `sqlite+aiosqlite:///dev.db`
+for a quick look), `celery -A app.worker worker -B`, and `cd frontend && npm
+install && BACKEND_URL=http://localhost:8000 BACKEND_API_KEY=... npm run dev`.
+
+### Build, tag and push to ECR
+
+```bash
+export AWS_REGION=us-east-1 AWS_ACCOUNT=123456789012 TAG=0.1.0
+export ECR=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+
+for repo in alldash-backend alldash-frontend alldash-mcp; do
+  aws ecr describe-repositories --repository-names $repo >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --image-scanning-configuration scanOnPush=true --encryption-configuration encryptionType=AES256
+done
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR
+
+docker build -t $ECR/alldash-backend:$TAG  backend
+docker build -t $ECR/alldash-frontend:$TAG frontend
+docker build -t $ECR/alldash-mcp:$TAG -f mcp/Dockerfile .      # context is the repo root
+
+docker push $ECR/alldash-backend:$TAG
+docker push $ECR/alldash-frontend:$TAG
+docker push $ECR/alldash-mcp:$TAG
+```
+
+For multi-architecture nodes (Graviton), add `--platform linux/amd64,linux/arm64`
+with `docker buildx build --push`.
+
+### Deploy to EKS
+
+Prerequisites on the cluster: the AWS Load Balancer Controller, the EBS CSI
+driver with the snapshot controller and CRDs, metrics-server (for the HPA),
+and, for the Let's Encrypt path, ingress-nginx and cert-manager.
+
+```bash
+# 0. Point kubectl at the cluster
+aws eks update-kubeconfig --region $AWS_REGION --name my-cluster
+
+# 1. Cluster add-ons (skip any you already run)
+kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=v8.2.0"
+kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v8.2.0"
+aws eks create-addon --cluster-name my-cluster --addon-name aws-ebs-csi-driver   # needs an IRSA role
+helm repo add eks https://aws.github.io/eks-charts && helm repo update
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system --set clusterName=my-cluster --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# 2. Namespace first, so the Secrets have somewhere to live
+kubectl apply -f k8s/base/namespace.yaml
+
+# 3. Bootstrap secrets (values from a password manager or AWS Secrets Manager; never from git)
+PG_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
+API_KEY=$(openssl rand -hex 32)
+MCP_TOKEN=$(openssl rand -hex 32)
+kubectl -n alldash create secret generic postgres-credentials \
+  --from-literal=POSTGRES_USER=alldash \
+  --from-literal=POSTGRES_PASSWORD="$PG_PASS" \
+  --from-literal=ALLDASH_DATABASE_URL="postgresql+asyncpg://alldash:$PG_PASS@postgres.alldash.svc.cluster.local:5432/alldash"
+kubectl -n alldash create secret generic alldash-api \
+  --from-literal=ALLDASH_API_KEYS="$API_KEY" --from-literal=BACKEND_API_KEY="$API_KEY"
+kubectl -n alldash create secret generic alldash-mcp --from-literal=MCP_AUTH_TOKEN="$MCP_TOKEN"
+
+# 4. Storage class and snapshot class (cluster-scoped, applied with the base)
+# 5. Point the overlay at your registry and host
+cd k8s/overlays/prod
+kustomize edit set image \
+  alldash-backend=$ECR/alldash-backend:$TAG \
+  alldash-frontend=$ECR/alldash-frontend:$TAG \
+  alldash-mcp=$ECR/alldash-mcp:$TAG
+sed -i "s/alldash.example.com/dash.yourdomain.com/g" host-patch.yaml config-patch.yaml
+cd -
+
+# 6. Certificates
+#    ALB path: request or import a certificate in ACM for dash.yourdomain.com;
+#    the controller discovers it by host name. Nothing to apply.
+#    Let's Encrypt path: install cert-manager and ingress-nginx, then in the overlay
+#    replace ../../ingress/alb with ../../ingress/nginx-letsencrypt and edit the
+#    email in k8s/ingress/nginx-letsencrypt/clusterissuer.yaml.
+helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true   # LE path only
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=external \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-nlb-target-type"=ip \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-scheme"=internet-facing   # LE path only
+
+# 7. Everything else
+kubectl apply -k k8s/overlays/prod
+kubectl -n alldash rollout status deploy/backend deploy/frontend deploy/mcp deploy/worker deploy/beat
+
+# 8. DNS: CNAME dash.yourdomain.com to the load balancer
+kubectl -n alldash get ingress alldash -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+# 9. Verify
+curl -s https://dash.yourdomain.com/api/readyz
+kubectl -n alldash create job --from=cronjob/daily-brief daily-brief-now && kubectl -n alldash logs job/daily-brief-now
+kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubectl -n alldash get volumesnapshots
+```
+
+### Disaster recovery
+
+The `postgres-snapshot` CronJob runs at 03:30 UTC: it checkpoints Postgres,
+creates a `VolumeSnapshot` through the EBS CSI driver's `VolumeSnapshotClass`
+(deletion policy Retain, tagged `purpose=postgres-backup`), waits for it to be
+ready, and deletes snapshot objects older than 14 days. Restore by creating a
+PVC from a snapshot and pointing the Postgres Deployment at it:
+
+```bash
+kubectl -n alldash get volumesnapshots
+kubectl -n alldash scale deploy/postgres --replicas=0
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: postgres-data-restored, namespace: alldash }
+spec:
+  storageClassName: alldash-gp3
+  dataSource: { name: postgres-data-20260908-033000, kind: VolumeSnapshot, apiGroup: snapshot.storage.k8s.io }
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 20Gi } }
+EOF
+kubectl -n alldash patch deploy/postgres --type=json \
+  -p='[{"op":"replace","path":"/spec/template/spec/volumes/0/persistentVolumeClaim/claimName","value":"postgres-data-restored"}]'
+kubectl -n alldash scale deploy/postgres --replicas=1
+```
+
+Point `ALLDASH_DATABASE_URL` at RDS instead and the PVC, Postgres Deployment
+and snapshot job become unnecessary; RDS automated backups take over.
+
+### TLS
+
+Two paths, chosen in the overlay. **ALB**: TLS terminates on the load balancer
+with an ACM certificate discovered by host name; port 80 only redirects to 443;
+the policy is TLS 1.3/1.2. cert-manager cannot feed an ALB, because ALB reads
+ACM, not Kubernetes Secrets. **ingress-nginx + cert-manager**: the controller's
+Service is an NLB provisioned by the AWS Load Balancer Controller; cert-manager
+answers the HTTP-01 challenge, stores the certificate in the `alldash-tls`
+Secret, renews it 30 days before expiry, and the Ingress forces HTTPS and sets
+HSTS. Use the `letsencrypt-staging` issuer first to rehearse.
+
+### Agents: Claude, Copilot and ChatGPT
+
+`mcp/` is an MCP server over both tiers. `.mcp.json` registers it for Claude
+Code, `.vscode/mcp.json` for Copilot agent mode, the `all-dash` skill tells
+Claude how to use it, and the cluster publishes it at `/mcp` for ChatGPT
+connectors and remote clients. Agents read briefs, triage and finances, add
+and close tasks, and record their own judgements in the audit ledger with a
+confidence score. See `mcp/README.md`.
 
 ## Install it
 
