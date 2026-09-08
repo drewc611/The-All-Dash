@@ -21,6 +21,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+/** respondWith() must get a Response, even when offline with an empty cache. */
+const offline = () =>
+  new Response('Offline, and this page has not been cached yet.', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain' },
+  })
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
@@ -33,11 +40,14 @@ self.addEventListener('fetch', (event) => {
           if (response.ok) cache.put(request, response.clone())
           return response
         })
-        .catch(() => cached)
-      // Navigations prefer the network so a new deploy shows up on reload;
-      // hashed assets prefer the cache because their content never changes.
-      if (request.mode === 'navigate') return network.then((r) => r || cached)
-      return cached || network
+        .catch(() => null)
+      // Navigations prefer the network so a new deploy shows up on reload,
+      // falling back to the cached page, then the cached shell; hashed assets
+      // prefer the cache because their content never changes.
+      if (request.mode === 'navigate') {
+        return (await network) || cached || (await cache.match('/index.html')) || offline()
+      }
+      return cached || (await network) || offline()
     })
   )
 })
