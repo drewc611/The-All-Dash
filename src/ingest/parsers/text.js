@@ -1,38 +1,55 @@
 import { defineParser } from '../../core/registry.js'
 import { extractFromText, titleCase, canonicalPeople } from '../extract.js'
+import { entitiesFromTable } from '../tabular.js'
+import { toTable } from './csv.js'
 import { iso } from '../../core/time.js'
 
 /**
  * Markdown, plain text and HTML. In practice this is the meeting-notes parser:
  * the format barely matters once tags are stripped, the markers people type do.
+ * Word and PowerPoint reduce their XML to the same kind of text and call
+ * notesToEntities() too, so every prose format produces identical output.
  */
 
-function build({ name, text, docId, kind }) {
+/**
+ * Prose (and any tables lifted out of it) to entities. One place decides how a
+ * document's people, project and date apply to what was found in it.
+ */
+export function notesToEntities({ name, text, docId, kind, tables = [] }) {
   const source = { docId, name, kind }
   const { entities, meta, summary } = extractFromText(text, source)
   const at = meta.date || iso(new Date())
+  const projectTag = meta.project ? [slugish(meta.project)] : []
 
-  const withDate = entities.map((e) => ({
+  const out = entities.map((e) => ({
     ...e,
     at: e.at || (e.type === 'metric' ? at : null),
     people: e.people?.length ? canonicalPeople(e.people, meta.people) : meta.people.slice(0, 1),
-    tags: meta.project ? [...(e.tags || []), slugish(meta.project)] : e.tags,
+    tags: [...(e.tags || []), ...projectTag],
   }))
 
-  const title = firstHeading(text) || name.replace(/\.[a-z0-9]+$/i, '')
-  withDate.push({
+  tables.forEach((rows, i) => {
+    const table = toTable(rows)
+    if (!table.headers.length || !table.rows.length) return
+    for (const e of entitiesFromTable({ ...table, sheet: `Table ${i + 1}` }, source)) {
+      out.push({ ...e, tags: [...(e.tags || []), ...projectTag] })
+    }
+  })
+
+  const title = meta.title || firstHeading(text) || name.replace(/\.[a-z0-9]+$/i, '')
+  out.push({
     type: 'note',
     title,
     body: summary.slice(0, 4000),
     at,
     people: meta.people,
-    tags: ['notes', ...(meta.project ? [slugish(meta.project)] : [])],
+    tags: ['notes', ...projectTag],
     source,
     confidence: 1,
   })
 
   for (const person of meta.people) {
-    withDate.push({
+    out.push({
       type: 'person',
       title: titleCase(person),
       at,
@@ -43,8 +60,10 @@ function build({ name, text, docId, kind }) {
     })
   }
 
-  return withDate
+  return out
 }
+
+const build = (input) => notesToEntities(input)
 
 function firstHeading(text) {
   const m = String(text).match(/^#{1,3}\s+(.+)$/m)

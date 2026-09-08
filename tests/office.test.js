@@ -2,6 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { docxToText, pptxToText } from '../src/ingest/parsers/office.js'
+import { notesToEntities } from '../src/ingest/parsers/text.js'
+import { unescapeXml } from '../src/ingest/xml.js'
+import { readZip } from '../src/ingest/zip.js'
 import { buildReport } from '../src/engine/report.js'
 import { forecast, correlation } from '../src/core/query.js'
 import { evaluate, compileCustom } from '../src/engine/metrics.js'
@@ -40,9 +43,37 @@ test('docx: tables are pulled out as rows', () => {
   assert.match(text, /Before\nAfter/)
 })
 
-test('docx: entities survive the &amp; round trip', () => {
-  const { text } = docxToText(p('', 'R&amp;D &lt;plan&gt;'))
-  assert.equal(text, 'R&D <plan>')
+test('docx: entities survive the &amp; round trip, hex and decimal alike', () => {
+  const { text } = docxToText(p('', 'R&amp;D &lt;plan&gt; it&#x2019;s &#8220;done&#8221;'))
+  assert.equal(text, 'R&D <plan> it\u2019s \u201cdone\u201d')
+  assert.equal(unescapeXml('&#x1F600;&#xZZ;'), '\u{1F600}')
+})
+
+test('a Word doc gets the same project tag and table handling as Markdown', () => {
+  const text = ['# Vendor review', 'Project: Atlas', 'Attendees: Lena Park', '## Action items', '- Chase the SOC2 report @Lena'].join('\n')
+  const tables = [[['Task', 'Owner', 'Status'], ['Sign the MSA', 'Lena Park', 'In progress']]]
+  const out = notesToEntities({ name: 'review.docx', text, docId: 'd', kind: 'docx', tables })
+  const task = out.find((e) => e.type === 'task' && e.title === 'Chase the SOC2 report')
+  assert.ok(task.tags.includes('atlas'))
+  assert.deepEqual(task.people, ['Lena Park'])
+  const fromTable = out.find((e) => e.type === 'task' && e.title === 'Sign the MSA')
+  assert.ok(fromTable, 'table rows become tasks')
+  assert.ok(fromTable.tags.includes('atlas'))
+  assert.equal(fromTable.status, 'doing')
+  const note = out.find((e) => e.type === 'note' && e.title === 'Vendor review')
+  assert.ok(note.tags.includes('atlas'))
+})
+
+test('a truncated or mangled zip fails with a message, not a RangeError', async () => {
+  await assert.rejects(readZip(new Uint8Array(10).buffer), /Not a zip archive/)
+  // A valid end-of-central-directory record that points outside the file.
+  const eocd = Buffer.alloc(22)
+  eocd.writeUInt32LE(0x06054b50, 0)
+  eocd.writeUInt16LE(1, 8)
+  eocd.writeUInt16LE(1, 10)
+  eocd.writeUInt32LE(46, 12)
+  eocd.writeUInt32LE(999999, 16)
+  await assert.rejects(readZip(eocd.buffer.slice(eocd.byteOffset, eocd.byteOffset + 22)), /Corrupt zip/)
 })
 
 test('pptx: slides become sections', () => {

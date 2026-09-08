@@ -2,6 +2,7 @@ import { defineParser } from '../../core/registry.js'
 import { entitiesFromTable } from '../tabular.js'
 import { toTable } from './csv.js'
 import { readZip } from '../zip.js'
+import { unescapeXml } from '../xml.js'
 
 /**
  * Excel workbooks, every sheet, no dependency. The XML here is regular enough
@@ -21,17 +22,6 @@ export function columnIndex(ref) {
 
 export function serialToDate(serial) {
   return new Date(EXCEL_EPOCH + Math.round(serial * 86400000))
-}
-
-function unescapeXml(s) {
-  return String(s)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&amp;/g, '&')
 }
 
 export function parseSharedStrings(xml) {
