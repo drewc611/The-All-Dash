@@ -118,7 +118,9 @@ export function compileCustom(config) {
       if (config.people?.length) rows = rows.person(config.people)
       if (config.onlyOpen) rows = rows.status(OPEN_STATUSES)
       const field = config.dateField || 'at'
-      const scoped = rows.between(range.from, range.to, field).all()
+      // Sorted by the date field so `last` is the latest value in the window,
+      // whatever order the rows were imported in.
+      const scoped = rows.between(range.from, range.to, field).sort(field).all()
       const points = daily(scoped, { from: range.from, to: range.to, field, reduce: config.reduce || 'count' })
       const total =
         config.reduce === 'count' ? scoped.length

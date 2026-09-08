@@ -47,7 +47,7 @@ export function Board({ view, items, context, editing }) {
               tools={
                 <>
                   {hasOptions && (
-                    <button className="btn btn--icon" title="Widget settings" onClick={() => setConfiguring(item)}>
+                    <button className="btn btn--icon" title="Widget settings" aria-label={`Settings for ${widget.name}`} onClick={() => setConfiguring(item)}>
                       <IconSettings />
                     </button>
                   )}
@@ -65,9 +65,9 @@ export function Board({ view, items, context, editing }) {
                           </button>
                         ))}
                       </div>
-                      <button className="btn btn--icon" title="Move up" onClick={() => moveWidget(view, item.id, -1)}><IconUp /></button>
-                      <button className="btn btn--icon" title="Move down" onClick={() => moveWidget(view, item.id, 1)}><IconDown /></button>
-                      <button className="btn btn--icon btn--danger" title="Remove" onClick={() => removeWidget(view, item.id)}><IconTrash /></button>
+                      <button className="btn btn--icon" title="Move up" aria-label={`Move ${widget.name} up`} onClick={() => moveWidget(view, item.id, -1)}><IconUp /></button>
+                      <button className="btn btn--icon" title="Move down" aria-label={`Move ${widget.name} down`} onClick={() => moveWidget(view, item.id, 1)}><IconDown /></button>
+                      <button className="btn btn--icon btn--danger" title="Remove" aria-label={`Remove ${widget.name}`} onClick={() => removeWidget(view, item.id)}><IconTrash /></button>
                     </>
                   )}
                 </>

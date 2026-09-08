@@ -60,16 +60,19 @@ const STATUS_MARK = {
   blocked: IconClose,
 }
 
+const NEXT_STATUS = { open: 'in progress', doing: 'done', done: 'open', blocked: 'in progress', cancelled: 'in progress' }
+
 export function TaskRow({ entity, onOpen, showDate = true }) {
   const Mark = STATUS_MARK[entity.status]
   const overdue = entity.due && entity.status !== 'done' && new Date(entity.due) < new Date()
+  const next = NEXT_STATUS[entity.status] || 'in progress'
   return (
     <div className={`list__item list__item--interactive${entity.status === 'done' ? ' done' : ''}`}>
       <button
         type="button"
         className="check"
         data-status={entity.status}
-        aria-label={`Mark ${entity.title} as ${entity.status === 'done' ? 'open' : 'done'}`}
+        aria-label={`Mark "${entity.title}" as ${next}`}
         onClick={(e) => { e.stopPropagation(); cycleTaskStatus(entity.id) }}
       >
         {Mark && <Mark width={12} height={12} />}

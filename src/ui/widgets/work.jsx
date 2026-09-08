@@ -110,10 +110,10 @@ defineWidget({
               </span>
             </button>
             <span className="list__side">
-              <button className="btn btn--icon btn--sm" title="Snooze 1 hour" onClick={() => snoozeReminder(r.id, new Date(Date.now() + 3600000).toISOString())}>
+              <button className="btn btn--icon btn--sm" title="Snooze 1 hour" aria-label={`Snooze ${r.entity.title} for an hour`} onClick={() => snoozeReminder(r.id, new Date(Date.now() + 3600000).toISOString())}>
                 <IconClock width={13} height={13} />
               </button>
-              <button className="btn btn--icon btn--sm" title="Dismiss" onClick={() => dismissReminder(r.id)}>
+              <button className="btn btn--icon btn--sm" title="Dismiss" aria-label={`Dismiss the reminder for ${r.entity.title}`} onClick={() => dismissReminder(r.id)}>
                 <IconBell width={13} height={13} />
               </button>
             </span>

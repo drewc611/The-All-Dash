@@ -293,3 +293,14 @@ test('formatWeekday gives only the weekday', () => {
   assert.equal(formatWeekday('2026-03-04'), new Date(2026, 2, 4).toLocaleDateString(undefined, { weekday: 'long' }))
   assert.equal(formatWeekday(null), '')
 })
+
+test('a custom metric with reduce last takes the latest by date, not by import order', () => {
+  const rows = [
+    makeEntity({ type: 'metric', title: 'S', series: 'S', value: 30, at: at(0) }),
+    makeEntity({ type: 'metric', title: 'S', series: 'S', value: 10, at: at(-2) }),
+    makeEntity({ type: 'metric', title: 'S', series: 'S', value: 20, at: at(-1) }),
+  ]
+  const entities = Object.fromEntries(rows.map((r) => [r.id, r]))
+  const metric = compileCustom({ id: 'c', name: 'S', entityType: 'metric', seriesName: 'S', reduce: 'last' })
+  assert.equal(evaluate(metric, entities, rangeFor('7d')).value, 30)
+})

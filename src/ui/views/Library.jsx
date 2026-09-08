@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { q } from '../../core/query.js'
 import { removeDoc } from '../../core/store.js'
 import { ENTITY_TYPES, TYPE_LABEL } from '../../data/schema.js'
-import { formatDate, relative } from '../../core/time.js'
+import { relative } from '../../core/time.js'
 import { EntityList, Empty } from '../components.jsx'
 import { FilePicker } from '../Intake.jsx'
 import { IconTrash, IconUpload, IconDoc, IconSearch } from '../icons.jsx'
@@ -84,6 +84,7 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
                   <button
                     className="btn btn--icon btn--danger btn--sm"
                     title={`Remove ${doc.title} and everything it produced`}
+                    aria-label={`Remove ${doc.title} and everything it produced`}
                     onClick={() => { removeDoc(doc.id); if (docFilter === doc.id) setDocFilter(null) }}
                   >
                     <IconTrash width={13} height={13} />

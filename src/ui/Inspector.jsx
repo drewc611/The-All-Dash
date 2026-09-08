@@ -25,7 +25,7 @@ export function Inspector({ entity, onClose, onOpen, related = [] }) {
       <header className="sheet__head">
         <span className="chip">{TYPE_LABEL[draft.type] || draft.type}</span>
         <div className="spacer" />
-        <button className="btn btn--icon btn--danger" title="Delete" onClick={() => { removeEntity(entity.id); onClose() }}>
+        <button className="btn btn--icon btn--danger" title="Delete" aria-label="Delete this item" onClick={() => { removeEntity(entity.id); onClose() }}>
           <IconTrash />
         </button>
         <button className="btn btn--icon" onClick={onClose} aria-label="Close"><IconClose /></button>

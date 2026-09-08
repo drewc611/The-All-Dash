@@ -70,7 +70,7 @@ export function defineParser(spec) {
  * @param {string} [spec.hint]
  * @param {string} [spec.group]
  * @param {string[]} [spec.keywords]
- * @param {(ctx) => void} spec.run  gets { store, navigate, close }
+ * @param {(ctx) => void} spec.run  gets { navigate, close }; import the store module for state
  */
 export function defineCommand(spec) {
   if (!spec?.id || typeof spec.run !== 'function') {
