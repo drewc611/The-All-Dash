@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { dayKey, formatDate, addDays, startOfDay, isSameDay } from '../../core/time.js'
+import { dayKey, formatDate, addDays, startOfDay, endOfDay, isSameDay } from '../../core/time.js'
 import { EntityList, Empty, Segmented } from '../components.jsx'
 
 const LENSES = [
@@ -22,7 +22,9 @@ export function Timeline({ entityList, onOpen }) {
   const days = useMemo(() => {
     const today = startOfDay(new Date())
     const from = addDays(today, -back)
-    const to = addDays(today, forward)
+    // The window runs to the end of its last day, not to that day's midnight,
+    // or an afternoon meeting on the final day would fall off the timeline.
+    const to = endOfDay(addDays(today, forward))
 
     const dated = []
     for (const entity of entityList) {
@@ -72,7 +74,7 @@ export function Timeline({ entityList, onOpen }) {
                 <div className="timeline__day" key={day.key}>
                   <div className="timeline__date" data-today={today}>
                     <strong>{formatDate(day.key)}</strong>
-                    {today ? 'Today' : formatDate(day.key, { weekday: 'long', month: undefined, day: undefined })}
+                    <span>{today ? 'Today' : formatDate(day.key, { weekday: 'long', month: undefined, day: undefined })}</span>
                   </div>
                   <div className="timeline__items">
                     <EntityList entities={day.rows} onOpen={onOpen} />
