@@ -12,12 +12,45 @@ no account, and no runtime dependency beyond React.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 51 tests, no browser needed
+npm test         # 53 tests, no browser needed
 npm run build
 ```
 
-Open it, click **Load a sample project**, and you get four documents run through
+Open it, click **Load a sample project**, and you get six documents run through
 the real parsers — not fixture data.
+
+## What it looks like
+
+![Today: agenda, focus list, reminders, pulse and recent activity, with person and topic filters above the board](docs/screenshots/today.png)
+
+**Analytics.** Every metric on one wall — built-in, discovered from spreadsheet
+columns, or built by hand — with sparklines and period-over-period deltas, then
+any series as a line with a 7-day average.
+
+![Analytics: the metric wall and series explorer](docs/screenshots/analytics.png)
+
+**Timeline.** Meetings on their start time, tasks and milestones on their due
+date, one vertical run of days.
+
+![Timeline view](docs/screenshots/timeline.png)
+
+**Command bar and inspector.** `⌘K` searches every item and every command at
+once. Click anything to open it, edit it, and see what else came from the same
+document.
+
+<p>
+  <img src="docs/screenshots/command-bar.png" width="49%" alt="Command bar searching across entities and commands" />
+  <img src="docs/screenshots/inspector.png" width="49%" alt="Inspector panel for a calendar event" />
+</p>
+
+**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, boards go
+single-column, and the theme follows the OS or the toggle in Settings.
+
+<p>
+  <img src="docs/screenshots/mobile.png" width="24%" alt="Today on a phone" />
+  <img src="docs/screenshots/mobile-analytics.png" width="24%" alt="Analytics on a phone" />
+  <img src="docs/screenshots/today-dark.png" width="50%" alt="Today in dark mode" />
+</p>
 
 ## The one idea
 

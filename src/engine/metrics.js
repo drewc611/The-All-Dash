@@ -168,10 +168,12 @@ export function evaluate(metric, entities, range, { compare = true } = {}) {
     // The previous window ends the instant before this one starts.
     const prevRange = { from: addDays(range.from, -span), to: new Date(new Date(range.from).getTime() - 1), label: 'previous', days: span }
     const prev = spec.compute(list, prevRange) || { value: 0, series: [] }
-    previous = prev.value
-    if (Number.isFinite(previous) && previous !== 0) change = (result.value - previous) / Math.abs(previous)
-    else if (Number.isFinite(previous) && previous === 0 && result.value !== 0) change = 1
-    else change = 0
+    const prevHadData = (prev.series || []).some((p) => Number(p.value)) || (Number.isFinite(prev.value) && prev.value !== 0)
+    if (prevHadData) {
+      previous = prev.value
+      change = previous !== 0 ? (result.value - previous) / Math.abs(previous) : result.value !== 0 ? 1 : 0
+    }
+    // An empty prior window is not a comparison; leave previous and change null.
   }
 
   const target = spec.target ?? null
