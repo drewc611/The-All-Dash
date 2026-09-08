@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Pushes made by a GitHub App (Copilot's coding agent, for one) do not start
+  # pull_request runs, so allow a manual run from the Actions tab.
+  workflow_dispatch:
 
 jobs:
   test-and-build:
