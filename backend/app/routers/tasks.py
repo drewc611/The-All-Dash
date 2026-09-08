@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import case, select
+from sqlalchemy import and_, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
@@ -57,12 +57,23 @@ async def list_tasks(
     return Page(items=[TaskOut.model_validate(r) for r in rows], total=total, limit=limit, offset=offset)
 
 
-@router.get("/today", response_model=list[TaskOut], summary="The checklist: open tasks due today or earlier, P1 first")
+@router.get(
+    "/today",
+    response_model=list[TaskOut],
+    summary="The checklist: open tasks due today or earlier, plus today's finished ones, P1 first",
+)
 async def today(session: Session, _: Authed, context: Context | None = None, on: date | None = None) -> list[TaskOut]:
     day = on or date.today()
+    # Finished items due today stay on the list so a tick is visible after a
+    # reload; finished items from earlier days drop off.
     stmt = (
         select(Task)
-        .where(Task.status != "done", Task.due_date <= day)
+        .where(
+            or_(
+                and_(Task.status != "done", Task.due_date <= day),
+                and_(Task.status == "done", Task.due_date == day),
+            )
+        )
         .order_by(_priority_order, Task.due_date.asc(), Task.created_at.asc())
     )
     if context:

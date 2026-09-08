@@ -42,7 +42,10 @@ async def mark_overdue(session: AsyncSession, as_of: date, actor: str = "system"
             subject_type="invoice",
             subject_id=inv.id,
             decision=f"Invoice {inv.number} for {inv.client} marked overdue",
-            rationale=f"Status was 'sent' and due_on {inv.due_on.isoformat()} is {days_late} day(s) before {as_of.isoformat()}",
+            rationale=(
+                f"Status was 'sent' and due_on {inv.due_on.isoformat()} is {days_late} day(s) "
+                f"before {as_of.isoformat()}"
+            ),
             confidence=1.0,
             inputs={"due_on": inv.due_on.isoformat(), "as_of": as_of.isoformat(), "amount_cents": inv.amount_cents},
         )

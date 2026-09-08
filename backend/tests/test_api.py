@@ -70,6 +70,10 @@ async def test_tasks_context_filter_today_and_toggle(client):
     task_id = checklist[0]["id"]
     done = (await client.post(f"/tasks/{task_id}/toggle", headers=KEY)).json()
     assert done["status"] == "done" and done["completed_at"]
+    # Still on today's list once done, so the tick survives a reload.
+    still = (await client.get("/tasks/today", params={"context": "personal"}, headers=KEY)).json()
+    assert [t["title"] for t in still] == ["Personal thing", "Old thing"]
+    assert still[0]["status"] == "done"
     reopened = (await client.post(f"/tasks/{task_id}/toggle", headers=KEY)).json()
     assert reopened["status"] == "open" and reopened["completed_at"] is None
 
