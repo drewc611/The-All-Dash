@@ -25,7 +25,7 @@ test('meeting notes: checkboxes, owners, due dates and tags', () => {
   assert.equal(tasks[0].title, 'Draft the brief')
   assert.deepEqual(tasks[0].people, ['Sam'])
   assert.ok(tasks[0].tags.includes('launch'))
-  assert.equal(tasks[0].due.slice(0, 10), '2026-10-02')
+  assert.equal(dayKey(tasks[0].due), '2026-10-02')
   assert.equal(tasks[1].status, 'done')
   assert.equal(tasks[2].status, 'doing')
 })
@@ -61,7 +61,7 @@ test('meeting notes: metadata lines are not mistaken for metrics', () => {
     source
   )
   assert.deepEqual(meta.people, ['Sam Ojo', 'Priya Raman'])
-  assert.equal(meta.date.slice(0, 10), '2026-03-04')
+  assert.equal(dayKey(meta.date), '2026-03-04')
   assert.equal(entities.filter((e) => e.type === 'metric').length, 0)
 })
 
@@ -73,7 +73,7 @@ test('meeting notes: timeline sections produce dated milestones', () => {
   const milestones = entities.filter((e) => e.type === 'milestone')
   assert.equal(milestones.length, 2)
   assert.equal(milestones[0].title, 'Beta launch')
-  assert.equal(milestones[0].due.slice(0, 10), '2026-05-01')
+  assert.equal(dayKey(milestones[0].due), '2026-05-01')
   assert.equal(milestones[1].title, 'Public launch')
 })
 
@@ -83,7 +83,7 @@ test('strip pulls owner, tag, priority and due out of one line', () => {
   assert.deepEqual(result.people, ['Dev'])
   assert.deepEqual(result.tags, ['payments'])
   assert.equal(result.priority, 2)
-  assert.equal(result.due.slice(0, 10), '2026-01-09')
+  assert.equal(dayKey(result.due), '2026-01-09')
 })
 
 test('splitPeople handles separators and drops emails', () => {
@@ -93,7 +93,7 @@ test('splitPeople handles separators and drops emails', () => {
 
 test('loose dates: the formats people actually type', () => {
   const ref = new Date(2026, 2, 4) // Wednesday 4 March 2026
-  assert.equal(parseLooseDate('2026-03-09', ref).slice(0, 10), '2026-03-09')
+  assert.equal(dayKey(parseLooseDate('2026-03-09', ref)), '2026-03-09')
   assert.equal(dayKey(parseLooseDate('tomorrow', ref)), '2026-03-05')
   assert.equal(dayKey(parseLooseDate('by friday', ref)), '2026-03-06')
   assert.equal(dayKey(parseLooseDate('in 2 weeks', ref)), '2026-03-18')

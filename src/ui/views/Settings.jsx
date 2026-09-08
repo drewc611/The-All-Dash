@@ -13,6 +13,7 @@ import { Card, Segmented, Empty } from '../components.jsx'
 import { Sparkline } from '../viz/charts.jsx'
 import { IconTrash, IconPlus, IconUpload } from '../icons.jsx'
 import { seedWorkspace } from '../../data/seed.js'
+import { downloadText } from '../download.js'
 
 export function Settings({ state, entities, range, onToast }) {
   return (
@@ -237,15 +238,8 @@ function MetricBuilder({ state, entities, range, onToast }) {
 }
 
 function Data({ onToast }) {
-  const download = () => {
-    const blob = new Blob([exportWorkspace()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `all-dash-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  const download = () =>
+    downloadText(exportWorkspace(), `all-dash-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
 
   const restore = async (files) => {
     const file = files?.[0]

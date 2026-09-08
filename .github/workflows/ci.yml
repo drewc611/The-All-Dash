@@ -16,4 +16,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: TZ=America/Los_Angeles npm test
+      - run: TZ=Pacific/Auckland npm test
       - run: npm run build

@@ -9,10 +9,28 @@ export const MS = { minute: 60000, hour: 3600000, day: DAY, week: 7 * DAY }
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-export const iso = (d) => (d instanceof Date ? d : new Date(d)).toISOString()
-export const startOfDay = (d = new Date()) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
-export const endOfDay = (d = new Date()) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x }
-export const addDays = (d, n) => new Date(new Date(d).getTime() + n * DAY)
+const DAY_KEY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * The one place a value becomes a Date. A bare "YYYY-MM-DD" day key is a
+ * local calendar day, so it is built from its parts: `new Date("2026-03-04")`
+ * would be UTC midnight, which is the previous evening in the Americas and
+ * would shift every day label and the "Today" highlight by one.
+ */
+export function toDate(value) {
+  if (value instanceof Date) return value
+  if (typeof value === 'string') {
+    const m = value.match(DAY_KEY)
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  }
+  return new Date(value)
+}
+
+export const iso = (d) => toDate(d).toISOString()
+export const startOfDay = (d = new Date()) => { const x = new Date(toDate(d)); x.setHours(0, 0, 0, 0); return x }
+export const endOfDay = (d = new Date()) => { const x = new Date(toDate(d)); x.setHours(23, 59, 59, 999); return x }
+/** Calendar days, not 24-hour blocks: crossing a DST change keeps the clock time. */
+export const addDays = (d, n) => { const x = new Date(toDate(d)); x.setDate(x.getDate() + n); return x }
 export const dayKey = (d) => {
   const x = startOfDay(d)
   const pad = (n) => String(n).padStart(2, '0')
@@ -29,7 +47,7 @@ export const isSameDay = (a, b) => dayKey(a) === dayKey(b)
 
 /** Human-scale relative label: "in 3d", "2h ago", "now". */
 export function relative(target, from = Date.now()) {
-  const delta = new Date(target).getTime() - new Date(from).getTime()
+  const delta = toDate(target).getTime() - toDate(from).getTime()
   const abs = Math.abs(delta)
   if (Number.isNaN(abs)) return ''
   if (abs < MS.minute) return 'now'
@@ -44,14 +62,14 @@ export function relative(target, from = Date.now()) {
 
 export function formatDate(d, opts = {}) {
   if (!d) return ''
-  const date = new Date(d)
+  const date = toDate(d)
   if (Number.isNaN(Number(date))) return ''
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...opts })
 }
 
 export function formatTime(d) {
   if (!d) return ''
-  const date = new Date(d)
+  const date = toDate(d)
   if (Number.isNaN(Number(date))) return ''
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }

@@ -1,9 +1,11 @@
 /*
  * Service worker: makes the app installable and usable offline.
  *
- * Strategy is stale-while-revalidate for same-origin GETs. The shell loads
- * from cache instantly, and a fresh copy is fetched in the background for next
- * time. Nothing else is cached - the app has no API to talk to.
+ * Every successful same-origin GET is cached (the shell, its hashed assets,
+ * the manifest and icon) and served stale-while-revalidate: the cached copy
+ * answers instantly and a fresh one is fetched for next time. Navigations
+ * prefer the network so a new deploy shows on reload. Cross-origin requests
+ * are never touched - the app has no API to talk to.
  */
 const CACHE = 'all-dash-v1'
 

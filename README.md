@@ -12,7 +12,7 @@ no account, and no runtime dependency beyond React.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 53 tests, no browser needed
+npm test         # 56 tests, run in three timezones by CI
 npm run build
 ```
 

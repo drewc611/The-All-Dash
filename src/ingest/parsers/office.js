@@ -46,8 +46,8 @@ function paragraphToLine(xml) {
 export function docxToText(xml) {
   const lines = []
   const tables = []
-  // Tables are pulled out whole so they can be read as tables, then a
-  // placeholder keeps their position in the prose.
+  // Tables are lifted out whole and read as tables; the prose around them
+  // continues without them, since a table's rows make poor sentences.
   const withoutTables = xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, (tbl) => {
     const rows = [...tbl.matchAll(/<w:tr\b[\s\S]*?<\/w:tr>/g)].map((r) =>
       [...r[0].matchAll(/<w:tc\b[\s\S]*?<\/w:tc>/g)].map((c) =>

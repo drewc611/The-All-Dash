@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { defineWidget } from '../../core/registry.js'
 import { buildReport } from '../../engine/report.js'
 import { Empty } from '../components.jsx'
+import { downloadText } from '../download.js'
 import { IconDoc, IconUpload } from '../icons.jsx'
 
 /**
@@ -45,15 +46,7 @@ defineWidget({
       }
     }
 
-    const download = () => {
-      const blob = new Blob([markdown], { type: 'text/markdown' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `status-${new Date().toISOString().slice(0, 10)}.md`
-      a.click()
-      URL.revokeObjectURL(url)
-    }
+    const download = () => downloadText(markdown, `status-${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
 
     return (
       <div className="stack" style={{ gap: 'var(--gap-3)' }}>

@@ -3,6 +3,7 @@ import { addEntity, updateSettings, getState, exportWorkspace, resetBoard } from
 import { seedWorkspace } from '../data/seed.js'
 import { buildReport } from '../engine/report.js'
 import { rangeFor } from '../core/time.js'
+import { downloadText } from './download.js'
 
 /** Built-in commands. Plugins add their own with AllDash.defineCommand. */
 
@@ -93,15 +94,7 @@ defineCommand({
   name: 'Export workspace',
   hint: 'Download everything as JSON',
   keywords: ['backup', 'download', 'save'],
-  run: () => {
-    const blob = new Blob([exportWorkspace()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `all-dash-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  },
+  run: () => downloadText(exportWorkspace(), `all-dash-${new Date().toISOString().slice(0, 10)}.json`, 'application/json'),
 })
 
 defineCommand({
