@@ -2,6 +2,7 @@ import { defineParser } from '../../core/registry.js'
 import { entitiesFromTable } from '../tabular.js'
 import { ENTITY_TYPES } from '../../data/schema.js'
 import { iso } from '../../core/time.js'
+import { looksLikeTrello, looksLikeGithubIssues, trelloToTable, githubToTable } from '../detect.js'
 
 /**
  * JSON covers three cases: an exported All Dash workspace, a hand-written
@@ -23,6 +24,11 @@ defineParser({
     if (Array.isArray(data) && data.every((r) => r && ENTITY_TYPES.includes(r.type))) {
       return data.map((r) => ({ ...r, source }))
     }
+
+    // Exports with a known shape get their own mapping: a Trello board is
+    // cards in lists, GitHub issues carry assignees and labels as objects.
+    if (looksLikeTrello(data)) return entitiesFromTable(trelloToTable(data), source)
+    if (looksLikeGithubIssues(data)) return entitiesFromTable(githubToTable(data), source)
 
     const records = pickRecordArray(data)
     if (records?.length) {

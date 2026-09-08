@@ -123,7 +123,7 @@ export function mergeEntity(existing, incoming) {
 }
 
 /** A document is a first-class entity too, so the inbox is just a query. */
-export function makeDoc({ id, name, kind, size, text, produced, version }) {
+export function makeDoc({ id, name, kind, size, text, produced, version, flavor = null }) {
   return makeEntity({
     id,
     type: 'doc',
@@ -131,7 +131,7 @@ export function makeDoc({ id, name, kind, size, text, produced, version }) {
     body: (text || '').slice(0, 2000),
     at: iso(new Date()),
     tags: [kind],
-    meta: { kind, size, produced, version },
+    meta: { kind, size, produced, version, flavor },
     source: { docId: id, name, kind: 'import' },
   })
 }

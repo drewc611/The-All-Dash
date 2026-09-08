@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Component, useMemo, useState } from 'react'
 import { getWidget, listWidgets } from '../core/registry.js'
 import { moveWidget, removeWidget, updateWidget, addWidget, resetBoard } from '../core/store.js'
 import { availableMetrics } from '../engine/metrics.js'
@@ -73,12 +73,18 @@ export function Board({ view, items, context, editing }) {
                 </>
               }
             >
-              <Component
-                {...context}
-                widget={widget}
-                config={item.config || {}}
-                setConfig={(patch) => updateWidget(view, item.id, { config: { ...(item.config || {}), ...patch } })}
-              />
+              <WidgetBoundary
+                key={JSON.stringify(item.config || {})}
+                name={widget.name}
+                onReset={() => updateWidget(view, item.id, { config: {} })}
+              >
+                <Component
+                  {...context}
+                  widget={widget}
+                  config={item.config || {}}
+                  setConfig={(patch) => updateWidget(view, item.id, { config: { ...(item.config || {}), ...patch } })}
+                />
+              </WidgetBoundary>
             </Card>
           </div>
         )
@@ -95,6 +101,42 @@ export function Board({ view, items, context, editing }) {
       )}
     </div>
   )
+}
+
+/**
+ * One widget failing must not take the board with it. A plugin that throws
+ * gets its own card explaining what happened, with a way to clear the
+ * settings that may have caused it; everything around it keeps rendering.
+ */
+class WidgetBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error) {
+    console.warn(`All Dash: widget "${this.props.name}" failed to render`, error)
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <Empty
+        title="This widget hit an error"
+        hint={
+          <span className="widget-error">
+            The rest of the board is unaffected.
+            <code>{String(this.state.error?.message || this.state.error).slice(0, 300)}</code>
+          </span>
+        }
+        action={<button className="btn btn--sm" onClick={() => { this.props.onReset(); this.setState({ error: null }) }}>Reset its settings</button>}
+      />
+    )
+  }
 }
 
 export function BoardControls({ view, editing, onToggleEditing }) {

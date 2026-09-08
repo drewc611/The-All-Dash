@@ -148,13 +148,22 @@ export function EntityList({ entities, onOpen, empty, limit = 50 }) {
   )
 }
 
+/** Open overlays, bottom to top, so Escape closes only the one on top. */
+const openOverlays = []
+
 /** Escape-to-close, focus-trapped overlay used by the inspector and pickers. */
 export function Overlay({ onClose, children, className = 'sheet', labelledBy }) {
   const ref = useRef(null)
 
   useEffect(() => {
+    const token = {}
+    openOverlays.push(token)
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose() }
+      if (e.key === 'Escape') {
+        if (openOverlays.at(-1) !== token) return
+        e.stopPropagation()
+        onClose()
+      }
       if (e.key !== 'Tab' || !ref.current) return
       const focusable = ref.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
       if (!focusable.length) return
@@ -165,7 +174,11 @@ export function Overlay({ onClose, children, className = 'sheet', labelledBy }) 
     }
     document.addEventListener('keydown', onKey, true)
     ref.current?.querySelector('input, button')?.focus()
-    return () => document.removeEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      const i = openOverlays.indexOf(token)
+      if (i >= 0) openOverlays.splice(i, 1)
+    }
   }, [onClose])
 
   return (

@@ -17,10 +17,28 @@ const go = (view, name, keywords) =>
   })
 
 go('today', 'Today', ['home', 'dashboard', 'agenda'])
+go('triage', 'Triage', ['problems', 'urgent', 'late', 'overdue', 'blocked', 'pulse'])
 go('timeline', 'Timeline', ['calendar', 'schedule', 'week'])
 go('analytics', 'Analytics', ['metrics', 'charts', 'numbers'])
 go('library', 'Library', ['documents', 'files', 'search', 'inbox'])
 go('settings', 'Settings', ['preferences', 'theme', 'export'])
+
+defineCommand({
+  id: 'ask',
+  name: 'Ask the assistant',
+  hint: 'Questions answered from your own data, changes proposed for you to apply',
+  group: 'Assistant',
+  keywords: ['ai', 'chat', 'claude', 'ollama', 'help', 'explain'],
+  run: ({ close }) => { close?.(); window.dispatchEvent(new CustomEvent('alldash:ask', { detail: {} })) },
+})
+
+defineCommand({
+  id: 'ask-today',
+  name: 'What needs my attention today?',
+  group: 'Assistant',
+  keywords: ['ai', 'priorities', 'focus', 'morning'],
+  run: ({ close }) => { close?.(); window.dispatchEvent(new CustomEvent('alldash:ask', { detail: { question: 'What needs my attention today, in order? Cite the items.' } })) },
+})
 
 defineCommand({
   id: 'import',

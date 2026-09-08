@@ -18,6 +18,7 @@ const DEFAULT_BOARDS = {
   today: [
     { id: 'w1', widgetId: 'agenda', size: 'md' },
     { id: 'w2', widgetId: 'focus-tasks', size: 'md' },
+    { id: 'w8', widgetId: 'triage', size: 'md' },
     { id: 'w3', widgetId: 'reminders', size: 'sm' },
     { id: 'w4', widgetId: 'pulse', size: 'sm' },
     { id: 'w5', widgetId: 'recent-activity', size: 'md' },
@@ -30,6 +31,9 @@ const DEFAULT_BOARDS = {
     { id: 'a3', widgetId: 'throughput', size: 'md' },
     { id: 'a4', widgetId: 'workload', size: 'md' },
     { id: 'a5', widgetId: 'insights', size: 'lg' },
+    { id: 'a6', widgetId: 'load-heatmap', size: 'lg' },
+    { id: 'a7', widgetId: 'leaderboard', size: 'md' },
+    { id: 'a8', widgetId: 'relationship-map', size: 'xl' },
   ],
 }
 
@@ -48,7 +52,18 @@ const initialState = () => ({
     notifications: false,
     reminderLeadMinutes: 15,
     seeded: false,
+    // The assistant's key is never in here; see src/ai/keys.js.
+    assistant: {
+      provider: 'anthropic',
+      baseUrl: '',
+      model: '',
+      privacy: 'full',
+      contextLimit: 40,
+      speak: false,
+      handsFree: false,
+    },
   },
+  triage: {},
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
 })
 
@@ -60,8 +75,13 @@ function load() {
     const raw = localStorage.getItem(KEY)
     if (!raw) return initialState()
     const parsed = JSON.parse(raw)
-    if (parsed.version !== SCHEMA_VERSION) return { ...initialState(), ...parsed, version: SCHEMA_VERSION }
-    return { ...initialState(), ...parsed }
+    const base = initialState()
+    return {
+      ...base,
+      ...parsed,
+      version: SCHEMA_VERSION,
+      settings: { ...base.settings, ...(parsed.settings || {}), assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
+    }
   } catch {
     return initialState()
   }
@@ -249,6 +269,23 @@ export function updateSettings(patch) {
   set((s) => ({ ...s, settings: { ...s.settings, ...patch } }))
 }
 
+export function updateAssistantSettings(patch) {
+  set((s) => ({ ...s, settings: { ...s.settings, assistant: { ...(s.settings.assistant || {}), ...patch } } }))
+}
+
+/** Silence one triage signal until a date. The signal itself is never stored. */
+export function muteSignal(id, untilIso) {
+  set((s) => ({ ...s, triage: { ...(s.triage || {}), [id]: { until: untilIso } } }))
+}
+
+export function unmuteSignal(id) {
+  set((s) => {
+    const triage = { ...(s.triage || {}) }
+    delete triage[id]
+    return { ...s, triage }
+  })
+}
+
 export function updateUi(patch) {
   set((s) => ({ ...s, ui: { ...s.ui, ...patch } }))
 }
@@ -299,7 +336,12 @@ export function importWorkspace(json, { merge = false } = {}) {
         docs,
         customMetrics,
         boards: incoming.boards && typeof incoming.boards === 'object' ? { ...base.boards, ...incoming.boards } : base.boards,
-        settings: { ...base.settings, ...(incoming.settings || {}) },
+        settings: {
+          ...base.settings,
+          ...(incoming.settings || {}),
+          assistant: { ...base.settings.assistant, ...(incoming.settings?.assistant || {}) },
+        },
+        triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         ui: { ...base.ui, ...(incoming.ui || {}) },
         reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
       }

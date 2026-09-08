@@ -10,14 +10,14 @@ import { splitPeople, slug } from './extract.js'
  */
 
 const ROLE_PATTERNS = [
-  ['title', /^(task|title|name|item|summary|subject|description|activity|deliverable|work item|milestone)$/i],
+  ['title', /^(task|title|name|item|summary|subject|description|activity|deliverable|work item|milestone|content|card|issue)$/i],
   ['status', /^(status|state|stage|progress|done)$/i],
-  ['owner', /^(owner|assignee|assigned to|responsible|who|lead|reporter)$/i],
-  ['due', /^(due|due date|deadline|target date|end date|finish|target)$/i],
+  ['owner', /^(owner|assignee|assignees|assigned to|responsible|who|lead|reporter)$/i],
+  ['due', /^(due|due date|due on|deadline|target date|end date|finish|target)$/i],
   ['start', /^(start|start date|begins|from|date|day|when|timestamp|created|created at|period|month|week)$/i],
   ['priority', /^(priority|p|severity|importance)$/i],
-  ['tags', /^(tags?|labels?|category|categories|type|epic|project|team)$/i],
-  ['notes', /^(notes?|comments?|details?|body|context)$/i],
+  ['tags', /^(tags?|labels?|category|categories|type|epic|project|team|sprint|section|column|list|board|cycle name|issue type)$/i],
+  ['notes', /^(notes?|comments?|details?|body|context|desc)$/i],
 ]
 
 const STATUS_MAP = {
@@ -106,7 +106,7 @@ export function entitiesFromTable(table, source) {
         due: dueRaw ? parseLooseDate(dueRaw) : null,
         at: cell(row, byRole('start')) ? parseLooseDate(cell(row, byRole('start'))) : null,
         people: splitPeople(cell(row, byRole('owner')) || ''),
-        tags: [sheetTag, ...splitTags(cell(row, byRole('tags')))],
+        tags: [sheetTag, ...cols.filter((c) => c.role === 'tags').flatMap((c) => splitTags(row[c.index]))],
         priority: /p0|urgent|critical|high/.test(priorityRaw) ? 2 : /p1|medium/.test(priorityRaw) ? 1 : 0,
         source: { ...source, line: rowIndex + 2 },
         confidence: 0.9,

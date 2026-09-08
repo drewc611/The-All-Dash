@@ -1,5 +1,6 @@
 import { defineParser } from '../../core/registry.js'
 import { entitiesFromTable } from '../tabular.js'
+import { applyFlavor } from '../detect.js'
 
 /** RFC 4180 reader, delimiter sniffed from the header row. */
 export function parseDelimited(text, delimiter) {
@@ -62,6 +63,6 @@ defineParser({
   extensions: ['.csv', '.tsv'],
   priority: 20,
   match: ({ name }) => /\.(csv|tsv)$/i.test(name || ''),
-  parse: ({ name, text, docId, kind }) =>
-    entitiesFromTable(toTable(parseDelimited(text)), { docId, name, kind }),
+  parse: ({ name, text, docId, kind, flavor }) =>
+    entitiesFromTable(applyFlavor(toTable(parseDelimited(text)), flavor), { docId, name, kind }),
 })

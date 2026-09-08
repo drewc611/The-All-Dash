@@ -77,6 +77,7 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
                     <span className="list__title truncate">{doc.title}</span>
                     <span className="list__meta">
                       <span className="chip">{doc.meta?.kind}</span>
+                      {doc.meta?.flavor?.label && <span className="chip chip--accent">{doc.meta.flavor.label}</span>}
                       <span>{doc.meta?.produced} items</span>
                       <span>{relative(doc.at)}</span>
                     </span>

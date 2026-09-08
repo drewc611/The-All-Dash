@@ -13,11 +13,14 @@ import { DropHint, Toasts, PasteSheet, FilePicker, useIntake } from './ui/Intake
 import { Timeline } from './ui/views/Timeline.jsx'
 import { Library } from './ui/views/Library.jsx'
 import { Settings } from './ui/views/Settings.jsx'
+import { Triage } from './ui/views/Triage.jsx'
+import { Assistant } from './ui/Assistant.jsx'
+import { buildTriage } from './engine/triage.js'
 import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
-  IconSearch, IconUpload, IconBell, IconCommand,
+  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -25,6 +28,7 @@ import './ui/commands.js'
 
 const VIEWS = [
   { id: 'today', label: 'Today', Icon: IconToday, board: true },
+  { id: 'triage', label: 'Triage', Icon: IconPulse, filters: true },
   { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
   { id: 'library', label: 'Library', Icon: IconLibrary },
@@ -43,6 +47,7 @@ export default function App() {
   const [palette, setPalette] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [inspecting, setInspecting] = useState(null)
+  const [asking, setAsking] = useState(null)
   const { dragging, toasts, accept, toast } = useIntake()
   const narrow = useNarrow()
 
@@ -86,11 +91,16 @@ export default function App() {
         setPalette(true)
         return
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
+        event.preventDefault()
+        setAsking((a) => a || {})
+        return
+      }
       if (typing) return
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', l: 'timeline', a: 'analytics', d: 'library', s: 'settings' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', s: 'settings' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -98,12 +108,15 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     const onPaste = () => setPasting(true)
     const onToast = (e) => toast(e.detail?.message || '', e.detail?.tone || 'info')
+    const onAsk = (e) => setAsking(e.detail || {})
     window.addEventListener('alldash:paste', onPaste)
     window.addEventListener('alldash:toast', onToast)
+    window.addEventListener('alldash:ask', onAsk)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('alldash:paste', onPaste)
       window.removeEventListener('alldash:toast', onToast)
+      window.removeEventListener('alldash:ask', onAsk)
     }
   }, [navigate, toast])
 
@@ -125,14 +138,21 @@ export default function App() {
     runNotifications(reminders, state.settings.notifications)
   }, [reminders, state.settings.notifications])
 
+  const onAsk = useCallback((prefill) => setAsking(prefill || {}), [])
   const context = {
     entities: scopedEntities,
     entityList,
     range,
     state,
     onOpen: setInspecting,
+    onAsk,
     navigate,
   }
+
+  const urgent = useMemo(
+    () => buildTriage(state.entities, { range, customMetrics: state.customMetrics, mutes: state.triage }).filter((s) => s.severity === 'critical' || s.severity === 'serious').length,
+    [state.entities, range, state.customMetrics, state.triage]
+  )
 
   const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
@@ -161,6 +181,7 @@ export default function App() {
               <Icon />
               <span>{label}</span>
               {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
+              {id === 'triage' && urgent > 0 && <span className="rail__count" style={{ color: 'var(--critical)', fontWeight: 600 }}>{urgent}</span>}
             </button>
           ))}
         </div>
@@ -172,6 +193,11 @@ export default function App() {
             <IconCommand />
             <span>Command bar</span>
             <span className="rail__count"><span className="kbd">{isMac() ? '⌘' : 'Ctrl'}K</span></span>
+          </button>
+          <button className="rail__item" onClick={() => setAsking({})}>
+            <IconSpark />
+            <span>Assistant</span>
+            <span className="rail__count"><span className="kbd">{isMac() ? '⌘' : 'Ctrl'}J</span></span>
           </button>
           <FilePicker onFiles={accept} className="rail__item">
             <IconUpload />
@@ -201,6 +227,7 @@ export default function App() {
               />
             )}
             {active.board && <BoardControls view={view} editing={editing} onToggleEditing={() => setEditing((e) => !e)} />}
+            <button className="btn btn--icon" onClick={() => setAsking({})} aria-label="Assistant" title="Assistant"><IconSpark /></button>
             <button className="btn btn--icon" onClick={() => setPalette(true)} aria-label="Search"><IconSearch /></button>
           </div>
         </header>
@@ -212,6 +239,8 @@ export default function App() {
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
+          ) : view === 'triage' ? (
+            <Triage entities={scopedEntities} state={state} range={range} onOpen={setInspecting} onAsk={onAsk} onToast={toast} />
           ) : view === 'timeline' ? (
             <Timeline entityList={entityList} onOpen={setInspecting} />
           ) : view === 'library' ? (
@@ -226,6 +255,18 @@ export default function App() {
       <Toasts toasts={toasts} />
       {palette && (
         <CommandBar entities={state.entities} onClose={() => setPalette(false)} onOpen={setInspecting} navigate={navigate} />
+      )}
+      {asking && (
+        <Assistant
+          prefill={asking}
+          entities={state.entities}
+          state={state}
+          range={range}
+          onOpen={setInspecting}
+          navigate={navigate}
+          onClose={() => setAsking(null)}
+          onToast={toast}
+        />
       )}
       {pasting && <PasteSheet onClose={() => setPasting(false)} onDone={(message, tone) => toast(message, tone || 'good')} />}
       {inspecting && (

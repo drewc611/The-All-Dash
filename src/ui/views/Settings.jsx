@@ -15,6 +15,7 @@ import { Sparkline } from '../viz/charts.jsx'
 import { IconTrash, IconPlus, IconUpload } from '../icons.jsx'
 import { seedWorkspace } from '../../data/seed.js'
 import { downloadText } from '../download.js'
+import { AssistantSettings } from './AssistantSettings.jsx'
 
 export function Settings({ state, entities, range, onToast }) {
   return (
@@ -22,6 +23,7 @@ export function Settings({ state, entities, range, onToast }) {
       <div className="board">
         <div className="board__cell" data-size="md"><Appearance state={state} /></div>
         <div className="board__cell" data-size="md"><Reminders state={state} onToast={onToast} /></div>
+        <div className="board__cell" data-size="xl"><AssistantSettings state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="xl"><MetricBuilder state={state} entities={entities} range={range} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Data onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Harness /></div>
