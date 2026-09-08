@@ -1,0 +1,106 @@
+# The MCP server, HTTP mode, reachable at /mcp through the Ingress so ChatGPT
+# and remote Claude or Copilot clients can connect. Bearer token from the
+# alldash-mcp Secret; it talks to the API on the cluster network.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp
+  namespace: alldash
+  labels:
+    app.kubernetes.io/name: mcp
+    app.kubernetes.io/component: agent-gateway
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp
+        app.kubernetes.io/component: agent-gateway
+    spec:
+      serviceAccountName: alldash-app
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp
+          image: alldash-mcp
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: MCP_TRANSPORT
+              value: http
+            - name: MCP_PORT
+              value: "8080"
+            - name: MCP_PATH
+              value: /mcp
+            - name: MCP_PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: alldash-config
+                  key: ALLDASH_CORS_ORIGINS
+            - name: ALLDASH_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: alldash-config
+                  key: BACKEND_URL
+            - name: ALLDASH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alldash-api
+                  key: BACKEND_API_KEY
+            - name: MCP_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: alldash-mcp
+                  key: MCP_AUTH_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp
+  namespace: alldash
+  labels:
+    app.kubernetes.io/name: mcp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mcp
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

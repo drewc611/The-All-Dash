@@ -15,6 +15,9 @@ images:
   - name: alldash-frontend
     newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/alldash-frontend
     newTag: 0.1.0
+  - name: alldash-mcp
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/alldash-mcp
+    newTag: 0.1.0
 patches:
   - path: host-patch.yaml
     target:

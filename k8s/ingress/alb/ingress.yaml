@@ -36,6 +36,13 @@ spec:
     - host: alldash.example.com
       http:
         paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: mcp
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

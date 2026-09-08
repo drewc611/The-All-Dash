@@ -1,0 +1,27 @@
+{
+  "inputs": [
+    {
+      "id": "alldash-api-key",
+      "type": "promptString",
+      "description": "All Dash platform API key (X-API-Key). Leave empty to use only a workspace export file.",
+      "password": true
+    },
+    {
+      "id": "alldash-workspace-file",
+      "type": "promptString",
+      "description": "Path to an All Dash workspace export (.json) from Settings → Your data. Leave empty to use only the API."
+    }
+  ],
+  "servers": {
+    "all-dash": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp/src/server.js"],
+      "env": {
+        "ALLDASH_API_URL": "http://localhost:8000",
+        "ALLDASH_API_KEY": "${input:alldash-api-key}",
+        "ALLDASH_WORKSPACE_FILE": "${input:alldash-workspace-file}"
+      }
+    }
+  }
+}

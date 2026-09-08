@@ -26,6 +26,7 @@ resources:
   - frontend/deployment.yaml
   - frontend/service.yaml
   - frontend/pdb.yaml
+  - mcp/deployment.yaml
   - cronjob/daily-brief.yaml
   - network/networkpolicy.yaml
   # The Ingress is chosen in the overlay: k8s/ingress/alb or k8s/ingress/nginx-letsencrypt.
@@ -35,4 +36,7 @@ images:
     newTag: 0.1.0
   - name: alldash-frontend
     newName: alldash-frontend
+    newTag: 0.1.0
+  - name: alldash-mcp
+    newName: alldash-mcp
     newTag: 0.1.0

@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# The MCP server in HTTP mode, for ChatGPT connectors and remote clients.
+# It needs the browser app's engine sources (../src) for workspace mode, so
+# the build context is the repository root:
+#   docker build -f mcp/Dockerfile -t alldash-mcp .
+FROM node:20-alpine AS deps
+WORKDIR /app/mcp
+COPY mcp/package.json mcp/package-lock.json* ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production MCP_TRANSPORT=http MCP_PORT=8080 MCP_PATH=/mcp
+RUN apk add --no-cache tini curl \
+ && addgroup --system --gid 10001 mcp \
+ && adduser --system --uid 10001 --ingroup mcp mcp
+WORKDIR /app
+COPY --from=deps --chown=mcp:mcp /app/mcp/node_modules ./mcp/node_modules
+COPY --chown=mcp:mcp mcp/package.json ./mcp/package.json
+COPY --chown=mcp:mcp mcp/src ./mcp/src
+COPY --chown=mcp:mcp src/core ./src/core
+COPY --chown=mcp:mcp src/data/schema.js ./src/data/schema.js
+COPY --chown=mcp:mcp src/engine ./src/engine
+USER mcp:mcp
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "mcp/src/server.js"]

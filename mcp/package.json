@@ -1,0 +1,18 @@
+{
+  "name": "alldash-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for The All Dash: query the workspace, triage, briefs and finances from Claude, Copilot or ChatGPT, and log agent decisions to the audit ledger.",
+  "bin": { "alldash-mcp": "src/server.js" },
+  "scripts": {
+    "start": "node src/server.js",
+    "serve": "MCP_TRANSPORT=http node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76"
+  }
+}
