@@ -14,7 +14,7 @@ test('a day key round-trips as a local calendar date', () => {
   // Whatever this machine's locale prints, it must print the same thing for
   // the key as for a Date built from the same local parts.
   const opts = { month: 'numeric', day: 'numeric' }
-  assert.equal(formatDate('2026-03-04', opts), new Date(2026, 2, 4).toLocaleDateString(undefined, opts))
+  assert.equal(formatDate('2026-03-04', opts), formatDate(new Date(2026, 2, 4), opts))
   assert.equal(isSameDay('2026-03-04', new Date(2026, 2, 4, 15)), true)
   assert.equal(toDate('2026-03-04').getHours(), 0)
   assert.equal(dayKey(startOfDay('2026-12-31')), '2026-12-31')

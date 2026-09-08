@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { dayKey, formatDate, addDays, startOfDay, endOfDay, isSameDay } from '../../core/time.js'
+import { dayKey, formatDate, addDays, startOfDay, endOfDay, isSameDay, toDate } from '../../core/time.js'
 import { EntityList, Empty, Segmented } from '../components.jsx'
 
 const LENSES = [
@@ -32,7 +32,7 @@ export function Timeline({ entityList, onOpen }) {
       if (!when) continue
       if (lens !== 'all' && entity.type !== lens) continue
       if (!['event', 'task', 'milestone', 'risk'].includes(entity.type)) continue
-      const at = new Date(when)
+      const at = toDate(when)
       if (at < from || at > to) continue
       dated.push({ entity, when: at })
     }

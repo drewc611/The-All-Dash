@@ -1,4 +1,4 @@
-import { dayKey, addDays, startOfDay } from './time.js'
+import { dayKey, addDays, startOfDay, toDate } from './time.js'
 
 /**
  * A tiny query layer over the entity list. Chainable, lazy enough, and small
@@ -140,7 +140,7 @@ export function daily(rows, { from, to, field = 'at', reduce = 'count', valueFie
   // each bucket by the date field so `last` is the latest value, not the one
   // that happened to be appended last.
   for (const group of buckets.values()) {
-    if (group.length > 1) group.sort((a, b) => new Date(a[field]) - new Date(b[field]))
+    if (group.length > 1) group.sort((a, b) => toDate(a[field]) - toDate(b[field]))
   }
   return [...buckets.entries()].map(([key, group]) => ({
     key,
