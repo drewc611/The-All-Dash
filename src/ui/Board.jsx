@@ -155,7 +155,10 @@ function WidgetSettings({ view, item, widget, context, onClose }) {
 
         {widget.options.map((option) => {
           const id = `opt-${option.key}`
-          const value = config[option.key] ?? option.default ?? ''
+          // A cleared field stays cleared (stored as null, shown as empty);
+          // the widget falls back to its default when it reads the config.
+          const stored = config[option.key]
+          const value = stored === null ? '' : stored ?? option.default ?? ''
           const label = <label className="field__label" htmlFor={id}>{option.label || option.key}</label>
 
           if (option.type === 'boolean') {

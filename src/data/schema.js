@@ -82,7 +82,9 @@ export function makeEntity(input) {
     },
     confidence: input.confidence ?? 1,
     createdAt: input.createdAt || now,
-    updatedAt: now,
+    // A restored or re-imported record keeps its own timestamp; only a record
+    // arriving without one is "updated now".
+    updatedAt: input.updatedAt || now,
   }
   if (entity.type === 'metric' && !Number.isFinite(entity.value)) entity.value = 0
   return entity

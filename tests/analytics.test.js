@@ -312,3 +312,13 @@ test('a checkbox click cycles open, in progress, done, and reopens anything else
   assert.equal(nextTaskStatus('blocked'), 'open')
   assert.equal(nextTaskStatus('cancelled'), 'open')
 })
+
+test('a restored entity keeps its own updatedAt', () => {
+  const stamp = '2020-01-02T03:04:05.000Z'
+  assert.equal(makeEntity({ type: 'task', title: 'Old', updatedAt: stamp }).updatedAt, stamp)
+  assert.notEqual(makeEntity({ type: 'task', title: 'Fresh' }).updatedAt, stamp)
+  clearWorkspace()
+  importWorkspace({ entities: { x: { id: 'x', type: 'task', title: 'Old', status: 'done', updatedAt: stamp } } })
+  assert.equal(getState().entities.x.updatedAt, stamp)
+  assert.equal(evaluate('tasks-completed', getState().entities, rangeFor('7d')).value, 0, 'an old completion does not count as this week')
+})
