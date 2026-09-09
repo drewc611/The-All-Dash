@@ -9,7 +9,7 @@ import { seedWorkspace } from './data/seed.js'
 import { Board, BoardControls } from './ui/Board.jsx'
 import { CommandBar } from './ui/CommandBar.jsx'
 import { Inspector } from './ui/Inspector.jsx'
-import { DropHint, Toasts, PasteSheet, FilePicker, useIntake } from './ui/Intake.jsx'
+import { DropHint, Toasts, PasteSheet, UrlSheet, FilePicker, useIntake } from './ui/Intake.jsx'
 import { Timeline } from './ui/views/Timeline.jsx'
 import { Library } from './ui/views/Library.jsx'
 import { Settings } from './ui/views/Settings.jsx'
@@ -52,6 +52,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [palette, setPalette] = useState(false)
   const [pasting, setPasting] = useState(false)
+  const [importingUrl, setImportingUrl] = useState(null)
   const [inspecting, setInspecting] = useState(null)
   const [asking, setAsking] = useState(null)
   const { dragging, toasts, accept, toast } = useIntake()
@@ -126,12 +127,15 @@ export default function App() {
     const onPaste = () => setPasting(true)
     const onToast = (e) => toast(e.detail?.message || '', e.detail?.tone || 'info')
     const onAsk = (e) => setAsking(e.detail || {})
+    const onImportUrl = (e) => setImportingUrl(e.detail?.url || '')
+    window.addEventListener('alldash:import-url', onImportUrl)
     window.addEventListener('alldash:paste', onPaste)
     window.addEventListener('alldash:toast', onToast)
     window.addEventListener('alldash:ask', onAsk)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('alldash:paste', onPaste)
+      window.removeEventListener('alldash:import-url', onImportUrl)
       window.removeEventListener('alldash:toast', onToast)
       window.removeEventListener('alldash:ask', onAsk)
     }
@@ -253,7 +257,7 @@ export default function App() {
 
         <div className="scroller">
           {empty && view !== 'settings' ? (
-            <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} />
+            <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
           ) : view === 'triage' ? (
@@ -288,6 +292,7 @@ export default function App() {
         />
       )}
       {pasting && <PasteSheet onClose={() => setPasting(false)} onDone={(message, tone) => toast(message, tone || 'good')} />}
+      {importingUrl !== null && <UrlSheet prefill={importingUrl} navigate={navigate} onClose={() => setImportingUrl(null)} onDone={(message, tone) => toast(message, tone || 'good')} />}
       {inspecting && (
         <Inspector
           entity={state.entities[inspecting.id] || inspecting}
@@ -307,7 +312,7 @@ export default function App() {
   )
 }
 
-function FirstRun({ onSeed, onFiles, onPaste }) {
+function FirstRun({ onSeed, onFiles, onPaste, onUrl }) {
   return (
     <div className="card" style={{ maxWidth: 620, margin: '8vh auto' }}>
       <div className="card__body" style={{ padding: 'var(--gap-6)' }}>
@@ -321,6 +326,7 @@ function FirstRun({ onSeed, onFiles, onPaste }) {
           <div className="row row--wrap" style={{ marginTop: 'var(--gap-2)' }}>
             <FilePicker onFiles={onFiles} className="btn btn--primary"><IconUpload width={13} height={13} /> Choose files</FilePicker>
             <button className="btn" onClick={onPaste}>Paste notes</button>
+            <button className="btn" onClick={onUrl}>Import a web page</button>
             <button className="btn" onClick={onSeed}>Load a sample project</button>
           </div>
           <div className="divider" style={{ margin: 'var(--gap-3) 0' }} />

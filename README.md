@@ -45,6 +45,14 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   sparklines and period-over-period change, then any series as a line with a
   7-day average. A relationship map, a load heatmap and a leaderboard show who
   carries what.
+- **The web, read into the dashboard.** Give the platform a URL and the page
+  (or the whole site) comes back as Markdown and goes through the same parsers
+  as a pasted note: the tasks, dates, people, decisions and numbers on a wiki
+  page, a status page, a vendor's changelog or a public tracker become
+  entities you can triage. Scrape, map, crawl and batch are native and free;
+  search, JavaScript rendering and screenshots use Firecrawl when you add a
+  key; extract and agent use a model you configure on the backend and record
+  what they did in the audit ledger. Agents get the same seven tools over MCP.
 - **A brain that learns who you are, with no model.** Rules over your own
   data work out who you work with, which topics slip, when you are active,
   how far ahead you plan. Facts are recorded automatically; opinions ("#infra
@@ -483,7 +491,8 @@ The-All-Dash/
 │   │   ├── schemas.py          Pydantic v2, strict (unknown fields rejected)
 │   │   ├── security.py         X-API-Key, constant-time compare
 │   │   ├── audit.py            The ledger: SHA-256 over row + previous hash, advisory-locked appends, verify
-│   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /healthz /readyz
+│   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /web /healthz /readyz
+│   │   ├── web/                guard (SSRF), fetch (robots, limits), html→Markdown, sitemap, firecrawl, llm, service
 │   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin)
 │   │   └── worker.py           Celery app, beat schedule, three periodic decisions
 │   ├── alembic/                Migrations; 0001 also installs the append-only trigger on ai_audit_logs
@@ -731,6 +740,65 @@ kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubec
 - **The browser app** never sends an API key over plain HTTP to anything but
   localhost, keeps keys out of workspace exports, and treats model output as
   proposals.
+
+### The web tier: search, scrape, map, crawl, batch, extract, agent
+
+`/web/*` turns the web into input. Everything native is deterministic and
+needs no account; the two paid dependencies are optional and their absence
+is reported with a 501, never hidden.
+
+| Endpoint | What it does | Needs |
+|---|---|---|
+| `POST /web/scrape` | One URL to Markdown, plain text, links or HTML. `render: true` runs JavaScript first; `formats: ["screenshot"]` returns an image. | Nothing; render and screenshot need Firecrawl |
+| `POST /web/map` | Every URL a site publishes: its sitemaps (from robots.txt, `/sitemap.xml`, sitemap indexes), then the links off the front page. `search` filters. | Nothing |
+| `POST /web/crawl` | Breadth-first over one site, bounded by `limit`, `max_depth` and path globs (`include: ["/docs/*"]`). Over the synchronous cap, or with `?async=true`, it becomes a worker job. | Nothing |
+| `POST /web/batch` | Up to 1000 URLs, a few at a time, in order. Large batches become jobs. | Nothing |
+| `POST /web/search` | Web search with page content. | Firecrawl |
+| `POST /web/extract` | Scrape up to 10 URLs, then answer a prompt or fill a JSON Schema. | A model |
+| `POST /web/agent` | Describe what you need. With `start_url` it maps the site, ranks pages against the goal, reads them and extracts; without one it searches. | A model (search: Firecrawl) |
+| `GET /web/jobs/{id}` | Status and pages of a crawl or batch job. | |
+| `GET /web/capabilities` | What this deployment has switched on. | |
+
+**How it stays safe.** Every URL, and every redirect hop, is resolved and
+checked before a byte is fetched: http and https only, public addresses
+only, never the cluster's own names, never link-local (instance metadata)
+or private ranges. robots.txt is honoured (including `Crawl-delay`), one
+request per host per half second, a 5 MiB cap, a 20-second timeout, and the
+NetworkPolicies let the API and worker reach only public 80 and 443. Extract
+and agent are decisions made on your behalf, so each one lands in the audit
+ledger with the model, the sources and the prompt.
+
+<p>
+  <img src="docs/screenshots/import-url.png" width="49%" alt="Import from the web sheet with a page address and a crawl option" />
+  <img src="docs/screenshots/library-web.png" width="49%" alt="Library after importing a page and crawling a site: documents with source links and the items they produced" />
+</p>
+
+**Why it matters.** Most of what a project needs to know is on a page
+somewhere: a vendor's status page, a public roadmap, a wiki, a changelog, a
+tender, a competitor's pricing. Scrape puts one of those into the dashboard
+in the shape the rest of the app already understands, crawl brings a whole
+docs site, map tells you what a site has before you read it, and batch
+keeps a list of pages fresh. With a model configured, extract turns "what
+does the team plan cost" into a JSON answer with its sources, and agent
+does the map-read-extract loop from a sentence. In the browser app, *Import
+a web page* (first run, Library, the command bar) uses the same endpoints
+through Settings → Platform, and importing a page again refreshes what it
+produced.
+
+```bash
+# Turn on the extras (both optional)
+export ALLDASH_FIRECRAWL_API_KEY=fc-...                       # search, render, screenshots
+export ALLDASH_LLM_PROVIDER=anthropic ALLDASH_LLM_MODEL=claude-sonnet-5 ALLDASH_LLM_API_KEY=sk-ant-...   # extract, agent
+# or ALLDASH_LLM_PROVIDER=openai with ALLDASH_LLM_BASE_URL for any chat-completions endpoint, or ollama
+
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/scrape -d '{"url":"https://example.com/docs"}' -H 'content-type: application/json'
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/crawl  -d '{"url":"https://example.com","limit":50,"include":["/docs/*"]}' -H 'content-type: application/json'
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/agent  -d '{"goal":"pricing per seat and the enterprise terms","start_url":"https://example.com"}' -H 'content-type: application/json'
+```
+
+From Claude, Copilot or ChatGPT the same operations are `web_scrape`,
+`web_map`, `web_crawl`, `web_batch`, `web_job`, `web_search`, `web_extract`,
+`web_agent` and `web_capabilities` on the MCP server.
 
 ### Disaster recovery
 

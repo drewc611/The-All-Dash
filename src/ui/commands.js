@@ -50,6 +50,14 @@ defineCommand({
 })
 
 defineCommand({
+  id: 'import-url',
+  name: 'Import a web page',
+  hint: 'The platform reads the page (or crawls the site) into the dashboard',
+  keywords: ['url', 'link', 'web', 'scrape', 'crawl', 'site'],
+  run: ({ close }) => { close?.(); window.dispatchEvent(new CustomEvent('alldash:import-url', { detail: {} })) },
+})
+
+defineCommand({
   id: 'paste',
   name: 'Paste notes',
   hint: 'Read text straight from the clipboard into the dashboard',

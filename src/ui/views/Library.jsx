@@ -5,7 +5,7 @@ import { ENTITY_TYPES, TYPE_LABEL } from '../../data/schema.js'
 import { relative } from '../../core/time.js'
 import { EntityList, Empty } from '../components.jsx'
 import { FilePicker } from '../Intake.jsx'
-import { IconTrash, IconUpload, IconDoc, IconSearch } from '../icons.jsx'
+import { IconTrash, IconUpload, IconDoc, IconSearch, IconLink } from '../icons.jsx'
 
 /**
  * Everything that has been read, and everything it produced. This is the
@@ -53,6 +53,7 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
           ))}
         </select>
         <FilePicker onFiles={onFiles} className="btn btn--primary"><IconUpload width={13} height={13} /> Import</FilePicker>
+        <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('alldash:import-url', { detail: {} }))}><IconLink width={13} height={13} /> From URL</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 280px) minmax(0, 1fr)', gap: 'var(--gap-4)', alignItems: 'start' }} className="library-split">
@@ -82,6 +83,9 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
                       <span>{relative(doc.at)}</span>
                     </span>
                   </button>
+                  {isWebUrl(doc.meta?.url) && (
+                    <a className="btn btn--icon btn--sm" href={doc.meta.url} target="_blank" rel="noopener noreferrer" title={`Open ${doc.meta.url}`} aria-label={`Open ${doc.meta.url}`}><IconLink width={13} height={13} /></a>
+                  )}
                   <button
                     className="btn btn--icon btn--danger btn--sm"
                     title={`Remove ${doc.title} and everything it produced`}
@@ -114,3 +118,6 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
     </div>
   )
 }
+
+/** Only http(s) ever becomes a link; a document's URL is data from an import. */
+const isWebUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value)

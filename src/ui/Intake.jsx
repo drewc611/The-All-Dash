@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ingestFiles, ingestText } from '../ingest/index.js'
+import { importUrl } from '../ingest/web.js'
+import { platformConfig } from '../platform/client.js'
 import { Overlay } from './components.jsx'
-import { IconUpload, IconClose } from './icons.jsx'
+import { IconUpload, IconClose, IconLink } from './icons.jsx'
 
 /**
  * Getting things in.
@@ -173,5 +175,85 @@ export function FilePicker({ onFiles, children, className = 'btn' }) {
         onChange={(e) => { onFiles(e.target.files); e.target.value = '' }}
       />
     </>
+  )
+}
+
+
+/**
+ * Import from a URL. The platform tier reads the page (or crawls the site)
+ * and hands back Markdown; from there it is a pasted note. Needs the
+ * platform URL and key from Settings → Platform.
+ */
+export function UrlSheet({ onClose, onDone, navigate, prefill = '' }) {
+  const [url, setUrl] = useState(prefill)
+  const [crawl, setCrawl] = useState(false)
+  const [limit, setLimit] = useState(10)
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState('')
+  const [error, setError] = useState('')
+  const { configured } = platformConfig()
+
+  const submit = async (event) => {
+    event.preventDefault()
+    const target = url.trim()
+    if (!target || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await importUrl(target, { crawl, limit, onProgress: setProgress })
+      const failed = result.failures.length ? `, ${result.failures.length} page${result.failures.length === 1 ? '' : 's'} failed` : ''
+      onDone?.(`${result.pages} page${result.pages === 1 ? '' : 's'} read, ${result.entities} item${result.entities === 1 ? '' : 's'} found${failed}.`, 'good')
+      onClose()
+    } catch (err) {
+      setError(err.message || String(err))
+    } finally {
+      setBusy(false)
+      setProgress('')
+    }
+  }
+
+  return (
+    <Overlay onClose={onClose} labelledBy="url-title">
+      <form onSubmit={submit}>
+        <div className="sheet__head">
+          <h2 id="url-title"><IconLink width={14} height={14} /> Import from the web</h2>
+          <button type="button" className="btn btn--icon" onClick={onClose} aria-label="Close"><IconClose /></button>
+        </div>
+        <div className="sheet__body stack">
+          {!configured && (
+            <p className="muted" style={{ margin: 0 }}>
+              This needs the platform tier: set its URL and API key in Settings → Platform, and put this site's origin in the API's <code className="mono">ALLDASH_CORS_ORIGINS</code>.
+              {navigate && <> <button type="button" className="btn btn--sm" onClick={() => { onClose(); navigate('settings') }}>Open Settings</button></>}
+            </p>
+          )}
+          <div className="field">
+            <label className="field__label" htmlFor="url-input">Page address</label>
+            <input id="url-input" className="input" type="url" placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus disabled={!configured || busy} required />
+          </div>
+          <div className="row row--wrap">
+            <label className="row" style={{ cursor: 'pointer' }}>
+              <input type="checkbox" checked={crawl} onChange={(e) => setCrawl(e.target.checked)} disabled={!configured || busy} />
+              <span>Crawl the site from this page</span>
+            </label>
+            {crawl && (
+              <label className="row" style={{ gap: 6 }}>
+                <span className="muted">up to</span>
+                <input className="input" type="number" min={2} max={25} value={limit} onChange={(e) => setLimit(Math.max(2, Math.min(25, Number(e.target.value) || 10)))} style={{ width: 70 }} disabled={busy} />
+                <span className="muted">pages</span>
+              </label>
+            )}
+          </div>
+          <p className="muted" style={{ margin: 0, fontSize: 'var(--t-xs)' }}>
+            The platform reads the page as Markdown (public sites only, robots.txt respected) and the app pulls out tasks, dates, people, decisions and numbers. Importing the same page again refreshes what it produced.
+          </p>
+          {progress && <p className="secondary" style={{ margin: 0 }} aria-live="polite">{progress}</p>}
+          {error && <p style={{ margin: 0, color: 'var(--critical)' }} role="alert">{error}</p>}
+        </div>
+        <div className="sheet__foot">
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn--primary" disabled={!configured || busy || !url.trim()}>{busy ? 'Reading…' : crawl ? 'Crawl and import' : 'Import'}</button>
+        </div>
+      </form>
+    </Overlay>
   )
 }

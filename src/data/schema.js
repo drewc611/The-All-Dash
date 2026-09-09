@@ -79,6 +79,7 @@ export function makeEntity(input) {
       name: input.source?.name || 'Added by hand',
       kind: input.source?.kind || 'manual',
       line: input.source?.line ?? null,
+      url: input.source?.url || null,
     },
     confidence: input.confidence ?? 1,
     createdAt: input.createdAt || now,
@@ -123,7 +124,7 @@ export function mergeEntity(existing, incoming) {
 }
 
 /** A document is a first-class entity too, so the inbox is just a query. */
-export function makeDoc({ id, name, kind, size, text, produced, version, flavor = null }) {
+export function makeDoc({ id, name, kind, size, text, produced, version, flavor = null, url = null }) {
   return makeEntity({
     id,
     type: 'doc',
@@ -131,7 +132,7 @@ export function makeDoc({ id, name, kind, size, text, produced, version, flavor 
     body: (text || '').slice(0, 2000),
     at: iso(new Date()),
     tags: [kind],
-    meta: { kind, size, produced, version, flavor },
-    source: { docId: id, name, kind: 'import' },
+    meta: { kind, size, produced, version, flavor, url },
+    source: { docId: id, name, kind: 'import', url },
   })
 }

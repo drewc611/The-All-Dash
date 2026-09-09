@@ -54,6 +54,9 @@ const initialState = () => ({
     notifications: false,
     reminderLeadMinutes: 15,
     seeded: false,
+    // The platform tier this app may talk to (Settings → Platform). Its key
+    // lives with the assistant keys, never here.
+    platform: { url: '' },
     // The assistant's key is never in here; see src/ai/keys.js.
     assistant: {
       provider: 'anthropic',
@@ -92,16 +95,28 @@ function load() {
 }
 
 let saveTimer = null
+function flush() {
+  clearTimeout(saveTimer)
+  saveTimer = null
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state))
+  } catch (err) {
+    console.warn('All Dash: could not persist state', err)
+  }
+}
+
 function persist() {
   if (typeof localStorage === 'undefined') return
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state))
-    } catch (err) {
-      console.warn('All Dash: could not persist state', err)
-    }
-  }, 250)
+  saveTimer = setTimeout(flush, 250)
+}
+
+// A reload or a closed tab inside the debounce window must not lose the last
+// change, so a pending save is written the moment the page goes away.
+if (typeof window !== 'undefined') {
+  const flushIfPending = () => { if (saveTimer) flush() }
+  window.addEventListener('pagehide', flushIfPending)
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushIfPending() })
 }
 
 function set(updater) {

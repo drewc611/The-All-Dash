@@ -2141,6 +2141,524 @@
           }
         }
       }
+    },
+    "/web/capabilities": {
+      "get": {
+        "tags": [
+          "web"
+        ],
+        "summary": "What this deployment can do",
+        "operationId": "capabilities_web_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebCapabilities"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/scrape": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "One URL to Markdown, HTML, text, links or a screenshot",
+        "operationId": "scrape_web_scrape_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebScrapeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/map": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Every URL a site publishes",
+        "operationId": "map_site_web_map_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebMapIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebMapOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/search": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Search the web (Firecrawl)",
+        "operationId": "search_web_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebSearchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/crawl": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Every page of a site, breadth first",
+        "operationId": "crawl_web_crawl_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "async",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Async"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebCrawlIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WebCrawlOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebJobAccepted"
+                    }
+                  ],
+                  "title": "Response Crawl Web Crawl Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/batch": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Many URLs at once",
+        "operationId": "batch_web_batch_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "async",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Async"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebBatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WebBatchOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebJobAccepted"
+                    }
+                  ],
+                  "title": "Response Batch Web Batch Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/extract": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Scrape, then answer a prompt or fill a schema (needs a model)",
+        "operationId": "extract_web_extract_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebExtractIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebExtractOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/agent": {
+      "post": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Describe what you need; it maps or searches, reads and extracts (needs a model)",
+        "operationId": "agent_web_agent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAgentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAgentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/web/jobs": {
+      "get": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Crawls and batches run by the worker, newest first",
+        "operationId": "list_jobs_web_jobs_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "done",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_WebJobOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "web"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_web_jobs__job_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3304,6 +3822,37 @@
         ],
         "title": "Page[TaskOut]"
       },
+      "Page_WebJobOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WebJobOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[WebJobOut]"
+      },
       "ProjectIn": {
         "properties": {
           "name": {
@@ -3937,6 +4486,863 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebAgentIn": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Goal",
+            "description": "What you need, in a sentence or two"
+          },
+          "start_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Url",
+            "description": "A site to work from; without one the agent searches the web"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema"
+          },
+          "max_pages": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Max Pages",
+            "default": 5
+          },
+          "render": {
+            "type": "boolean",
+            "title": "Render",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "goal"
+        ],
+        "title": "WebAgentIn"
+      },
+      "WebAgentOut": {
+        "properties": {
+          "data": {
+            "title": "Data"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/WebFailure"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "audit_id": {
+            "type": "string",
+            "title": "Audit Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "sources",
+          "failures",
+          "steps",
+          "model",
+          "audit_id"
+        ],
+        "title": "WebAgentOut"
+      },
+      "WebBatchIn": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Urls"
+          },
+          "formats": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "markdown",
+                "html",
+                "text",
+                "links",
+                "screenshot"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Formats"
+          },
+          "render": {
+            "type": "boolean",
+            "title": "Render",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "title": "WebBatchIn"
+      },
+      "WebBatchOut": {
+        "properties": {
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/WebPage"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/WebFailure"
+            },
+            "type": "array",
+            "title": "Failures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pages",
+          "failures"
+        ],
+        "title": "WebBatchOut"
+      },
+      "WebCapabilities": {
+        "properties": {
+          "native": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Native"
+          },
+          "firecrawl": {
+            "type": "boolean",
+            "title": "Firecrawl"
+          },
+          "search": {
+            "type": "boolean",
+            "title": "Search"
+          },
+          "render": {
+            "type": "boolean",
+            "title": "Render"
+          },
+          "screenshot": {
+            "type": "boolean",
+            "title": "Screenshot"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "extract": {
+            "type": "boolean",
+            "title": "Extract"
+          },
+          "agent": {
+            "type": "boolean",
+            "title": "Agent"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "native",
+          "firecrawl",
+          "search",
+          "render",
+          "screenshot",
+          "model",
+          "extract",
+          "agent",
+          "limits"
+        ],
+        "title": "WebCapabilities"
+      },
+      "WebCrawlIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 20
+          },
+          "max_depth": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Max Depth",
+            "default": 2
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Include",
+            "description": "Path globs to keep, e.g. /docs/*"
+          },
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Exclude"
+          },
+          "formats": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "markdown",
+                "html",
+                "text",
+                "links",
+                "screenshot"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Formats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebCrawlIn"
+      },
+      "WebCrawlOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/WebPage"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/WebFailure"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "visited": {
+            "type": "integer",
+            "title": "Visited"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "pages",
+          "failures",
+          "visited",
+          "truncated"
+        ],
+        "title": "WebCrawlOut"
+      },
+      "WebExtractIn": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Urls"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema",
+            "description": "JSON Schema the answer must fit"
+          },
+          "render": {
+            "type": "boolean",
+            "title": "Render",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urls",
+          "prompt"
+        ],
+        "title": "WebExtractIn"
+      },
+      "WebExtractOut": {
+        "properties": {
+          "data": {
+            "title": "Data"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/WebFailure"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "audit_id": {
+            "type": "string",
+            "title": "Audit Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "sources",
+          "failures",
+          "model",
+          "audit_id"
+        ],
+        "title": "WebExtractOut"
+      },
+      "WebFailure": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "error"
+        ],
+        "title": "WebFailure"
+      },
+      "WebJobAccepted": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "crawl",
+              "batch"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "title": "WebJobAccepted"
+      },
+      "WebJobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "crawl",
+              "batch"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "request": {
+            "type": "object",
+            "title": "Request"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "request",
+          "result",
+          "error",
+          "created_at",
+          "updated_at",
+          "finished_at"
+        ],
+        "title": "WebJobOut"
+      },
+      "WebMapIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 200
+          },
+          "search": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search"
+          },
+          "sitemap": {
+            "type": "boolean",
+            "title": "Sitemap",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebMapIn"
+      },
+      "WebMapOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "urls",
+          "total",
+          "source"
+        ],
+        "title": "WebMapOut"
+      },
+      "WebPage": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "final_url": {
+            "type": "string",
+            "title": "Final Url"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": ""
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown"
+          },
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Links"
+          },
+          "screenshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Metadata"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "fetched_ms": {
+            "type": "integer",
+            "title": "Fetched Ms",
+            "default": 0
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "final_url",
+          "status",
+          "title",
+          "markdown",
+          "engine"
+        ],
+        "title": "WebPage"
+      },
+      "WebScrapeIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "formats": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "markdown",
+                "html",
+                "text",
+                "links",
+                "screenshot"
+              ]
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Formats"
+          },
+          "render": {
+            "type": "boolean",
+            "title": "Render",
+            "description": "Render JavaScript first (needs Firecrawl)",
+            "default": false
+          },
+          "wait_ms": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Wait Ms",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebScrapeIn"
+      },
+      "WebSearchIn": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 5
+          },
+          "scrape": {
+            "type": "boolean",
+            "title": "Scrape",
+            "description": "Also fetch each result's content",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "WebSearchIn"
+      },
+      "WebSearchOut": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/WebSearchResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "results",
+          "engine"
+        ],
+        "title": "WebSearchOut"
+      },
+      "WebSearchResult": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebSearchResult"
       }
     },
     "securitySchemes": {
@@ -3946,15 +5352,5 @@
         "name": "X-API-Key"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8000",
-      "description": "docker compose"
-    },
-    {
-      "url": "https://alldash.example.com/api/platform",
-      "description": "Only if the API is added to the Ingress"
-    }
-  ]
+  }
 }
