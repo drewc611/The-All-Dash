@@ -19,6 +19,16 @@ The `all-dash` MCP server (registered in `.mcp.json`) exposes two sources:
 `search` and `fetch` span both sources and return ids you can pass to the
 specific tools.
 
+## Setup
+
+If every tool call fails with "Nothing to serve", the server has no source.
+Tell the user to export their workspace from the app (Settings → Your data →
+Export) and save it as `~/.all-dash/workspace.json`, or to set
+`ALLDASH_WORKSPACE_FILE` to the export path, and/or `ALLDASH_API_URL` and
+`ALLDASH_API_KEY` for the platform API, then restart Claude Code. Writes made
+through `workspace_add_task` and `workspace_update_task` land in that file;
+the user re-imports it (Settings → Your data → Restore) to see them.
+
 ## How to answer
 
 1. Start with `workspace_overview` or `platform_brief` for the shape of the day.

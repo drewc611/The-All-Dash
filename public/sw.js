@@ -7,10 +7,10 @@
  * prefer the network so a new deploy shows on reload. Cross-origin requests
  * are never touched - the app has no API to talk to.
  */
-const CACHE = 'all-dash-v1'
+const CACHE = 'all-dash-v2'
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/index.html', '/manifest.webmanifest', '/icon.svg'])))
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'])))
   self.skipWaiting()
 })
 

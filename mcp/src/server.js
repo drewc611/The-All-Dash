@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 
-import { readConfig } from './config.js'
+import { DEFAULT_WORKSPACE, readConfig } from './config.js'
 import { PlatformAdapter } from './adapters/platform.js'
 import { WorkspaceAdapter } from './adapters/workspace.js'
 import { registerAll } from './tools.js'
@@ -26,7 +26,10 @@ export function createServer(config = readConfig()) {
   const workspace = config.workspaceFile ? new WorkspaceAdapter(config.workspaceFile) : null
   const platform = config.apiUrl ? new PlatformAdapter(config.apiUrl, config.apiKey) : null
   if (!workspace && !platform) {
-    throw new Error('Set ALLDASH_WORKSPACE_FILE (an export of the browser app) and/or ALLDASH_API_URL (the platform API).')
+    throw new Error(
+      `Nothing to serve. Export your workspace from the app (Settings → Your data → Export) and save it as ${DEFAULT_WORKSPACE}, ` +
+        'or set ALLDASH_WORKSPACE_FILE to the export, and/or ALLDASH_API_URL plus ALLDASH_API_KEY for the platform API.'
+    )
   }
   const server = new McpServer(
     { name: 'all-dash', version: '0.1.0' },

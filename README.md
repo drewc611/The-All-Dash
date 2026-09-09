@@ -1,20 +1,67 @@
 # The All Dash
 
+[![CI](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml/badge.svg)](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml)
+[![React 18](https://img.shields.io/badge/React-18-20232a?logo=react&logoColor=61dafb)](package.json)
+[![Vite 5](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)](vite.config.js)
+[![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
+[![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
+[![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](backend/)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](frontend/)
+[![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
+[![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
+
 A command center for one project or one person. Feed it the documents you already
-have — meeting notes, a calendar export, a transcript, a spreadsheet — and it
+have (meeting notes, a calendar export, a transcript, a spreadsheet) and it
 builds the dashboard from what it finds: tasks with owners and due dates, today's
 agenda, decisions, risks, milestones, live metrics, reminders, and analytics that
 say what needs attention.
 
 Everything runs in the browser. Nothing is uploaded anywhere. There is no server,
-no account, and no runtime dependency beyond React. A separate, optional
+no account, and no runtime dependency beyond React. It installs to a phone like
+an app and works offline. A separate, optional
 [platform tier](#platform-tier-api-workspace-and-eks) adds a FastAPI service, a
 Celery worker, a hash-chained AI audit ledger, a Next.js workspace, an MCP
 server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
-An optional assistant answers
-questions from your own data through a model you choose (Claude, any
-OpenAI-compatible endpoint, or a local Ollama), cites the items it used, and
-proposes changes for you to apply rather than making them.
+
+## What it does
+
+- **Reads what you already have.** Drop in Markdown or plain-text notes,
+  meeting transcripts, `.ics` calendars, CSV and Excel sheets, Word and
+  PowerPoint files, JSON, and exports from Jira, Linear, Asana, Todoist,
+  Trello, GitHub, Google, Outlook and Apple Calendar, Zoom and Teams. Each
+  parser turns its file into the same flat entity, so every widget works on
+  every source.
+- **Builds the day.** Today's agenda, the focus list, what is due this week,
+  reminders that fire in the browser, and a recent-activity stream, filtered
+  by person or topic with one click.
+- **Triage.** A ranked worklist of what is wrong right now: overdue and blocked
+  work, stalled items, milestones that passed with tasks still open, clashing
+  meetings, unowned urgent work, metrics off target. Each row carries the
+  button that clears it.
+- **Metrics and analytics.** Counters built in, series discovered from
+  spreadsheet columns, and metrics you define by hand, all on one wall with
+  sparklines and period-over-period change, then any series as a line with a
+  7-day average. A relationship map, a load heatmap and a leaderboard show who
+  carries what.
+- **An assistant that cites and proposes.** Ask questions of your own data
+  through Claude, any OpenAI-compatible endpoint, or a local Ollama. Answers
+  cite items as chips; changes arrive as proposals you apply or skip. A privacy
+  dial keeps note bodies on the machine. Voice in, voice out.
+- **A status update in one click.** Done, in progress, blocked, overdue,
+  decisions, the numbers that moved, the next seven days, as Markdown.
+- **Your own extension harness.** New file format, widget, metric or command
+  means one file registered on `window.AllDash`; nothing else changes.
+- **A team platform when you want one.** Projects with pipelines, work and
+  personal tasks, invoices, expenses, burn rate and margin, a daily update
+  engine that writes a morning brief at 4 AM, and an append-only, hash-chained
+  ledger of every decision an automation or an agent made, with a confidence
+  score.
+- **Agents as first-class users.** One MCP server gives Claude, GitHub Copilot
+  and ChatGPT the same tools: read the brief, triage, add or close tasks, and
+  log their own judgements to the ledger. A Claude Code plugin installs it in
+  two commands.
 
 ```bash
 npm install
@@ -24,7 +71,7 @@ npm run build
 ```
 
 Open it, click **Load a sample project**, and you get six documents run through
-the real parsers — not fixture data.
+the real parsers, not fixture data.
 
 ## What it looks like
 
@@ -402,6 +449,7 @@ The-All-Dash/
 │   └── secrets.example.yaml    Templates for the three Secrets (never applied as-is)
 ├── docker-compose.yml  .env.example
 ├── .mcp.json  .vscode/mcp.json  .claude/skills/all-dash/  .github/copilot-instructions.md
+├── .claude-plugin/             marketplace.json + plugin.json: `/plugin marketplace add drewc611/The-All-Dash`
 └── .github/workflows/ci.yml    Browser app in three timezones; backend, MCP, frontend, manifests
 ```
 
@@ -635,11 +683,60 @@ connectors and remote clients. Agents read briefs, triage and finances, add
 and close tasks, and record their own judgements in the audit ledger with a
 confidence score. See `mcp/README.md`.
 
-## Install it
+### Install the Claude plugin
 
-The build ships a web manifest and a small service worker, so it installs to a
-phone's home screen or a desktop dock and opens offline. The worker caches the
-app shell only; there is no network traffic to cache.
+The repository is also a Claude Code plugin marketplace. Two commands install
+the skill and the MCP server, in the terminal, the desktop app or Claude Code
+on the web:
+
+```
+/plugin marketplace add drewc611/The-All-Dash
+/plugin install all-dash@the-all-dash
+```
+
+Then export your workspace from the app (Settings → *Your data* → Export) and
+save it as `~/.all-dash/workspace.json`, or point the server at a running
+platform:
+
+```bash
+export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json   # or the default path above
+export ALLDASH_API_URL=https://dash.yourdomain.com/api  ALLDASH_API_KEY=...   # optional
+```
+
+Ask "what's late?", "review my day", or "add a task to send the deck by
+Friday". The skill has Claude cite items by title, propose before it writes,
+and log every judgement to the ledger with a confidence score. Tools show up
+under `all-dash`; the `morning-review` and `explain-signal` prompts come with
+it.
+
+**On your phone.** The Claude iOS and Android apps do not run plugins, but
+they do connect to remote MCP servers: deploy the platform, then in the Claude
+app open Settings → Connectors, add `https://<your-host>/mcp`, and paste the
+bearer token from the `alldash-mcp` Secret. The same tools appear in chat.
+
+## Get it on your phone
+
+The build ships a web manifest, PNG icons for every launcher, home-screen
+shortcuts and a small service worker, so it installs to a phone's home screen
+or a desktop dock and opens offline. The worker caches the app shell only;
+there is no network traffic to cache, and your workspace never leaves the
+device.
+
+1. Serve the `dist/` folder over HTTPS (any static host: Netlify, Vercel,
+   GitHub Pages, S3 + CloudFront, or `npm run preview` on your LAN for a try).
+2. **iPhone or iPad:** open it in Safari, tap Share, then *Add to Home Screen*.
+3. **Android:** open it in Chrome and tap *Install app* in the banner or the
+   menu.
+4. **Mac or Windows:** Chrome and Edge show an install icon in the address bar.
+
+Long-press the installed icon for the **Today**, **Triage** and **Analytics**
+shortcuts. The app keeps working with no connection; reminders fire while the
+tab or the installed app is open.
+
+To use the dashboard from the Claude app on your phone, deploy the
+[platform tier](#platform-tier-api-workspace-and-eks) and add
+`https://<your-host>/mcp` as a connector in Claude's settings (see
+[Install the Claude plugin](#install-the-claude-plugin)).
 
 ## Storage
 

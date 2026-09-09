@@ -29,8 +29,20 @@ MCP_TRANSPORT=http MCP_AUTH_TOKEN=... node src/server.js   # :8080/mcp
 
 ## Claude Code
 
-`.mcp.json` at the repository root already registers the server. Export the
-variables it references before starting Claude Code in this repo:
+Outside this repository, install it as a plugin:
+
+```
+/plugin marketplace add drewc611/The-All-Dash
+/plugin install all-dash@the-all-dash
+```
+
+The plugin runs `npm ci` in its own copy of `mcp/` the first time the server
+starts. With nothing configured it reads `~/.all-dash/workspace.json` if that
+file exists (save your export there), so the first run needs no environment
+variables at all.
+
+Inside this repository, `.mcp.json` at the root already registers the server.
+Export the variables it references before starting Claude Code here:
 
 ```bash
 export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json

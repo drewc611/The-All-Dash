@@ -1,14 +1,31 @@
 {
+  "id": "/",
   "name": "The All Dash",
   "short_name": "All Dash",
-  "description": "One command center for meetings, calendars, spreadsheets, timelines and metrics.",
+  "description": "One command center for meetings, calendars, spreadsheets, timelines and metrics. Everything stays on your device.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
   "background_color": "#f4f4f1",
   "theme_color": "#2a78d6",
+  "categories": ["productivity", "business", "utilities"],
+  "lang": "en",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "short_name": "Today", "description": "Agenda, focus list and reminders", "url": "/#today", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Triage", "short_name": "Triage", "description": "What is wrong right now, most urgent first", "url": "/#triage", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Analytics", "short_name": "Analytics", "description": "Every metric on one wall", "url": "/#analytics", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/phone-today.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Today on a phone" },
+    { "src": "/screenshots/phone-triage.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "Triage on a phone, dark mode" },
+    { "src": "/screenshots/desktop-today.png", "sizes": "2720x1720", "type": "image/png", "form_factor": "wide", "label": "Today on a desktop" }
   ]
 }

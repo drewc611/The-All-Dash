@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 
+import { readConfig } from '../src/config.js'
 import { createServer, startHttp } from '../src/server.js'
 import { makeEntity } from '../../src/data/schema.js'
 import { addDays, iso } from '../../src/core/time.js'
@@ -87,6 +88,14 @@ async function connect(config) {
 }
 
 const parse = (result) => JSON.parse(result.content[0].text)
+
+test('config: with nothing set, the default export path is used only when it exists', () => {
+  const env = { HOME: '/home/someone' }
+  assert.equal(readConfig(env, () => false).workspaceFile, '')
+  assert.equal(readConfig(env, () => true).workspaceFile, '/home/someone/.all-dash/workspace.json')
+  assert.equal(readConfig({ ...env, ALLDASH_API_URL: 'http://api' }, () => true).workspaceFile, '')
+  assert.equal(readConfig({ ...env, ALLDASH_WORKSPACE_FILE: '/x.json' }, () => true).workspaceFile, '/x.json')
+})
 
 test('refuses to start with no source configured', () => {
   assert.throws(() => createServer({ workspaceFile: '', apiUrl: '', apiKey: '', publicUrl: '' }), /ALLDASH_WORKSPACE_FILE/)
