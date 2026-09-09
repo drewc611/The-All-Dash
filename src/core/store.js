@@ -3,6 +3,7 @@ import { makeEntity, mergeEntity } from '../data/schema.js'
 import { uid } from './id.js'
 import { iso } from './time.js'
 import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
+import { normaliseWork } from '../work/schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -70,6 +71,7 @@ const initialState = () => ({
   },
   triage: {},
   brain: emptyBrainState(),
+  work: normaliseWork(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
 })
 
@@ -88,6 +90,7 @@ function load() {
       version: SCHEMA_VERSION,
       settings: { ...base.settings, ...(parsed.settings || {}), assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
       brain: normaliseBrainState(parsed.brain),
+      work: normaliseWork(parsed.work),
     }
   } catch {
     return initialState()
@@ -126,6 +129,12 @@ function set(updater) {
   persist()
   listeners.forEach((fn) => fn())
 }
+
+/**
+ * The one write primitive, exported so a feature slice can live in its own
+ * module (see src/work/store.js) without state being spread across files.
+ */
+export const mutate = (updater) => set(updater)
 
 const subscribe = (fn) => {
   listeners.add(fn)
@@ -464,15 +473,24 @@ export function importWorkspace(json, { merge = false } = {}) {
         },
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         brain: normaliseBrainState(incoming.brain),
+        work: normaliseWork(incoming.work),
         ui: { ...base.ui, ...(incoming.ui || {}) },
         reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
       }
     }
+    const incomingWork = normaliseWork(incoming.work)
+    const known = new Set(s.work.boards.map((b) => b.id))
     return {
       ...s,
       entities: { ...s.entities, ...entities },
       docs: [...docs, ...s.docs].slice(0, 200),
       customMetrics: [...s.customMetrics, ...customMetrics],
+      work: {
+        ...s.work,
+        boards: [...s.work.boards, ...incomingWork.boards.filter((b) => !known.has(b.id))],
+        updates: { ...incomingWork.updates, ...s.work.updates },
+        activity: { ...incomingWork.activity, ...s.work.activity },
+      },
     }
   })
 }
