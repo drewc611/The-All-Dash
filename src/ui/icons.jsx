@@ -48,6 +48,7 @@ export const IconStop = make(<rect x="4" y="4" width="8" height="8" rx="1.5" />)
 export const IconPulse = make(<path d="M1.5 8.5h3l2-5 3 9 2-6 1.2 2h1.8" />)
 export const IconMap = make(<><circle cx="3" cy="8" r="1.8" /><circle cx="13" cy="3.5" r="1.8" /><circle cx="13" cy="12.5" r="1.8" /><path d="M4.7 7.3 11.3 4.2M4.7 8.7l6.6 3.1" /></>)
 export const IconSpeaker = make(<><path d="M2.5 6v4h2.5L9 13V3L5 6H2.5Z" /><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.5a6 6 0 0 1 0 9" /></>)
+export const IconBrain = make(<><path d="M6.5 2.5a2 2 0 0 0-2 2v.6A2.3 2.3 0 0 0 3 7.3a2.3 2.3 0 0 0 .6 3.4A2.2 2.2 0 0 0 6.5 13.5h1.5v-11h-1.5Z" /><path d="M9.5 2.5a2 2 0 0 1 2 2v.6a2.3 2.3 0 0 1 1.5 2.2 2.3 2.3 0 0 1-.6 3.4 2.2 2.2 0 0 1-2.9 2.8H8v-11h1.5Z" /><path d="M5.5 6.5h2M8.5 9.5h2" /></>)
 export const IconLink = make(<><path d="M6.5 9.5 9.5 6.5" /><path d="M7.5 4.5 9 3a2.5 2.5 0 0 1 3.5 3.5L11 8M8.5 11.5 7 13a2.5 2.5 0 0 1-3.5-3.5L5 8" /></>)
 
 export const STATUS_ICON = {

@@ -45,6 +45,12 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   sparklines and period-over-period change, then any series as a line with a
   7-day average. A relationship map, a load heatmap and a leaderboard show who
   carries what.
+- **A brain that learns who you are, with no model.** Rules over your own
+  data work out who you work with, which topics slip, when you are active,
+  how far ahead you plan. Facts are recorded automatically; opinions ("#infra
+  usually finishes late", "Priya carries 40% of the open work") wait for your
+  yes, and once accepted they change triage, reminders and the start view. It
+  all becomes a folder of Markdown files on your disk, kept in sync.
 - **An assistant that cites and proposes.** Ask questions of your own data
   through Claude, any OpenAI-compatible endpoint, or a local Ollama. Answers
   cite items as chips; changes arrive as proposals you apply or skip. A privacy
@@ -317,6 +323,56 @@ The buttons only render where the browser supports them.
 The conversation lives in the panel and is gone when it closes. Nothing the
 model says is stored unless you apply it.
 
+## The brain
+
+The app keeps a brain about the person using it: a profile, the people they
+work with, the topics they carry, their rhythm, and a short list of opinions.
+Nothing in it comes from a model. Every line is a rule over the entities, the
+documents and a handful of usage counters, so each fact can be traced to the
+rows it came from and recomputed from scratch at any time.
+
+<p>
+  <img src="docs/screenshots/brain.png" width="74%" alt="The Brain view: facts, opinions waiting for a yes or no, people and topics tables" />
+  <img src="docs/screenshots/mobile-brain.png" width="24%" alt="The Brain view on a phone" />
+</p>
+
+Two grades of knowledge:
+
+- **Facts** are recorded automatically and shown for editing or deletion:
+  "Usually here 9-11am on Mon, Wed", "Works most with Priya, Sam", "Finished
+  6 dated tasks in the app; 50% after the due date", "Plans about 3 days
+  ahead", "Most meetings fall on Wednesdays".
+- **Opinions** are judgements with evidence, proposed until you accept them:
+  a tag that usually slips, a person carrying most of the open work, a
+  weekday that holds most of your meetings, a habit of finishing late, a view
+  you open more than Today. Dismiss one and it stays quiet until the evidence
+  changes.
+
+An accepted opinion changes the dashboard. Triage raises anything tagged with
+a slipping tag, owned by an overloaded person, or due on your busiest meeting
+day one step earlier, and the row says why ("Raised by your brain: #infra
+usually slips"). "You finish most tasks late" moves reminders to a day ahead.
+"You open Triage more than Today" makes Triage the start view. Widening the
+range, likewise. Forget an opinion and the setting goes back.
+
+![Triage rows raised by the brain, each saying why](docs/screenshots/brain-triage.png)
+
+The whole brain is a folder of Markdown files, `README.md`, `profile.md`,
+`habits.md`, `insights.md`, `people/<name>.md`, `topics/<tag>.md`, each with a
+small front matter block, regenerated whenever something learned changes. In
+Chrome and Edge, *Connect a folder* keeps them written to a directory on your
+disk (File System Access API; the handle survives reloads, the browser asks
+for permission again after a restart). Everywhere else, *Download .zip*. Your
+own notes under any file are kept and re-attached on every regeneration, so
+`people/priya-raman.md` can carry "Prefers async updates" beneath the numbers.
+
+The same files reach agents: the MCP server's `workspace_brain` tool and the
+`alldash://workspace/brain` resource render them from a workspace export, and
+the browser assistant's context carries the facts and accepted opinions unless
+you turn that off in Settings. The store keeps only what cannot be recomputed:
+your name, role and focus, your notes, which opinions you accepted or
+dismissed, and the usage counters. *Reset the brain* clears exactly that.
+
 ## What needs attention
 
 Rules that run over everything and return a sentence with its evidence attached.
@@ -371,7 +427,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `r` `l` `a` `d` `s` | Today, Triage, Timeline, Analytics, Library, Settings |
+| `g` then `t` `r` `l` `a` `d` `b` `s` | Today, Triage, Timeline, Analytics, Library, Brain, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -417,6 +473,7 @@ and the MCP server exposes both.
 ```
 The-All-Dash/
 ├── src/                        Browser app (React + Vite): parsers, engines, widgets, assistant
+│   └── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
 ├── public/  tests/  docs/      PWA assets, node:test suite, screenshots, docs/openapi.json
 ├── backend/                    Platform API and worker (Python 3.12)
 │   ├── app/

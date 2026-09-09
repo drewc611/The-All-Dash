@@ -116,6 +116,10 @@ export function AssistantSettings({ state, onToast }) {
               <option value="titles">Titles, dates, people and tags only. No note or transcript text.</option>
             </select>
           </div>
+          <label className="row" style={{ cursor: 'pointer', paddingBottom: 6 }}>
+            <input type="checkbox" checked={settings.shareBrain !== false} onChange={(e) => updateAssistantSettings({ shareBrain: e.target.checked })} />
+            <span>Tell the model what the brain knows about you</span>
+          </label>
           <div className="field" style={{ flex: 1, minWidth: 120 }}>
             <label className="field__label" htmlFor="ai-limit">Items per question</label>
             <input id="ai-limit" className="input" type="number" min={10} max={120} value={settings.contextLimit || 40} onChange={(e) => updateAssistantSettings({ contextLimit: Number(e.target.value) || 40 })} />

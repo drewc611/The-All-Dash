@@ -1,4 +1,4 @@
-import { updateEntity, muteSignal } from '../core/store.js'
+import { updateEntity, muteSignal, recordUsage } from '../core/store.js'
 import { addDays } from '../core/time.js'
 
 /**
@@ -7,6 +7,7 @@ import { addDays } from '../core/time.js'
  */
 export function runTriageAction(actionId, signal, { now = new Date() } = {}) {
   const e = signal.entity
+  recordUsage('action', `triage:${actionId}`)
   if (actionId === 'mute') {
     muteSignal(signal.id, addDays(now, 7).toISOString())
     return `Muted "${signal.title}" for a week.`

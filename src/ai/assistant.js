@@ -2,6 +2,7 @@ import { buildContext, SYSTEM_PROMPT } from './context.js'
 import { parseReply } from './protocol.js'
 import { stream, resolve } from './providers.js'
 import { getKey } from './keys.js'
+import { recordUsage } from '../core/store.js'
 
 /**
  * One turn of the assistant.
@@ -34,6 +35,7 @@ export async function ask({ question, history = [], entities, state, range, focu
   const apiKey = target.needsKey ? getKey(target.provider) : ''
   if (target.needsKey && !apiKey) throw new Error('Add an API key in Settings to use the assistant.')
 
+  recordUsage('action', 'ask')
   const context = buildContext(entities, question, { state, range, now, focus })
   const system = `${SYSTEM_PROMPT}\n\n<workspace>\n${context.text}\n</workspace>`
   const messages = [

@@ -20,6 +20,7 @@ COPY --chown=mcp:mcp mcp/src ./mcp/src
 COPY --chown=mcp:mcp src/core ./src/core
 COPY --chown=mcp:mcp src/data/schema.js ./src/data/schema.js
 COPY --chown=mcp:mcp src/engine ./src/engine
+COPY --chown=mcp:mcp src/brain ./src/brain
 USER mcp:mcp
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

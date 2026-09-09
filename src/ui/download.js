@@ -6,7 +6,14 @@
  * too early cancels the download.
  */
 export function downloadText(text, filename, type = 'text/plain') {
-  const blob = new Blob([text], { type })
+  downloadBlob(new Blob([text], { type }), filename)
+}
+
+export function downloadBytes(bytes, filename, type = 'application/octet-stream') {
+  downloadBlob(new Blob([bytes], { type }), filename)
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

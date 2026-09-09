@@ -1,5 +1,5 @@
 import { listParsers } from '../core/registry.js'
-import { addEntities, registerDoc, syncDoc } from '../core/store.js'
+import { addEntities, recordUsage, registerDoc, syncDoc } from '../core/store.js'
 import { makeDoc } from '../data/schema.js'
 import { hashId, hashBytes } from '../core/id.js'
 import { detectFlavor } from './detect.js'
@@ -58,6 +58,7 @@ export async function ingestFile(file) {
   const entities = syncDoc(docId, produced.map((e) => ({ ...e, source: { ...e.source, docId, name, kind: parser.id } })))
   const doc = makeDoc({ id: docId, name, kind: parser.id, size: file.size ?? text.length, text, produced: entities.length, version, flavor })
   registerDoc(doc)
+  recordUsage('import', parser.id)
   // The document is an entity too, so search and the activity feed can see it.
   addEntities([doc])
   return { doc, entities, parser }

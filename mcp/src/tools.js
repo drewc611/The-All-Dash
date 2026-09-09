@@ -147,6 +147,27 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
       },
       guard(async ({ id, ...patch }) => text(slim(await workspace.updateTask(id, patch))))
     )
+    server.registerTool(
+      'workspace_brain',
+      {
+        title: 'What the app knows about the user',
+        description: 'The brain: facts, habits, people, topics and accepted opinions, learned by rules from the workspace (no model). Without a file, returns the README index and the list of files; with one, that file (profile.md, habits.md, insights.md, people/<slug>.md, topics/<slug>.md).',
+        inputSchema: { file: z.string().optional() },
+      },
+      guard(async ({ file }) => {
+        const files = await workspace.brain()
+        if (!file) return text(`${files.find((f) => f.path === 'README.md').text}\nAll files: ${files.map((f) => f.path).join(', ')}`)
+        const found = files.find((f) => f.path === file)
+        if (!found) return fail(`No brain file ${file}. Files: ${files.map((f) => f.path).join(', ')}`)
+        return text(found.text)
+      })
+    )
+    server.registerResource(
+      'workspace-brain',
+      'alldash://workspace/brain',
+      { title: 'The brain', description: 'What the app has learned about the user, as Markdown (rules only, no model)', mimeType: 'text/markdown' },
+      async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'text/markdown', text: (await workspace.brain()).map((f) => `<!-- ${f.path} -->\n${f.text}`).join('\n\n') }] })
+    )
     server.registerResource(
       'workspace-status-update',
       'alldash://workspace/status-update',

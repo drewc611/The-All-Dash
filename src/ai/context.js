@@ -4,6 +4,7 @@ import { availableMetrics, evaluate } from '../engine/metrics.js'
 import { buildInsights } from '../engine/insights.js'
 import { buildTriage } from '../engine/triage.js'
 import { format } from '../core/format.js'
+import { buildBrain } from '../brain/learn.js'
 
 /**
  * What the assistant is allowed to know.
@@ -134,11 +135,16 @@ export function buildContext(entitiesMap, question, { state, range, now = new Da
       .slice(0, 12)
     : []
   const insights = range ? buildInsights(entitiesMap, range, customMetrics, now).slice(0, 6) : []
-  const triage = buildTriage(entitiesMap, { now, range, customMetrics, mutes: state?.triage || {} }).slice(0, 10)
+  const triage = buildTriage(entitiesMap, { now, range, customMetrics, mutes: state?.triage || {}, brain: state?.brain || null }).slice(0, 10)
 
   const lines = []
   lines.push(`Today is ${formatDate(now, { weekday: 'long', year: 'numeric' })} (${dayKey(now)}).`)
   lines.push(`Workspace: ${docs} documents, ${open} open tasks (${overdue} overdue), ${done7} tasks finished in the last 7 days, ${meetingsToday} meetings today.`)
+  const about = settings.shareBrain === false ? [] : aboutUser(state, now)
+  if (about.length) {
+    lines.push('', 'About the user (learned by rules from their own data, no model involved):')
+    for (const line of about) lines.push(`- ${line}`)
+  }
   if (metrics.length) {
     lines.push('', `Metrics (${range.label}):`)
     for (const m of metrics) {
@@ -159,6 +165,18 @@ export function buildContext(entitiesMap, question, { state, range, now = new Da
   for (const e of items) lines.push(`- ${describe(e, { privacy })}`)
 
   return { text: lines.join('\n'), items, privacy, counts: { open, overdue, done7, meetingsToday, docs } }
+}
+
+/** The brain's facts and accepted opinions, as lines a model can use. */
+export function aboutUser(state, now = new Date()) {
+  if (!state) return []
+  const brain = buildBrain(state, { now })
+  const lines = []
+  const who = [brain.profile.name, brain.profile.role].filter(Boolean).join(', ')
+  if (who) lines.push(`Name and role: ${who}${brain.profile.focus ? `; focused on ${brain.profile.focus}` : ''}.`)
+  lines.push(...brain.facts)
+  for (const o of brain.opinions.filter((x) => x.status === 'accepted')) lines.push(`Accepted: ${o.text}`)
+  return lines.slice(0, 12)
 }
 
 export const SYSTEM_PROMPT = `You are the assistant inside The All Dash, a personal project command center. You answer from the workspace context you are given and nothing else.

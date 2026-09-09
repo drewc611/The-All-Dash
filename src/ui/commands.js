@@ -21,6 +21,7 @@ go('triage', 'Triage', ['problems', 'urgent', 'late', 'overdue', 'blocked', 'pul
 go('timeline', 'Timeline', ['calendar', 'schedule', 'week'])
 go('analytics', 'Analytics', ['metrics', 'charts', 'numbers'])
 go('library', 'Library', ['documents', 'files', 'search', 'inbox'])
+go('brain', 'Brain', ['profile', 'memory', 'about me', 'habits', 'people', 'learned'])
 go('settings', 'Settings', ['preferences', 'theme', 'export'])
 
 defineCommand({

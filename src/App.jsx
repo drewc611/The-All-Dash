@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { useStore, updateUi } from './core/store.js'
+import { useStore, updateUi, recordUsage, getState } from './core/store.js'
 import { onRegistryChange } from './core/registry.js'
 import { q } from './core/query.js'
 import { rangeFor, RANGE_PRESETS } from './core/time.js'
@@ -14,13 +14,15 @@ import { Timeline } from './ui/views/Timeline.jsx'
 import { Library } from './ui/views/Library.jsx'
 import { Settings } from './ui/views/Settings.jsx'
 import { Triage } from './ui/views/Triage.jsx'
+import { Brain } from './ui/views/Brain.jsx'
+import { useBrainSync } from './ui/brainSync.js'
 import { Assistant } from './ui/Assistant.jsx'
 import { buildTriage } from './engine/triage.js'
 import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
-  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark,
+  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -32,12 +34,16 @@ const VIEWS = [
   { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
   { id: 'library', label: 'Library', Icon: IconLibrary },
+  { id: 'brain', label: 'Brain', Icon: IconBrain },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ]
 
 const readHash = () => {
   const id = window.location.hash.replace('#', '')
-  return VIEWS.some((v) => v.id === id) ? id : 'today'
+  if (VIEWS.some((v) => v.id === id)) return id
+  // No hash: the brain may have learned which view the person opens first.
+  const start = getState().settings?.startView
+  return VIEWS.some((v) => v.id === start) ? start : 'today'
 }
 
 export default function App() {
@@ -67,7 +73,18 @@ export default function App() {
     setView(next)
     window.location.hash = next
     setEditing(false)
+    recordUsage('view', next)
   }, [])
+
+  // The brain's usage counters: one session per load, then a heartbeat every
+  // half hour while the tab is visible, so "usually here 9-11am" is real.
+  useEffect(() => {
+    recordUsage('session')
+    recordUsage('view', readHash())
+    const beat = setInterval(() => { if (document.visibilityState === 'visible') recordUsage('active') }, 30 * 60 * 1000)
+    return () => clearInterval(beat)
+  }, [])
+  useBrainSync(state)
 
   useEffect(() => {
     const onHash = () => setView(readHash())
@@ -100,7 +117,7 @@ export default function App() {
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', s: 'settings' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -150,8 +167,8 @@ export default function App() {
   }
 
   const urgent = useMemo(
-    () => buildTriage(state.entities, { range, customMetrics: state.customMetrics, mutes: state.triage }).filter((s) => s.severity === 'critical' || s.severity === 'serious').length,
-    [state.entities, range, state.customMetrics, state.triage]
+    () => buildTriage(state.entities, { range, customMetrics: state.customMetrics, mutes: state.triage, brain: state.brain }).filter((s) => s.severity === 'critical' || s.severity === 'serious').length,
+    [state.entities, range, state.customMetrics, state.triage, state.brain]
   )
 
   const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
@@ -245,6 +262,8 @@ export default function App() {
             <Timeline entityList={entityList} onOpen={setInspecting} />
           ) : view === 'library' ? (
             <Library entityList={allEntities} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
+          ) : view === 'brain' ? (
+            <Brain state={state} onOpen={setInspecting} onToast={toast} />
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}

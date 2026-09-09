@@ -8,7 +8,7 @@ Two sources, either or both:
 
 | Source | Env | What you get |
 |---|---|---|
-| Workspace export | `ALLDASH_WORKSPACE_FILE=/path/to/all-dash-2026-09-08.json` | `workspace_*` tools: overview, triage, status update, search, add and update tasks. Read with the browser app's own engines, so "late" means what the Triage view means. Writes go into the file; re-import it in the app. |
+| Workspace export | `ALLDASH_WORKSPACE_FILE=/path/to/all-dash-2026-09-08.json` | `workspace_*` tools: overview, triage, status update, search, add and update tasks, and `workspace_brain` (what the app learned about the user, as Markdown; rules only, no model). Read with the browser app's own engines, so "late" means what the Triage view means. Writes go into the file; re-import it in the app. |
 | Platform API | `ALLDASH_API_URL=http://localhost:8000` + `ALLDASH_API_KEY` | `platform_*` tools: brief, pipelines, today's checklist, tasks, invoices, expenses, finance summary, audit log, verify, log a decision, run the daily engine. |
 
 `search` and `fetch` span both and follow the shape ChatGPT requires

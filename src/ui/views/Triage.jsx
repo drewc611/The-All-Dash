@@ -16,14 +16,14 @@ export function Triage({ entities, state, range, onOpen, onAsk, onToast }) {
   const [showMuted, setShowMuted] = useState(false)
 
   const signals = useMemo(
-    () => buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: state.triage }),
-    [entities, range, state.customMetrics, state.triage]
+    () => buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: state.triage, brain: state.brain }),
+    [entities, range, state.customMetrics, state.triage, state.brain]
   )
   const counts = summarise(signals)
   const muted = useMemo(() => {
-    const all = buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: {} })
+    const all = buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: {}, brain: state.brain })
     return all.filter((s) => state.triage?.[s.id] && new Date(state.triage[s.id].until) > new Date())
-  }, [entities, range, state.customMetrics, state.triage])
+  }, [entities, range, state.customMetrics, state.triage, state.brain])
   const shown = filter === 'all' ? signals : signals.filter((s) => s.severity === filter)
 
   const act = (actionId, signal) => {

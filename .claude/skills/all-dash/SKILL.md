@@ -32,6 +32,11 @@ the user re-imports it (Settings → Your data → Restore) to see them.
 ## How to answer
 
 1. Start with `workspace_overview` or `platform_brief` for the shape of the day.
+   `workspace_brain` says who the user is and how they work (their name, the
+   people and topics they carry, when they are active, which opinions they
+   accepted); read it once per conversation and let it shape tone and
+   priorities. It is computed by rules from their data, not by a model, and
+   `workspace_brain` with `file: "people/<slug>.md"` gives one person.
 2. Use `workspace_triage` (severity filter) or `platform_tasks_today` (context
    filter: work or personal) for the list to act on.
 3. Cite items by title and due date. Money comes back in cents; show it as

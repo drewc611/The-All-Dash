@@ -20,8 +20,8 @@ defineWidget({
   ],
   render: ({ entities, state, range, onOpen, navigate, onAsk, config }) => {
     const signals = useMemo(
-      () => buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: state.triage }),
-      [entities, range, state.customMetrics, state.triage]
+      () => buildTriage(entities, { range, customMetrics: state.customMetrics, mutes: state.triage, brain: state.brain }),
+      [entities, range, state.customMetrics, state.triage, state.brain]
     )
     const rank = { critical: 0, serious: 1, warning: 2, info: 3 }
     const floor = rank[config.minimum] ?? 3

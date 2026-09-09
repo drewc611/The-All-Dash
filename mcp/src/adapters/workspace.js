@@ -7,6 +7,8 @@ import { buildTriage, summarise } from '../../../src/engine/triage.js'
 import { buildInsights } from '../../../src/engine/insights.js'
 import { buildReport } from '../../../src/engine/report.js'
 import { availableMetrics, evaluate } from '../../../src/engine/metrics.js'
+import { buildBrain } from '../../../src/brain/learn.js'
+import { renderBrain } from '../../../src/brain/markdown.js'
 // Registering the built-in metrics is a side effect of importing the engine.
 import '../../../src/engine/metrics.js'
 
@@ -53,7 +55,7 @@ export class WorkspaceAdapter {
     const range = this.range(state)
     const counts = {}
     for (const e of rows) counts[e.type] = (counts[e.type] || 0) + 1
-    const signals = buildTriage(state.entities, { now, range, customMetrics: state.customMetrics || [], mutes: state.triage || {} })
+    const signals = buildTriage(state.entities, { now, range, customMetrics: state.customMetrics || [], mutes: state.triage || {}, brain: state.brain || null })
     const insights = buildInsights(state.entities, range, state.customMetrics || [], now)
     const metrics = availableMetrics(state.entities, state.customMetrics || [])
       .map((m) => evaluate(m, state.entities, range))
@@ -68,6 +70,7 @@ export class WorkspaceAdapter {
       overdueTasks: q(rows).type('task').open().due({ before: now }).count(),
       meetingsToday: q(rows).type('event').onDay(now).count(),
       triage: summarise(signals),
+      about: buildBrain(state, { now }).facts,
       insights: insights.slice(0, 8).map((i) => ({ severity: i.severity, title: i.title, detail: i.detail })),
       metrics,
     }
@@ -79,6 +82,7 @@ export class WorkspaceAdapter {
       range: this.range(state),
       customMetrics: state.customMetrics || [],
       mutes: state.triage || {},
+      brain: state.brain || null,
     })
     return signals
       .filter((s) => !severity || s.severity === severity)
@@ -92,6 +96,12 @@ export class WorkspaceAdapter {
         entity: s.entity ? slim(s.entity) : null,
         related: (s.entities || []).slice(0, 6).map(slim),
       }))
+  }
+
+  /** The brain as Markdown files: facts, habits, people, topics, opinions. Rules only. */
+  async brain() {
+    const state = await this.load()
+    return renderBrain(buildBrain(state), state.brain || {})
   }
 
   async statusUpdate() {

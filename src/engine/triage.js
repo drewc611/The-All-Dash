@@ -20,7 +20,7 @@ import { format } from '../core/format.js'
 export const SEVERITIES = ['critical', 'serious', 'warning', 'info']
 const RANK = { critical: 0, serious: 1, warning: 2, info: 3 }
 
-export function buildTriage(entitiesMap, { now = new Date(), range = null, customMetrics = [], mutes = {} } = {}) {
+export function buildTriage(entitiesMap, { now = new Date(), range = null, customMetrics = [], mutes = {}, brain = null } = {}) {
   const rows = Object.values(entitiesMap || {})
   const found = []
   const add = (signal) => found.push(signal)
@@ -35,6 +35,7 @@ export function buildTriage(entitiesMap, { now = new Date(), range = null, custo
   meetingClashes(rows, now, add)
   agingQuestions(rows, now, add)
   if (range) metricsOff(entitiesMap, range, customMetrics, add)
+  applyBrain(found, brain)
 
   return found
     .filter((s) => !isMuted(mutes[s.id], now))
@@ -50,6 +51,37 @@ export function summarise(signals) {
 
 export const isMuted = (mark, now = new Date()) =>
   Boolean(mark?.until && new Date(mark.until) > now)
+
+const PROMOTE = { info: 'warning', warning: 'serious', serious: 'critical', critical: 'critical' }
+const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/**
+ * What the accepted opinions in the brain change. Only rows about a single
+ * task move, and only one step: the brain sharpens triage, it does not
+ * replace it. Each promoted row says why, so the person can disagree in the
+ * Brain view.
+ */
+function applyBrain(signals, brain) {
+  const effects = Object.values(brain?.accepted || {}).map((a) => a?.effect).filter(Boolean)
+  if (!effects.length) return
+  const tags = new Set(effects.filter((e) => e.kind === 'promote-tag').map((e) => e.tag))
+  const people = new Set(effects.filter((e) => e.kind === 'watch-person').map((e) => e.person))
+  const days = new Set(effects.filter((e) => e.kind === 'meeting-day').map((e) => e.weekday))
+  for (const s of signals) {
+    const t = s.entity
+    if (!t || t.type !== 'task' || !['due-soon', 'overdue', 'stalled', 'unowned'].includes(s.kind)) continue
+    const reasons = []
+    const tag = t.tags.find((x) => tags.has(x))
+    if (tag) reasons.push(`#${tag} usually slips`)
+    const person = t.people.find((x) => people.has(x))
+    if (person) reasons.push(`${person} is overloaded`)
+    if (t.due && days.has(new Date(t.due).getDay())) reasons.push(`due on your busiest meeting day (${WEEKDAY[new Date(t.due).getDay()]})`)
+    if (!reasons.length) continue
+    s.severity = PROMOTE[s.severity] || s.severity
+    s.why = `${s.why} Raised by your brain: ${reasons.join('; ')}.`
+    s.brain = reasons
+  }
+}
 
 const ACT = {
   done: { id: 'done', label: 'Mark done' },

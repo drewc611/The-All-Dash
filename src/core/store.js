@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { makeEntity, mergeEntity } from '../data/schema.js'
 import { uid } from './id.js'
 import { iso } from './time.js'
+import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -19,6 +20,7 @@ const DEFAULT_BOARDS = {
     { id: 'w1', widgetId: 'agenda', size: 'md' },
     { id: 'w2', widgetId: 'focus-tasks', size: 'md' },
     { id: 'w8', widgetId: 'triage', size: 'md' },
+    { id: 'w9', widgetId: 'brain', size: 'sm' },
     { id: 'w3', widgetId: 'reminders', size: 'sm' },
     { id: 'w4', widgetId: 'pulse', size: 'sm' },
     { id: 'w5', widgetId: 'recent-activity', size: 'md' },
@@ -64,6 +66,7 @@ const initialState = () => ({
     },
   },
   triage: {},
+  brain: emptyBrainState(),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
 })
 
@@ -81,6 +84,7 @@ function load() {
       ...parsed,
       version: SCHEMA_VERSION,
       settings: { ...base.settings, ...(parsed.settings || {}), assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
+      brain: normaliseBrainState(parsed.brain),
     }
   } catch {
     return initialState()
@@ -89,6 +93,7 @@ function load() {
 
 let saveTimer = null
 function persist() {
+  if (typeof localStorage === 'undefined') return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     try {
@@ -175,7 +180,9 @@ export function updateEntity(id, patch) {
       meta: { ...current.meta, ...(patch.meta || {}), editedByUser: true },
       updatedAt: iso(new Date()),
     }
-    return { ...s, entities: { ...s.entities, [id]: next } }
+    const finished = patch.status === 'done' && current.status !== 'done'
+    const brain = finished ? withUsage(s.brain, 'action', 'task-done') : s.brain
+    return { ...s, entities: { ...s.entities, [id]: next }, brain }
   })
 }
 
@@ -299,11 +306,108 @@ export function removeCustomMetric(id) {
 }
 
 export function snoozeReminder(id, untilIso) {
-  set((s) => ({ ...s, reminders: { ...s.reminders, [id]: { snoozedUntil: untilIso } } }))
+  set((s) => ({ ...s, reminders: { ...s.reminders, [id]: { snoozedUntil: untilIso } }, brain: withUsage(s.brain, 'action', 'snooze') }))
 }
 
 export function dismissReminder(id) {
-  set((s) => ({ ...s, reminders: { ...s.reminders, [id]: { dismissed: true } } }))
+  set((s) => ({ ...s, reminders: { ...s.reminders, [id]: { dismissed: true } }, brain: withUsage(s.brain, 'action', 'dismiss') }))
+}
+
+// ------------------------------------------------------------------- brain
+
+/**
+ * Usage counters are the one thing the brain cannot re-derive, so they are
+ * kept here: which views get opened, what gets done, when the app is open.
+ * Everything else the brain knows is computed from the entities on demand.
+ */
+function withUsage(brain, kind, key, now = new Date()) {
+  const b = normaliseBrainState(brain)
+  const usage = { ...b.usage, hours: [...b.usage.hours], weekdays: [...b.usage.weekdays] }
+  const stamp = iso(now)
+  usage.lastSeen = stamp
+  if (!usage.firstSeen) usage.firstSeen = stamp
+  const count = (map, k) => ({ ...map, [k]: (map[k] || 0) + 1 })
+  if (kind === 'view' && key) usage.views = count(usage.views, key)
+  if (kind === 'action' && key) usage.actions = count(usage.actions, key)
+  if (kind === 'import' && key) usage.imports = count(usage.imports, key)
+  if (kind === 'session' || kind === 'active') {
+    usage.hours[now.getHours()] += 1
+    usage.weekdays[now.getDay()] += 1
+    if (kind === 'session') usage.sessions += 1
+  }
+  return { ...b, usage }
+}
+
+export function recordUsage(kind, key) {
+  set((s) => ({ ...s, brain: withUsage(s.brain, kind, key) }))
+}
+
+export function updateBrainProfile(patch) {
+  set((s) => {
+    const b = normaliseBrainState(s.brain)
+    return { ...s, brain: { ...b, profile: { ...b.profile, ...patch } } }
+  })
+}
+
+export function setBrainNote(path, text) {
+  set((s) => {
+    const b = normaliseBrainState(s.brain)
+    const notes = { ...b.notes }
+    if (text && text.trim()) notes[path] = text
+    else delete notes[path]
+    return { ...s, brain: { ...b, notes } }
+  })
+}
+
+/** Accepting an opinion is also acting on it, when it carries a setting. */
+export function acceptOpinion(opinion) {
+  set((s) => {
+    const b = normaliseBrainState(s.brain)
+    const dismissed = { ...b.dismissed }
+    delete dismissed[opinion.id]
+    const accepted = { ...b.accepted, [opinion.id]: { at: iso(new Date()), text: opinion.text, effect: opinion.effect || null } }
+    let settings = s.settings
+    let ui = s.ui
+    const effect = opinion.effect
+    if (effect?.kind === 'lead-time') settings = { ...settings, reminderLeadMinutes: effect.minutes }
+    if (effect?.kind === 'start-view') settings = { ...settings, startView: effect.view }
+    if (effect?.kind === 'range') ui = { ...ui, range: effect.range }
+    return { ...s, settings, ui, brain: { ...b, accepted, dismissed } }
+  })
+}
+
+export function dismissOpinion(id) {
+  set((s) => {
+    const b = normaliseBrainState(s.brain)
+    const accepted = { ...b.accepted }
+    delete accepted[id]
+    return { ...s, brain: { ...b, accepted, dismissed: { ...b.dismissed, [id]: iso(new Date()) } } }
+  })
+}
+
+/** Back to pending: the opinion will be proposed again if the evidence holds. */
+export function forgetOpinion(id) {
+  set((s) => {
+    const b = normaliseBrainState(s.brain)
+    const accepted = { ...b.accepted }
+    const dismissed = { ...b.dismissed }
+    const effect = accepted[id]?.effect
+    delete accepted[id]
+    delete dismissed[id]
+    let settings = s.settings
+    if (effect?.kind === 'start-view') settings = { ...settings, startView: 'today' }
+    if (effect?.kind === 'lead-time') settings = { ...settings, reminderLeadMinutes: 15 }
+    return { ...s, settings, brain: { ...b, accepted, dismissed } }
+  })
+}
+
+export function setBrainSync(sync) {
+  set((s) => ({ ...s, brain: { ...normaliseBrainState(s.brain), sync } }))
+}
+
+/** Everything learned, gone; the entities stay. */
+export function resetBrain() {
+  set((s) => ({ ...s, brain: emptyBrainState() }))
 }
 
 // ------------------------------------------------------------- workspace io
@@ -342,6 +446,7 @@ export function importWorkspace(json, { merge = false } = {}) {
           assistant: { ...base.settings.assistant, ...(incoming.settings?.assistant || {}) },
         },
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
+        brain: normaliseBrainState(incoming.brain),
         ui: { ...base.ui, ...(incoming.ui || {}) },
         reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
       }
