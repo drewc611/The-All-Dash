@@ -410,9 +410,11 @@ export function forgetOpinion(id) {
     delete accepted[id]
     delete dismissed[id]
     let settings = s.settings
+    let ui = s.ui
     if (effect?.kind === 'start-view') settings = { ...settings, startView: 'today' }
     if (effect?.kind === 'lead-time') settings = { ...settings, reminderLeadMinutes: 15 }
-    return { ...s, settings, brain: { ...b, accepted, dismissed } }
+    if (effect?.kind === 'range') ui = { ...ui, range: '30d' }
+    return { ...s, settings, ui, brain: { ...b, accepted, dismissed } }
   })
 }
 

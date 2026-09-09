@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { updateEntity, removeEntity } from '../core/store.js'
 import { STATUSES, TYPE_LABEL } from '../data/schema.js'
-import { formatDate, formatTime, relative } from '../core/time.js'
+import { formatDate, formatTime, relative, dayKey } from '../core/time.js'
 import { format } from '../core/format.js'
 import { Overlay } from './components.jsx'
 import { IconClose, IconTrash, IconDoc } from './icons.jsx'
@@ -65,7 +65,7 @@ export function Inspector({ entity, onClose, onOpen, related = [] }) {
               <input
                 className="input"
                 type="date"
-                value={draft.due ? draft.due.slice(0, 10) : ''}
+                value={draft.due ? dayKey(draft.due) : ''}
                 onChange={(e) => commit({ due: e.target.value ? new Date(`${e.target.value}T17:00`).toISOString() : null })}
               />
             </div>

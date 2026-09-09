@@ -290,7 +290,7 @@ function rank(entityList, range, by) {
     .map(([label, list]) => ({
       label,
       value: by === 'meetings'
-        ? Math.round(list.reduce((a, e) => a + (e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0) * 10) / 10
+        ? Math.round(list.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0) * 10) / 10
         : list.length,
     }))
     .filter((r) => r.value > 0)

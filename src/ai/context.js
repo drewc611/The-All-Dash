@@ -1,5 +1,5 @@
 import { q } from '../core/query.js'
-import { addDays, dayKey, formatDate, startOfDay, endOfDay } from '../core/time.js'
+import { addDays, dayKey, formatDate, formatTime, startOfDay, endOfDay } from '../core/time.js'
 import { availableMetrics, evaluate } from '../engine/metrics.js'
 import { buildInsights } from '../engine/insights.js'
 import { buildTriage } from '../engine/triage.js'
@@ -101,7 +101,7 @@ export function describe(entity, { privacy = 'full' } = {}) {
   if (entity.status) parts.push(entity.status)
   if (entity.priority > 0) parts.push(entity.priority > 1 ? 'urgent' : 'high priority')
   if (entity.due) parts.push(`due ${dayKey(entity.due)}`)
-  else if (entity.at) parts.push(`at ${entity.type === 'event' ? entity.at.slice(0, 16).replace('T', ' ') : dayKey(entity.at)}`)
+  else if (entity.at) parts.push(`at ${entity.type === 'event' ? `${dayKey(entity.at)} ${formatTime(entity.at)}` : dayKey(entity.at)}`)
   if (entity.type === 'metric') parts.push(`value ${format(entity.value, entity.unit)}`)
   if (entity.people.length) parts.push(entity.people.map((p) => `@${p}`).join(' '))
   if (entity.tags.length) parts.push(entity.tags.slice(0, 5).map((t) => `#${t}`).join(' '))

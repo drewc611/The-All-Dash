@@ -4,6 +4,7 @@ import { seedWorkspace } from '../data/seed.js'
 import { buildReport } from '../engine/report.js'
 import { rangeFor, dayKey } from '../core/time.js'
 import { downloadText } from './download.js'
+import { strip } from '../ingest/extract.js'
 
 /** Built-in commands. Plugins add their own with AllDash.defineCommand. */
 
@@ -72,7 +73,7 @@ defineCommand({
   keywords: ['todo', 'capture'],
   run: () => {
     const title = prompt('New task')
-    if (title?.trim()) addEntity({ type: 'task', title: title.trim(), source: { kind: 'manual', name: 'Command bar' } })
+    if (title?.trim()) addEntity({ type: 'task', status: 'open', ...strip(title.trim()), source: { kind: 'manual', name: 'Command bar' } })
   },
 })
 

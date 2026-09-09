@@ -1,4 +1,5 @@
 import { ENTITY_TYPES, STATUSES } from '../data/schema.js'
+import { parseLooseDate } from '../core/time.js'
 
 /**
  * The wire format between the assistant and the app, kept provider-neutral.
@@ -98,6 +99,10 @@ function normaliseField(key, value) {
   }
   if (key === 'due' || key === 'at') {
     if (value === null) return null
+    // A bare YYYY-MM-DD is a local calendar day (17:00, like the parsers);
+    // new Date("YYYY-MM-DD") would be UTC midnight, the previous evening in
+    // the Americas.
+    if (typeof value === 'string' && /^\s*\d{4}-\d{2}-\d{2}\s*$/.test(value)) return parseLooseDate(value.trim()) || undefined
     const d = new Date(value)
     return Number.isNaN(Number(d)) ? undefined : d.toISOString()
   }

@@ -81,6 +81,12 @@ export function formatTime(d) {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+/** A real calendar date, or null: 2026-13-45 must not become February. */
+function realDate(year, month, day) {
+  const d = new Date(year, month, day)
+  return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day ? d : null
+}
+
 function atHour(d, hour) {
   const x = new Date(d)
   x.setHours(hour, 0, 0, 0)
@@ -99,8 +105,8 @@ export function parseLooseDate(input, ref = new Date()) {
 
   const isoMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/)
   if (isoMatch) {
-    const d = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]))
-    return Number.isNaN(Number(d)) ? null : iso(atHour(d, 17))
+    const d = realDate(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]))
+    return d ? iso(atHour(d, 17)) : null
   }
 
   if (/(^|\W)(eod|end of day|today|tonight)(\W|$)/.test(text)) return iso(atHour(base, 17))
@@ -135,8 +141,8 @@ export function parseLooseDate(input, ref = new Date()) {
   )
   if (monthDay) {
     const year = monthDay[3] ? Number(monthDay[3]) : base.getFullYear()
-    const d = new Date(year, MONTHS.indexOf(monthDay[1]), Number(monthDay[2]))
-    return Number.isNaN(Number(d)) ? null : iso(atHour(d, 17))
+    const d = realDate(year, MONTHS.indexOf(monthDay[1]), Number(monthDay[2]))
+    return d ? iso(atHour(d, 17)) : null
   }
 
   const dayMonth = text.match(
@@ -144,8 +150,8 @@ export function parseLooseDate(input, ref = new Date()) {
   )
   if (dayMonth) {
     const year = dayMonth[3] ? Number(dayMonth[3]) : base.getFullYear()
-    const d = new Date(year, MONTHS.indexOf(dayMonth[2]), Number(dayMonth[1]))
-    return Number.isNaN(Number(d)) ? null : iso(atHour(d, 17))
+    const d = realDate(year, MONTHS.indexOf(dayMonth[2]), Number(dayMonth[1]))
+    return d ? iso(atHour(d, 17)) : null
   }
 
   // Slash dates are ambiguous by nature. Assume month-first unless the first
@@ -157,11 +163,34 @@ export function parseLooseDate(input, ref = new Date()) {
     if (month > 12) { const t = month; month = day; day = t }
     let year = slash[3] ? Number(slash[3]) : base.getFullYear()
     if (year < 100) year += 2000
-    const d = new Date(year, month - 1, day)
-    return Number.isNaN(Number(d)) ? null : iso(atHour(d, 17))
+    const d = realDate(year, month - 1, day)
+    return d ? iso(atHour(d, 17)) : null
   }
 
   return null
+}
+
+/**
+ * A wall-clock time in an IANA zone as a Date. Two passes through
+ * Intl.DateTimeFormat settle the offset, which is what makes DST edges right.
+ * Returns null for a zone the runtime does not know (Windows names, typos).
+ */
+export function zonedToDate([y, mo, d, h = 0, mi = 0, s = 0], timeZone) {
+  let fmt
+  try {
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return null
+  }
+  const wanted = Date.UTC(y, mo, d, h, mi, s)
+  const wall = (t) => {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(t)).map((x) => [x.type, x.value]))
+    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour) % 24, Number(p.minute), Number(p.second))
+  }
+  const offsetAt = (t) => wall(t) - t
+  let guess = wanted - offsetAt(wanted)
+  guess = wanted - offsetAt(guess)
+  return new Date(guess)
 }
 
 /** Named windows. Every analytics call takes one of these. */
@@ -169,7 +198,9 @@ export function rangeFor(preset, ref = new Date()) {
   const end = endOfDay(ref)
   if (preset === 'today') return { from: startOfDay(ref), to: end, label: 'Today', days: 1 }
   if (preset === 'week') return { from: startOfWeek(ref), to: end, label: 'This week', days: 7 }
-  if (preset === 'all') return { from: new Date(0), to: new Date(8.64e15), label: 'All time', days: 3650 }
+  // "All time" is bounded: the year 2000 to a year out. daily() also narrows
+  // any wide window to the days that hold data, so this never buckets decades.
+  if (preset === 'all') return { from: new Date(2000, 0, 1), to: endOfDay(addDays(ref, 365)), label: 'All time', days: 3650 }
   const days = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 }[preset] ?? 30
   return { from: startOfDay(addDays(ref, -days + 1)), to: end, label: `Last ${days} days`, days }
 }

@@ -82,7 +82,7 @@ function ownerConcentration(entities, add) {
 }
 
 function meetingPressure(entities, range, now, add) {
-  const week = q(entities).type('event').between(now, addDays(now, 7), 'at').all()
+  const week = q(entities).type('event').between(now, addDays(now, 7), 'at').where((e) => e.status !== 'cancelled' && !e.meta?.allDay).all()
   if (week.length < 3) return
   const hours = week.reduce((a, e) => a + (e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0)
   const byDay = q(week).groupBy((e) => dayKey(e.at))

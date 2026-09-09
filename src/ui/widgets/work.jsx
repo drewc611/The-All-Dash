@@ -3,6 +3,7 @@ import { q } from '../../core/query.js'
 import { addDays, startOfDay, endOfDay, formatDate, relative, dayKey } from '../../core/time.js'
 import { snoozeReminder, dismissReminder, addEntity } from '../../core/store.js'
 import { buildReminders } from '../../engine/reminders.js'
+import { strip } from '../../ingest/extract.js'
 import { EntityList, TaskRow, EventRow, Empty } from '../components.jsx'
 import { IconBell, IconPlus, IconClock } from '../icons.jsx'
 import { useState } from 'react'
@@ -27,7 +28,7 @@ defineWidget({
     if (!events.length) {
       return <Empty title="No meetings today" hint="Drop a .ics export in and this fills itself." />
     }
-    const busy = events.reduce((a, e) => a + (e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0)
+    const busy = events.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0)
     return (
       <>
         <div className="list" style={{ margin: 'calc(var(--gap-4) * -1)' }}>
@@ -138,7 +139,7 @@ defineWidget({
       event.preventDefault()
       const line = text.trim()
       if (!line) return
-      const entity = addEntity({ type: 'task', title: line, status: 'open', source: { kind: 'manual', name: 'Quick capture' } })
+      const entity = addEntity({ type: 'task', status: 'open', ...strip(line), source: { kind: 'manual', name: 'Quick capture' } })
       setLast(entity)
       setText('')
     }

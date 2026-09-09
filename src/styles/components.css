@@ -231,6 +231,8 @@
 .list__item:hover { background: var(--surface-hover); }
 .list__item--interactive { cursor: pointer; }
 
+.list__open { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.list__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .list__main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .list__title { font-size: var(--t-md); font-weight: 520; line-height: 1.4; }
 .list__meta { display: flex; align-items: center; gap: var(--gap-2); flex-wrap: wrap; font-size: var(--t-xs); color: var(--ink-muted); }
