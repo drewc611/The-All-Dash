@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pythonjsonlogger.json import JsonFormatter
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from . import __version__, routers
 from .config import get_settings
@@ -51,6 +52,51 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await dispose_engine()
 
 
+_BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
+
+
+class BodyLimit:
+    """Reject request bodies larger than the configured cap before a handler reads them.
+
+    Pure ASGI, so it sits in front of everything. A body must declare its
+    length: a chunked upload without Content-Length gets 411, one that is too
+    long gets 413. Uvicorn reads no more than the declared length, so the cap
+    is honoured whatever the client sends after the headers.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("method") in _BODY_METHODS:
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+            length = headers.get("content-length")
+            if length is None and "chunked" in headers.get("transfer-encoding", "").lower():
+                await self._reject(send, 411, "Content-Length is required")
+                return
+            if length is not None and (not length.isdigit() or int(length) > self.max_bytes):
+                await self._reject(send, 413, f"Request body exceeds {self.max_bytes} bytes")
+                return
+        await self.app(scope, receive, send)
+
+    @staticmethod
+    async def _reject(send: Send, status: int, detail: str) -> None:
+        body = f'{{"detail":"{detail}"}}'.encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -61,9 +107,11 @@ def create_app() -> FastAPI:
             "and the daily update engine that builds the morning brief."
         ),
         lifespan=lifespan,
-        docs_url="/docs",
-        openapi_url="/openapi.json",
+        docs_url="/docs" if settings.docs_enabled else None,
+        redoc_url="/redoc" if settings.docs_enabled else None,
+        openapi_url="/openapi.json" if settings.docs_enabled else None,
     )
+    app.add_middleware(BodyLimit, max_bytes=settings.max_body_bytes)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

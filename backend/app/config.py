@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     burn_rate_window_days: int = Field(default=30, ge=7, le=365)
     log_level: str = "INFO"
     request_id_header: str = "x-request-id"
+    expose_docs: bool = Field(default=False, description="Serve /docs and /openapi.json in production too")
+    max_body_bytes: int = Field(default=1_048_576, ge=16_384, description="Largest request body accepted")
 
     @field_validator("database_url")
     @classmethod
@@ -50,6 +52,12 @@ class Settings(BaseSettings):
     def auth_required(self) -> bool:
         # Local development without keys is allowed; anything else must present a key.
         return self.environment != "local" or bool(self.api_key_set)
+
+    @property
+    def docs_enabled(self) -> bool:
+        # The schema is public information locally; on a cluster it is a map
+        # of every write endpoint, so it stays off unless asked for.
+        return self.environment != "production" or self.expose_docs
 
     def validate_for_environment(self) -> None:
         if self.environment == "production" and not self.api_key_set:

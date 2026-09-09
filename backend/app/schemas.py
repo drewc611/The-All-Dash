@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Context = Literal["work", "personal"]
 ProjectStage = Literal["idea", "planning", "in_progress", "review", "done"]
@@ -14,6 +15,8 @@ TaskPriority = Literal["P1", "P2", "P3"]
 TaskStatus = Literal["open", "doing", "done"]
 InvoiceStatus = Literal["draft", "sent", "paid", "overdue", "void"]
 AuditActor = Literal["system", "worker", "user", "assistant"]
+
+MAX_INPUTS_BYTES = 64 * 1024
 
 
 class StrictModel(BaseModel):
@@ -203,6 +206,15 @@ class AuditLogIn(StrictModel):
     rationale: str = Field(default="", max_length=8000)
     confidence: float = Field(ge=0, le=1)
     inputs: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("inputs")
+    @classmethod
+    def _inputs_fit(cls, value: dict[str, Any]) -> dict[str, Any]:
+        # The ledger row is hashed and kept forever; a bounded payload keeps
+        # verify() fast and stops one client from filling the table.
+        if len(json.dumps(value, separators=(",", ":"), default=str)) > MAX_INPUTS_BYTES:
+            raise ValueError(f"inputs must serialise to at most {MAX_INPUTS_BYTES} bytes")
+        return value
 
 
 class AuditLogOut(OrmModel):

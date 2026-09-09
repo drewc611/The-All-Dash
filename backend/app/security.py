@@ -7,6 +7,7 @@ never reaches a browser. Health endpoints are open so probes need no secret.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 from typing import Annotated
 
@@ -18,11 +19,17 @@ from .config import Settings, get_settings
 _header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
+def _digest(value: str) -> bytes:
+    return hashlib.sha256(value.encode()).digest()
+
+
 def _matches(presented: str, accepted: frozenset[str]) -> bool:
-    # Compare against every key so timing does not reveal which one is close.
+    # Compare fixed-length digests against every key, so neither the length
+    # of a configured key nor which one is close shows up in the timing.
+    candidate = _digest(presented)
     found = False
     for key in accepted:
-        if hmac.compare_digest(presented.encode(), key.encode()):
+        if hmac.compare_digest(candidate, _digest(key)):
             found = True
     return found
 

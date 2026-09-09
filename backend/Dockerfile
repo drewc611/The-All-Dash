@@ -9,7 +9,7 @@ WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
-RUN pip install --require-hashes -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Stage 2: a slim runtime with no compilers, running as an unprivileged user.
 FROM python:3.12-slim AS runtime
@@ -31,5 +31,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--"]
+# X-Forwarded-* headers are trusted only from loopback by default. When a
+# proxy sits in front of the API, set FORWARDED_ALLOW_IPS to its address or
+# CIDR (uvicorn reads that variable); "*" would let any client spoof its IP
+# and scheme.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", \
-     "--proxy-headers", "--forwarded-allow-ips", "*", "--no-server-header"]
+     "--proxy-headers", "--no-server-header"]
