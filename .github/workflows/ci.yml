@@ -68,3 +68,13 @@ jobs:
           ./kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.31.0 rendered.yaml rendered-nginx.yaml k8s/secrets.example.yaml
       - name: Compose file validates
         run: docker compose -f docker-compose.yml config --quiet
+      - name: Images build
+        run: |
+          docker build -q backend -t alldash-backend:ci
+          docker build -q frontend -t alldash-frontend:ci
+          docker build -q -f mcp/Dockerfile . -t alldash-mcp:ci
+          # The MCP image must start in platform mode and answer its health check.
+          docker run -d --rm --name mcp-ci -e MCP_AUTH_TOKEN=ci -e ALLDASH_API_URL=http://backend:8000 -e ALLDASH_API_KEY=ci -p 18080:8080 alldash-mcp:ci
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:18080/healthz && break || sleep 1; done
+          docker logs mcp-ci
+          docker stop mcp-ci

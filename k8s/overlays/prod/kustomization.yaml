@@ -27,3 +27,33 @@ patches:
     target:
       kind: ConfigMap
       name: alldash-config
+# One host and one CIDR, named once above, copied where they are needed.
+replacements:
+  - source:
+      kind: ConfigMap
+      name: alldash-config
+      fieldPath: data.PUBLIC_HOST
+    targets:
+      - select:
+          kind: Ingress
+          name: alldash
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+        options:
+          create: true
+  - source:
+      kind: ConfigMap
+      name: alldash-config
+      fieldPath: data.VPC_CIDR
+    targets:
+      - select:
+          kind: NetworkPolicy
+          name: frontend
+        fieldPaths:
+          - spec.ingress.0.from.1.ipBlock.cidr
+      - select:
+          kind: NetworkPolicy
+          name: mcp
+        fieldPaths:
+          - spec.ingress.0.from.1.ipBlock.cidr

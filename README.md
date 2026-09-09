@@ -1,13 +1,13 @@
 # The All Dash
 
 [![CI](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml/badge.svg)](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml)
-[![React 18](https://img.shields.io/badge/React-18-20232a?logo=react&logoColor=61dafb)](package.json)
-[![Vite 5](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)](vite.config.js)
+[![React 19](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)](package.json)
+[![Vite 8](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](vite.config.js)
 [![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
 [![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
 [![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](backend/)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](frontend/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](backend/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](frontend/)
 [![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
 [![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
@@ -449,7 +449,7 @@ src/
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
   ui/         shell, board, command bar, inspector, assistant, views, widgets, charts
   styles/     tokens, base, layout, components, viz
-tests/        97 node:test cases over parsing, querying, analytics, triage and the assistant protocol
+tests/        node:test cases over parsing, querying, analytics, triage, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 
@@ -470,7 +470,7 @@ plugin when you need it.
 The browser app needs nothing but a browser. For a team that wants shared
 state, scheduled processing, money tracking and an API that agents can call,
 the repository also carries a containerised platform: a FastAPI service, a
-Celery worker, a hash-chained AI audit ledger, a Next.js 14 workspace, and the
+Celery worker, a hash-chained AI audit ledger, a Next.js 16 workspace, and the
 Kubernetes manifests to run it on AWS EKS. The two tiers share the entity idea
 and the MCP server exposes both.
 
@@ -499,7 +499,7 @@ The-All-Dash/
 │   ├── scripts/seed.py         Sample workspace, idempotent
 │   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief
 │   └── Dockerfile              Multi-stage slim, uid 10001, tini, healthcheck
-├── frontend/                   Next.js 14 App Router + Tailwind (TypeScript strict)
+├── frontend/                   Next.js 16 App Router + Tailwind (TypeScript strict, React 19)
 │   ├── app/page.tsx            The three-column workspace (server component)
 │   ├── app/api/                Route handlers that carry the key so the browser never sees it
 │   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
@@ -582,7 +582,7 @@ recomputes the whole chain and names the first bad row. The initial migration
 installs a trigger that rejects UPDATE and DELETE on the table, so even a
 database client cannot edit history without leaving the chain broken.
 
-**Frontend (Next.js 14).** Left: project pipelines as stage tracks with task
+**Frontend (Next.js 16).** Left: project pipelines as stage tracks with task
 progress, open P1s, invoiced and spent against budget. Centre: the checklist
 with P1/P2/P3 colour coding, optimistic toggles, an add box and a priority
 filter; today's finished items stay visible. Right: the audit stream with a
@@ -653,6 +653,11 @@ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/late
 # 2. Namespace first, so the Secrets have somewhere to live
 kubectl apply -f k8s/base/namespace.yaml
 
+# 2b. NetworkPolicies are inert on a stock EKS cluster: turn enforcement on in the VPC CNI
+#     (or install Calico). Without this the default-deny policies do nothing.
+aws eks update-addon --cluster-name $CLUSTER --addon-name vpc-cni \
+  --configuration-values '{"enableNetworkPolicy":"true"}' --resolve-conflicts PRESERVE
+
 # 3. Bootstrap secrets (values from a password manager or AWS Secrets Manager; never from git)
 PG_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
 REDIS_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
@@ -676,7 +681,7 @@ kubectl -n alldash create secret generic alldash-frontend \
   --from-literal=FRONTEND_AUTH_USER=drew --from-literal=FRONTEND_AUTH_PASSWORD="$WEB_PASS"   # the workspace login
 
 # 4. Storage class and snapshot class (cluster-scoped, applied with the base)
-# 5. Point the overlay at your registry and host
+# 5. Point the overlay at your registry, host and VPC CIDR (PUBLIC_HOST and VPC_CIDR in config-patch.yaml)
 cd k8s/overlays/prod
 kustomize edit set image \
   alldash-backend=$ECR/alldash-backend:$TAG \
@@ -712,7 +717,7 @@ kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubec
 
 ### Security notes
 
-- **The workspace has a login.** `frontend/middleware.ts` enforces HTTP Basic
+- **The workspace has a login.** `frontend/proxy.ts` enforces HTTP Basic
   auth from the `alldash-frontend` Secret and refuses to serve in production
   until it is set (`FRONTEND_AUTH_DISABLED=true` opts out behind an
   authenticating proxy such as ALB OIDC or oauth2-proxy). Mutating calls to
@@ -734,6 +739,9 @@ kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubec
 - **Redis and Postgres both need a password**, from the `redis-credentials`
   and `postgres-credentials` Secrets, on top of the default-deny
   NetworkPolicies. Celery accepts JSON only.
+- **NetworkPolicies need an enforcer.** EKS ignores them until the VPC CNI's
+  network-policy feature (or Calico) is on; the playbook's step 2b turns it
+  on. The load balancer's CIDR is `VPC_CIDR` in the prod overlay.
 - **Pods** run as uid 10001 on a read-only filesystem with all capabilities
   dropped, no service-account token, restricted Pod Security, and CPU and
   memory limits; the workflow token is read-only.
@@ -866,7 +874,8 @@ platform:
 
 ```bash
 export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json   # or the default path above
-export ALLDASH_API_URL=https://dash.yourdomain.com/api  ALLDASH_API_KEY=...   # optional
+export ALLDASH_API_URL=http://localhost:8000 ALLDASH_API_KEY=...   # optional: the API is not on the Ingress;
+                                                                      # on a cluster use kubectl port-forward svc/backend 8000, or the in-cluster URL from a pod
 ```
 
 Ask "what's late?", "review my day", or "add a task to send the deck by
@@ -888,8 +897,12 @@ or a desktop dock and opens offline. The worker caches the app shell only;
 there is no network traffic to cache, and your workspace never leaves the
 device.
 
-1. Serve the `dist/` folder over HTTPS (any static host: Netlify, Vercel,
-   GitHub Pages, S3 + CloudFront, or `npm run preview` on your LAN for a try).
+1. Serve the `dist/` folder over HTTPS from the root of a host (Netlify,
+   Vercel, S3 + CloudFront, a GitHub Pages *user* site, or `npm run preview`
+   on your LAN for a try). The manifest, service worker and assets use
+   root-relative paths, so a sub-path such as `github.io/The-All-Dash/`
+   needs `base` set in `vite.config.js` and the paths in
+   `public/manifest.webmanifest` and `public/sw.js` adjusted to match.
 2. **iPhone or iPad:** open it in Safari, tap Share, then *Add to Home Screen*.
 3. **Android:** open it in Chrome and tap *Install app* in the banner or the
    menu.

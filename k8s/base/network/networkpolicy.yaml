@@ -80,15 +80,8 @@ spec:
                 values: ["frontend", "daily-brief", "mcp"]
       ports:
         - port: 8000
-    # The ingress controller (ALB targets pods directly; ingress-nginx runs in its own namespace).
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-        - ipBlock:
-            cidr: 10.0.0.0/8
-      ports:
-        - port: 8000
+    # The API is not on the Ingress: nothing from the VPC or the ingress
+    # controller reaches it, only the pods above.
   egress:
     - to:
         - podSelector:
@@ -197,6 +190,7 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
         - ipBlock:
+            # The VPC CIDR; the prod overlay replaces it from VPC_CIDR.
             cidr: 10.0.0.0/8
       ports:
         - port: 3000
@@ -276,6 +270,7 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
         - ipBlock:
+            # The VPC CIDR; the prod overlay replaces it from VPC_CIDR.
             cidr: 10.0.0.0/8
       ports:
         - port: 8080

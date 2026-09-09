@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: frontend
   namespace: alldash
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
   labels:
     app.kubernetes.io/name: frontend
 spec:
