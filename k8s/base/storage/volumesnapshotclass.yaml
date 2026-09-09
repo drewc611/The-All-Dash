@@ -1,0 +1,14 @@
+# Requires the EBS CSI driver and the external-snapshotter CRDs
+# (VolumeSnapshotClass, VolumeSnapshot, VolumeSnapshotContent) on the cluster.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: alldash-ebs-snapshots
+  labels:
+    app.kubernetes.io/part-of: alldash
+driver: ebs.csi.aws.com
+# Retain keeps the EBS snapshot even if the VolumeSnapshot object is deleted.
+deletionPolicy: Retain
+parameters:
+  tagSpecification_1: "app=alldash"
+  tagSpecification_2: "purpose=postgres-backup"

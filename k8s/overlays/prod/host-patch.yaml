@@ -1,0 +1,4 @@
+# Replace alldash.example.com with the real host in both rules and tls.
+- op: replace
+  path: /spec/rules/0/host
+  value: alldash.example.com

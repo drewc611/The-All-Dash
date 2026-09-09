@@ -1,0 +1,25 @@
+{
+  "name": "all-dash",
+  "displayName": "The All Dash",
+  "version": "0.1.0",
+  "description": "Your project and personal command center from Claude: the morning brief, triage, tasks, invoices, burn rate, and an append-only ledger for every decision an agent makes.",
+  "author": { "name": "drewc611", "url": "https://github.com/drewc611" },
+  "homepage": "https://github.com/drewc611/The-All-Dash",
+  "repository": "https://github.com/drewc611/The-All-Dash",
+  "keywords": ["dashboard", "tasks", "triage", "calendar", "finance", "audit-ledger", "mcp", "productivity"],
+  "skills": "./.claude/skills/",
+  "mcpServers": {
+    "all-dash": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "cd \"${CLAUDE_PLUGIN_ROOT}/mcp\" && { [ -d node_modules/@modelcontextprotocol/sdk ] || npm ci --omit=dev --no-audit --no-fund --silent 1>&2; } && exec node src/server.js"
+      ],
+      "env": {
+        "ALLDASH_WORKSPACE_FILE": "${ALLDASH_WORKSPACE_FILE:-}",
+        "ALLDASH_API_URL": "${ALLDASH_API_URL:-}",
+        "ALLDASH_API_KEY": "${ALLDASH_API_KEY:-}"
+      }
+    }
+  }
+}

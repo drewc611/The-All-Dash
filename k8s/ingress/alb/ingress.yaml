@@ -1,0 +1,52 @@
+# Path A: the AWS Load Balancer Controller provisions an internet-facing ALB.
+#
+# TLS terminates on the ALB with a certificate from ACM. The controller finds
+# the certificate by the host names below (auto-discovery), so no ARN needs
+# to be pasted here; to pin one, add
+#   alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+# Port 80 answers only with a redirect to 443. The API is not on the Ingress:
+# the frontend reaches it on the cluster network and holds the key, so the
+# only public surfaces are the workspace and (see /mcp) the MCP server.
+#
+# cert-manager cannot be used with an ALB: ALB reads certificates from ACM,
+# not from Kubernetes Secrets. For Let's Encrypt via cert-manager use Path B
+# (ingress-nginx) instead and do not apply this file.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alldash
+  namespace: alldash
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60,routing.http.drop_invalid_header_fields.enabled=true
+    alb.ingress.kubernetes.io/group.name: alldash
+    alb.ingress.kubernetes.io/tags: app=alldash
+    # WAF is optional; attach a WebACL ARN here to turn it on.
+    # alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:...
+spec:
+  ingressClassName: alb
+  rules:
+    - host: alldash.example.com
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: mcp
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

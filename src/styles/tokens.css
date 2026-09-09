@@ -1,0 +1,202 @@
+/*
+ * Design tokens.
+ *
+ * Every colour, size and duration in the app resolves here. Light values live
+ * on bare :root; dark redefines only what changes, under both the OS media
+ * query and the explicit theme stamp so the in-app toggle wins either way.
+ * Series colours are the validated categorical order from the data-viz method
+ * (adjacent-pair CVD deltaE >= 8, normal-vision >= 15).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --plane: #f4f4f1;
+  --surface: #fcfcfb;
+  --surface-2: #f7f7f4;
+  --surface-sunken: #eeeeea;
+  --surface-hover: #f0efec;
+  --surface-active: #e7e6e1;
+
+  /* Ink */
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --ink-inverse: #ffffff;
+
+  /* Lines */
+  --line: #e1e0d9;
+  --line-strong: #c9c8c0;
+  --ring: rgba(11, 11, 11, 0.1);
+
+  /* Accent */
+  --accent: #2a78d6;
+  --accent-hover: #256abf;
+  --accent-soft: #e8f0fc;
+  --accent-ink: #ffffff;
+
+  /* Status - fixed, never themed. Always paired with an icon or a label. */
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-soft: #e6f5e6;
+  --warning-soft: #fdf3dd;
+  --serious-soft: #fceee7;
+  --critical-soft: #fbe9e9;
+
+  /* Categorical series */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  /* Chart chrome */
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+
+  /* Spacing - a 4px rhythm, named by use not by number */
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+  --gap-7: 48px;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-full: 999px;
+
+  /* Type */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-md: 13px;
+  --t-lg: 15px;
+  --t-xl: 19px;
+  --t-2xl: 26px;
+  --t-3xl: 36px;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.06);
+  --shadow-md: 0 4px 14px rgba(11, 11, 11, 0.09);
+  --shadow-lg: 0 18px 48px rgba(11, 11, 11, 0.18);
+
+  /* Motion */
+  --fast: 120ms cubic-bezier(0.32, 0.72, 0, 1);
+  --base: 220ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Layout */
+  --rail: 232px;
+  --topbar: 52px;
+  --tabbar: 60px;
+}
+
+:root[data-density='compact'] {
+  --gap-3: 8px;
+  --gap-4: 12px;
+  --gap-5: 16px;
+  --t-md: 12px;
+  --t-lg: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --plane: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #212120;
+    --surface-sunken: #141413;
+    --surface-hover: #262624;
+    --surface-active: #2f2f2c;
+
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --ink-inverse: #0b0b0b;
+
+    --line: #2c2c2a;
+    --line-strong: #3d3d39;
+    --ring: rgba(255, 255, 255, 0.1);
+
+    --accent: #3987e5;
+    --accent-hover: #5598e7;
+    --accent-soft: #16283c;
+
+    --good-soft: #10240f;
+    --warning-soft: #2c2411;
+    --serious-soft: #2d1d15;
+    --critical-soft: #2c1414;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    --grid: #2c2c2a;
+    --axis: #383835;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --plane: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #212120;
+  --surface-sunken: #141413;
+  --surface-hover: #262624;
+  --surface-active: #2f2f2c;
+
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+  --ink-inverse: #0b0b0b;
+
+  --line: #2c2c2a;
+  --line-strong: #3d3d39;
+  --ring: rgba(255, 255, 255, 0.1);
+
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
+  --accent-soft: #16283c;
+
+  --good-soft: #10240f;
+  --warning-soft: #2c2411;
+  --serious-soft: #2d1d15;
+  --critical-soft: #2c1414;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --grid: #2c2c2a;
+  --axis: #383835;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
+}

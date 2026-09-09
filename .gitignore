@@ -1,0 +1,16 @@
+node_modules
+dist
+.DS_Store
+*.local
+.vite
+
+# platform
+.venv/
+__pycache__/
+*.pyc
+*.db
+backend/.env
+frontend/.next/
+frontend/node_modules/
+mcp/node_modules/
+frontend/tsconfig.tsbuildinfo

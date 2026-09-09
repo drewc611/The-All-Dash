@@ -1,0 +1,23 @@
+{
+  "name": "the-all-dash",
+  "owner": { "name": "drewc611", "url": "https://github.com/drewc611" },
+  "metadata": {
+    "description": "The All Dash: a project and personal command center, exposed to Claude as a skill and an MCP server.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "all-dash",
+      "source": "./",
+      "description": "Ask about your day, what is late or blocked, pipelines, invoices and burn rate; add or close tasks; record agent decisions in the audit ledger. Works from a workspace export file, the platform API, or both.",
+      "version": "0.1.0",
+      "author": { "name": "drewc611", "url": "https://github.com/drewc611" },
+      "homepage": "https://github.com/drewc611/The-All-Dash",
+      "repository": "https://github.com/drewc611/The-All-Dash",
+      "keywords": ["dashboard", "tasks", "triage", "calendar", "finance", "audit-ledger", "mcp", "productivity"],
+      "category": "productivity",
+      "tags": ["productivity", "project-management", "mcp"],
+      "strict": true
+    }
+  ]
+}

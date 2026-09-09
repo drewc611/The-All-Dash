@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: alldash
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: alldash
+      app.kubernetes.io/managed-by: kustomize
+resources:
+  - namespace.yaml
+  - config/configmap.yaml
+  - storage/storageclass.yaml
+  - storage/postgres-pvc.yaml
+  - storage/volumesnapshotclass.yaml
+  - storage/snapshot-cronjob.yaml
+  - backend/serviceaccount.yaml
+  - postgres/deployment.yaml
+  - postgres/service.yaml
+  - redis/deployment.yaml
+  - redis/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - backend/hpa.yaml
+  - backend/pdb.yaml
+  - worker/deployment.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - frontend/pdb.yaml
+  - mcp/deployment.yaml
+  - cronjob/daily-brief.yaml
+  - network/networkpolicy.yaml
+  # The Ingress is chosen in the overlay: k8s/ingress/alb or k8s/ingress/nginx-letsencrypt.
+images:
+  - name: alldash-backend
+    newName: alldash-backend
+    newTag: 0.1.0
+  - name: alldash-frontend
+    newName: alldash-frontend
+    newTag: 0.1.0
+  - name: alldash-mcp
+    newName: alldash-mcp
+    newTag: 0.1.0

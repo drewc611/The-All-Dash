@@ -1,0 +1,134 @@
+# Nightly, state-consistent EBS snapshot of the Postgres volume, plus pruning.
+#
+# Postgres is checkpointed first so the snapshot starts from a clean page
+# state; EBS snapshots are crash-consistent on their own and Postgres
+# recovers from WAL on restore, but a CHECKPOINT makes that recovery short.
+# Snapshots older than the retention window are deleted; the class is
+# Retain, so the underlying EBS snapshot survives and can be pruned by an
+# AWS lifecycle policy on the "purpose=postgres-backup" tag.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-snapshotter
+  namespace: alldash
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-snapshotter
+  namespace: alldash
+rules:
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-snapshotter
+  namespace: alldash
+subjects:
+  - kind: ServiceAccount
+    name: postgres-snapshotter
+    namespace: alldash
+roleRef:
+  kind: Role
+  name: postgres-snapshotter
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-snapshot
+  namespace: alldash
+  labels:
+    app.kubernetes.io/name: postgres-snapshot
+spec:
+  schedule: "30 3 * * *"
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-snapshot
+        spec:
+          serviceAccountName: postgres-snapshotter
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: snapshot
+              image: bitnami/kubectl:1.31
+              env:
+                - name: RETENTION_DAYS
+                  value: "14"
+                - name: PVC
+                  value: postgres-data
+                - name: SNAPSHOT_CLASS
+                  value: alldash-ebs-snapshots
+              command: ["/bin/bash", "-euo", "pipefail", "-c"]
+              args:
+                - |
+                  pod=$(kubectl -n alldash get pods -l app.kubernetes.io/name=postgres \
+                        --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
+                  echo "checkpointing $pod"
+                  kubectl -n alldash exec "$pod" -- psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CHECKPOINT;"
+                  name="${PVC}-$(date -u +%Y%m%d-%H%M%S)"
+                  echo "creating VolumeSnapshot $name"
+                  kubectl -n alldash apply -f - <<EOS
+                  apiVersion: snapshot.storage.k8s.io/v1
+                  kind: VolumeSnapshot
+                  metadata:
+                    name: ${name}
+                    labels:
+                      app.kubernetes.io/name: postgres
+                      backup: daily
+                  spec:
+                    volumeSnapshotClassName: ${SNAPSHOT_CLASS}
+                    source:
+                      persistentVolumeClaimName: ${PVC}
+                  EOS
+                  kubectl -n alldash wait volumesnapshot/"$name" --for=jsonpath='{.status.readyToUse}'=true --timeout=600s
+                  cutoff=$(date -u -d "-${RETENTION_DAYS} days" +%s)
+                  for old in $(kubectl -n alldash get volumesnapshots -l backup=daily -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.creationTimestamp}{"\n"}{end}' \
+                                | awk -v c="$cutoff" '{ cmd="date -u -d " $2 " +%s"; cmd | getline t; close(cmd); if (t < c) print $1 }'); do
+                    echo "pruning $old"
+                    kubectl -n alldash delete volumesnapshot "$old"
+                  done
+                  echo "done"
+              envFrom:
+                - secretRef:
+                    name: postgres-credentials
+                - configMapRef:
+                    name: alldash-config
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { cpu: 200m, memory: 128Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}

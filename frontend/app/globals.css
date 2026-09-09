@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply bg-plane text-ink antialiased;
+    font-size: 13px;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-card;
+  }
+  .card-head {
+    @apply flex min-h-11 items-center gap-2 border-b border-line px-4 py-3;
+  }
+  .card-title {
+    @apply text-[13px] font-semibold tracking-tight;
+  }
+  .chip {
+    @apply inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-full border border-line bg-surface-sunken px-2 text-[11px] font-medium text-ink-2;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-ink-muted;
+  }
+  .btn {
+    @apply inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-line bg-surface px-3 text-[13px] font-medium transition hover:bg-surface-sunken disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply border-accent bg-accent text-white hover:bg-[#256abf];
+  }
+  .input {
+    @apply h-8 w-full rounded-md border border-line bg-surface px-2 text-[13px] outline-none transition focus:border-accent focus:ring-[3px] focus:ring-accent-soft;
+  }
+}

@@ -1,2 +1,911 @@
-# The-All-Dash
-All time dashboard to rule them all
+# The All Dash
+
+[![CI](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml/badge.svg)](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml)
+[![React 18](https://img.shields.io/badge/React-18-20232a?logo=react&logoColor=61dafb)](package.json)
+[![Vite 5](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)](vite.config.js)
+[![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
+[![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
+[![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](backend/)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](frontend/)
+[![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
+[![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
+
+A command center for one project or one person. Feed it the documents you already
+have (meeting notes, a calendar export, a transcript, a spreadsheet) and it
+builds the dashboard from what it finds: tasks with owners and due dates, today's
+agenda, decisions, risks, milestones, live metrics, reminders, and analytics that
+say what needs attention.
+
+Everything runs in the browser. Nothing is uploaded anywhere. There is no server,
+no account, and no runtime dependency beyond React. It installs to a phone like
+an app and works offline. A separate, optional
+[platform tier](#platform-tier-api-workspace-and-eks) adds a FastAPI service, a
+Celery worker, a hash-chained AI audit ledger, a Next.js workspace, an MCP
+server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
+
+## What it does
+
+- **Reads what you already have.** Drop in Markdown or plain-text notes,
+  meeting transcripts, `.ics` calendars, CSV and Excel sheets, Word and
+  PowerPoint files, JSON, and exports from Jira, Linear, Asana, Todoist,
+  Trello, GitHub, Google, Outlook and Apple Calendar, Zoom and Teams. Each
+  parser turns its file into the same flat entity, so every widget works on
+  every source.
+- **Builds the day.** Today's agenda, the focus list, what is due this week,
+  reminders that fire in the browser, and a recent-activity stream, filtered
+  by person or topic with one click.
+- **Triage.** A ranked worklist of what is wrong right now: overdue and blocked
+  work, stalled items, milestones that passed with tasks still open, clashing
+  meetings, unowned urgent work, metrics off target. Each row carries the
+  button that clears it.
+- **Metrics and analytics.** Counters built in, series discovered from
+  spreadsheet columns, and metrics you define by hand, all on one wall with
+  sparklines and period-over-period change, then any series as a line with a
+  7-day average. A relationship map, a load heatmap and a leaderboard show who
+  carries what.
+- **The web, read into the dashboard.** Give the platform a URL and the page
+  (or the whole site) comes back as Markdown and goes through the same parsers
+  as a pasted note: the tasks, dates, people, decisions and numbers on a wiki
+  page, a status page, a vendor's changelog or a public tracker become
+  entities you can triage. Scrape, map, crawl and batch are native and free;
+  search, JavaScript rendering and screenshots use Firecrawl when you add a
+  key; extract and agent use a model you configure on the backend and record
+  what they did in the audit ledger. Agents get the same seven tools over MCP.
+- **A brain that learns who you are, with no model.** Rules over your own
+  data work out who you work with, which topics slip, when you are active,
+  how far ahead you plan. Facts are recorded automatically; opinions ("#infra
+  usually finishes late", "Priya carries 40% of the open work") wait for your
+  yes, and once accepted they change triage, reminders and the start view. It
+  all becomes a folder of Markdown files on your disk, kept in sync.
+- **An assistant that cites and proposes.** Ask questions of your own data
+  through Claude, any OpenAI-compatible endpoint, or a local Ollama. Answers
+  cite items as chips; changes arrive as proposals you apply or skip. A privacy
+  dial keeps note bodies on the machine. Voice in, voice out.
+- **A status update in one click.** Done, in progress, blocked, overdue,
+  decisions, the numbers that moved, the next seven days, as Markdown.
+- **Your own extension harness.** New file format, widget, metric or command
+  means one file registered on `window.AllDash`; nothing else changes.
+- **A team platform when you want one.** Projects with pipelines, work and
+  personal tasks, invoices, expenses, burn rate and margin, a daily update
+  engine that writes a morning brief at 4 AM, and an append-only, hash-chained
+  ledger of every decision an automation or an agent made, with a confidence
+  score.
+- **Agents as first-class users.** One MCP server gives Claude, GitHub Copilot
+  and ChatGPT the same tools: read the brief, triage, add or close tasks, and
+  log their own judgements to the ledger. A Claude Code plugin installs it in
+  two commands.
+
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm test         # node:test, no browser needed; CI also runs it in three timezones
+npm run build
+```
+
+Open it, click **Load a sample project**, and you get six documents run through
+the real parsers, not fixture data.
+
+## What it looks like
+
+![Today: agenda, focus list, reminders, pulse and recent activity, with person and topic filters above the board](docs/screenshots/today.png)
+
+**Triage.** Everything that is wrong right now, most urgent first: overdue and
+blocked work, milestones that passed with tasks still open, stalled items,
+clashing meetings, off-target metrics. Each row carries the one or two buttons
+that clear it, and a spark that asks the assistant why it was flagged.
+
+![Triage view with severity tiles and per-row actions](docs/screenshots/triage.png)
+
+**Assistant.** Grounded in the live store, citing items as chips that open the
+inspector. Ask for a change and it arrives as a proposal card with a before and
+after; nothing is written until you press Apply.
+
+<p>
+  <img src="docs/screenshots/assistant.png" width="49%" alt="Assistant answering with citation chips" />
+  <img src="docs/screenshots/assistant-proposals.png" width="49%" alt="Assistant proposing two changes with Apply and Skip buttons" />
+</p>
+
+**Relationship map and load heatmap.** Documents on the left, the work they
+produced in the middle, the people carrying it on the right; hover a node to
+trace its thread. Below it, open tasks per person across the coming weeks.
+
+![Relationship map widget](docs/screenshots/map.png)
+
+**Analytics.** Every metric on one wall — built-in, discovered from spreadsheet
+columns, or built by hand — with sparklines and period-over-period deltas, then
+any series as a line with a 7-day average.
+
+![Analytics: the metric wall and series explorer](docs/screenshots/analytics.png)
+
+**Timeline.** Meetings on their start time, tasks and milestones on their due
+date, one vertical run of days.
+
+![Timeline view](docs/screenshots/timeline.png)
+
+**Command bar and inspector.** `⌘K` searches every item and every command at
+once. Click anything to open it, edit it, and see what else came from the same
+document.
+
+<p>
+  <img src="docs/screenshots/command-bar.png" width="49%" alt="Command bar searching across entities and commands" />
+  <img src="docs/screenshots/inspector.png" width="49%" alt="Inspector panel for a calendar event" />
+</p>
+
+**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, boards go
+single-column, and the theme follows the OS or the toggle in Settings.
+
+<p>
+  <img src="docs/screenshots/mobile.png" width="24%" alt="Today on a phone" />
+  <img src="docs/screenshots/mobile-triage.png" width="24%" alt="Triage on a phone in dark mode" />
+  <img src="docs/screenshots/today-dark.png" width="50%" alt="Today in dark mode" />
+</p>
+
+## The one idea
+
+Everything becomes an **entity**: one flat record with a type, a title, optional
+dates, people, tags and a value.
+
+```js
+{ id, type, title, body, at, end, due, status, priority,
+  tags[], people[], value, unit, series, meta, source, confidence }
+```
+
+A meeting note, a calendar invite, a spreadsheet row and a hand-typed reminder all
+normalise to that shape. Parsers only produce entities. Widgets only query them.
+Neither knows the other exists.
+
+That is why adding a file format costs one file, and adding a panel costs one
+file, and neither costs a change anywhere else.
+
+```
+file ──▶ parser registry ──▶ entities ──▶ store ──▶ query layer ──▶ widgets
+                                             │
+                                             ├──▶ metric engine ──▶ charts
+                                             ├──▶ reminder engine ──▶ notifications
+                                             ├──▶ insight rules ──▶ "what needs attention"
+                                             ├──▶ triage ──▶ worklist with actions
+                                             └──▶ context builder ──▶ assistant ──▶ proposals
+```
+
+## What it reads
+
+| Format | What comes out |
+|---|---|
+| `.md` `.txt` | Checkboxes, `Action:` / `Decision:` / `Risk:` / `Question:` lines, `Attendees:`, `## Timeline` sections, `Label: 42` metrics |
+| `.vtt` `.srt` | Speaker turns, then commitments ("I'll rewrite the rollback script"), asks, decisions and stated worries |
+| `.ics` `.ical` | Events with attendees, location and duration; recurrence expanded a year each way; action items hidden in invite descriptions |
+| `.csv` `.tsv` | Task tables (owner, status, due, priority) or metric tables (a date column plus any numeric columns) |
+| `.xlsx` `.xlsm` | Every sheet, via a 90-line ZIP reader over the browser's own `DecompressionStream`. No dependency |
+| `.docx` | Headings, lists, checkboxes and tables, through the same ZIP reader, then read as notes |
+| `.pptx` | Every slide's title and bullets, then read as notes |
+| `.json` `.ndjson` | An exported workspace, an entity array, or any array of records treated as a table |
+| `.html` | Flattened to text, then read as notes |
+
+Exports from the tools people already use are recognised from their own headers
+and read with that tool's quirks handled, with nothing to install or connect:
+**Jira** and **Linear** CSV (summary, issue type, sprint, priority words),
+**Asana** CSV (status from *Completed At*, section as a tag), **Todoist** CSV
+(task rows only, priority 4 is urgent, *DATE* is the due date), **Trello** board
+JSON (cards in lists, list names that read like a status become one, members
+become owners), **GitHub** issues JSON (assignees and labels from objects,
+milestone due dates), and Google, Outlook and Apple calendars. The Library shows
+what was recognised. An unrecognised file still takes the generic route.
+
+Dates are read the way people write them: `2026-03-04`, `by Friday`, `next
+tuesday`, `Mar 20`, `3/20/26`, `EOD`, `in 2 weeks`. When it cannot tell, it
+returns nothing rather than guessing.
+
+A line like this:
+
+```
+- [ ] P0 Draft the launch brief @Sam #launch by Friday
+```
+
+becomes an open task titled "Draft the launch brief", owned by Sam, tagged
+`launch`, urgent, due this Friday at 17:00 — with a link back to the file and
+line it came from.
+
+## The harness
+
+Four registries, exposed on `window.AllDash`, so a plugin can be a single
+`<script>` tag with no build step.
+
+```js
+AllDash.defineWidget({
+  id: 'burn-rate',
+  name: 'Burn rate',
+  description: 'Spend against the month',
+  category: 'Analytics',
+  size: 'sm',
+  render: ({ entityList, range, config, setConfig, onOpen }) => /* JSX */,
+})
+
+AllDash.defineParser({
+  id: 'jira-csv',
+  name: 'Jira export',
+  extensions: ['.csv'],
+  priority: 50,                       // highest matching priority wins
+  match: ({ name, text }) => /Issue key/.test(text),
+  parse: ({ name, text, buffer, docId }) => [/* entities */],
+})
+
+AllDash.defineMetric({
+  id: 'wip',
+  name: 'Work in progress',
+  goal: 'down',
+  compute: (entities, range) => ({ value, series }),
+})
+
+AllDash.defineCommand({ id: 'standup', name: 'Copy standup', run: ({ navigate }) => {} })
+```
+
+Register at any time — the board re-renders when a registry changes. Widgets
+added by a plugin appear in the widget picker immediately. Settings → *The
+harness* lists what is plugged in right now. A widget that throws gets its own
+card saying so, with a button to reset its settings; the rest of the board
+keeps rendering.
+
+## Metrics
+
+Three kinds, all the same shape downstream:
+
+- **Built-in** — open tasks, overdue, completed, meeting hours, decisions, risks.
+- **Discovered** — every numeric spreadsheet column becomes a queryable series on
+  import. Nobody defines it. A discovered series has no known good direction, so
+  its change is shown in neutral grey rather than guessed at as green or red.
+- **Custom** — Settings → *Build a metric*: pick an entity type, a reducer
+  (count/sum/avg/min/max/last), a date field, and optional tag or series filters.
+  Live preview, then save. It shows up in every metric widget at once.
+
+Every metric is evaluated against the window immediately before it, so the
+headline delta is a real period-over-period comparison. A custom metric can
+carry a **target**; the app reports progress and, from the fitted trend, how
+many days until it is reached. Discovered series are checked pairwise for
+correlation and the strongest pair is surfaced.
+
+Analytics underneath: least-squares trend with an R², half-window momentum,
+straight-line forecast, Pearson correlation, z-score anomalies, streaks, and
+moving averages — about 100 lines in `src/core/query.js`, no dependency.
+
+## Triage
+
+Insights speak in sentences about the whole project. Triage speaks in rows about
+single items, and it is a worklist rather than a report. Each row has a
+severity, the reason it was raised, and the actions that clear it:
+
+| Signal | Severity | Actions |
+|---|---|---|
+| Task past due | serious; critical when urgent or a week late | Mark done, Push a week |
+| Task due in 48h | warning; serious when high priority | Mark done, Push a week |
+| Blocked task | serious; critical after a week | Unblock, Mark done |
+| In progress, untouched 14 days | warning | Mark done |
+| Milestone within 14 days, or passed and not done | warning to critical, with the open tasks that share its tags | Mark done, Push a week |
+| Open risk untouched 7 days | warning; serious after 21 | Mark done |
+| Urgent task with no owner | warning | Assign |
+| Two meetings overlapping in the next two days | warning | |
+| Question open 14 days | info | |
+| Custom metric off target with no trend toward it, or an unusual day | warning / info | |
+
+Every row can be muted for a week. Mutes are the only thing stored; the signal
+itself is derived on every render, so closing a task removes its row the
+instant the store changes. The rail shows the count of critical and serious rows.
+
+## Assistant
+
+`⌘J` opens it. Every answer is grounded in a context block built from the live
+store: a numeric snapshot, the metrics in the current window, what the rules
+flagged, the top of triage, and up to forty items chosen by a small retriever
+(matches for the question first, then the standing baseline: overdue, due this
+week, blocked, open risks, today's meetings, milestones, recent decisions).
+Items are printed with their ids, and the model is asked to cite them as
+`[[id]]`; the panel turns each citation into a chip that opens the inspector.
+
+The model cannot change anything. Asked to update, reschedule, assign, create
+or close something, it emits a fenced `actions` block with a JSON array, and the
+panel shows one proposal card per action with the before and after. Apply or
+skip each one, or apply all. Unknown ids, bad statuses and unsupported ops are
+dropped on the way in, so a model that invents an item cannot touch anything.
+
+Three ways to reach a model, all plain `fetch` from the browser with streaming,
+no SDK and no server in between:
+
+| Provider | Endpoint | Key |
+|---|---|---|
+| Anthropic | Messages API, `claude-opus-5` by default | Your own key, sent straight to Anthropic |
+| OpenAI-compatible | Anything speaking `/chat/completions`: OpenAI, Groq, OpenRouter, Mistral, LM Studio, vLLM, LocalAI | Bearer token |
+| Ollama | `http://localhost:11434`, nothing leaves the machine | None; start Ollama with `OLLAMA_ORIGINS` set to this site |
+
+The key lives in `sessionStorage` (gone when the tab closes) or, if you tick
+*Remember on this device*, in `localStorage` under its own name. It is never part
+of the workspace export. Two privacy dials: *What the model sees* can be titles,
+dates, people and tags only, so no note or transcript text leaves the machine
+even with a hosted model; and *Items per question* caps the context.
+
+Voice is the browser's own speech APIs, no upload: a microphone button
+transcribes into the box, *Read replies aloud* speaks the answer, and
+*Hands-free* sends when you stop talking and listens again after the reply.
+The buttons only render where the browser supports them.
+
+The conversation lives in the panel and is gone when it closes. Nothing the
+model says is stored unless you apply it.
+
+## The brain
+
+The app keeps a brain about the person using it: a profile, the people they
+work with, the topics they carry, their rhythm, and a short list of opinions.
+Nothing in it comes from a model. Every line is a rule over the entities, the
+documents and a handful of usage counters, so each fact can be traced to the
+rows it came from and recomputed from scratch at any time.
+
+<p>
+  <img src="docs/screenshots/brain.png" width="74%" alt="The Brain view: facts, opinions waiting for a yes or no, people and topics tables" />
+  <img src="docs/screenshots/mobile-brain.png" width="24%" alt="The Brain view on a phone" />
+</p>
+
+Two grades of knowledge:
+
+- **Facts** are recorded automatically and shown for editing or deletion:
+  "Usually here 9-11am on Mon, Wed", "Works most with Priya, Sam", "Finished
+  6 dated tasks in the app; 50% after the due date", "Plans about 3 days
+  ahead", "Most meetings fall on Wednesdays".
+- **Opinions** are judgements with evidence, proposed until you accept them:
+  a tag that usually slips, a person carrying most of the open work, a
+  weekday that holds most of your meetings, a habit of finishing late, a view
+  you open more than Today. Dismiss one and it stays quiet until the evidence
+  changes.
+
+An accepted opinion changes the dashboard. Triage raises anything tagged with
+a slipping tag, owned by an overloaded person, or due on your busiest meeting
+day one step earlier, and the row says why ("Raised by your brain: #infra
+usually slips"). "You finish most tasks late" moves reminders to a day ahead.
+"You open Triage more than Today" makes Triage the start view. Widening the
+range, likewise. Forget an opinion and the setting goes back.
+
+![Triage rows raised by the brain, each saying why](docs/screenshots/brain-triage.png)
+
+The whole brain is a folder of Markdown files, `README.md`, `profile.md`,
+`habits.md`, `insights.md`, `people/<name>.md`, `topics/<tag>.md`, each with a
+small front matter block, regenerated whenever something learned changes. In
+Chrome and Edge, *Connect a folder* keeps them written to a directory on your
+disk (File System Access API; the handle survives reloads, the browser asks
+for permission again after a restart). Everywhere else, *Download .zip*. Your
+own notes under any file are kept and re-attached on every regeneration, so
+`people/priya-raman.md` can carry "Prefers async updates" beneath the numbers.
+
+The same files reach agents: the MCP server's `workspace_brain` tool and the
+`alldash://workspace/brain` resource render them from a workspace export, and
+the browser assistant's context carries the facts and accepted opinions unless
+you turn that off in Settings. The store keeps only what cannot be recomputed:
+your name, role and focus, your notes, which opinions you accepted or
+dismissed, and the usage counters. *Reset the brain* clears exactly that.
+
+## What needs attention
+
+Rules that run over everything and return a sentence with its evidence attached.
+Each finding lists the entities behind it, so you can click through and disagree.
+
+Overdue work · tasks aging with no date · one person holding most of the open work
+· heavy meeting weeks with the focus time left over · commitments with no owner ·
+risks nobody has touched in a week · questions that never became decisions ·
+metrics moving more than 35% across the window · daily closing streaks.
+
+## Status update
+
+The weekly message every team writes by hand is assembled from the store:
+done, in progress, blocked and at risk, overdue, decisions, numbers that moved,
+the next seven days, the calendar, open questions. Every line is a real entity;
+nothing is invented. It is a widget on Today (copy or download as Markdown) and
+a command (`Copy my status update`).
+
+## Filters
+
+Chips above a board scope it to a person or a tag. They are derived from what
+is in the data, most common first. Widgets also take per-instance settings
+from the gear in their header, generated from the `options` each widget
+declares — a plugin widget gets that panel for free.
+
+## Reminders
+
+Derived, never stored. Anything with a due date or a start time produces one; the
+store only keeps what you *did* about it (snoozed until, dismissed). Re-importing
+a corrected calendar corrects the reminders too, with no reconciliation step.
+System notifications are opt-in; the in-app list is always there.
+
+## Design
+
+Plain CSS, no framework. Tokens in `src/styles/tokens.css` are the single source
+for colour, spacing, type and motion; light values sit on bare `:root`, dark
+redefines only what changes under both the OS media query and an explicit theme
+stamp, so the in-app toggle wins in both directions.
+
+Charts are hand-drawn SVG. Series colours are a validated categorical palette:
+adjacent-pair CVD ΔE ≥ 8, normal-vision ΔE ≥ 15. Marks are thin, the grid
+recedes, there is exactly one y-axis, hover is on by default, and text always
+wears an ink token rather than the series colour.
+
+Mobile is the same app, not a cut-down one. The rail becomes a bottom tab bar,
+boards go single-column, sheets slide up from the bottom, hit targets grow to
+36–48px, and safe-area insets are respected.
+
+## Keyboard
+
+| | |
+|---|---|
+| `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
+| `⌘J` / `Ctrl J` | Assistant |
+| `g` then `t` `r` `l` `a` `d` `b` `s` | Today, Triage, Timeline, Analytics, Library, Brain, Settings |
+| `Esc` | Close whatever is open |
+
+## Layout
+
+```
+src/
+  core/       registry (the harness), store, query engine, time, format, ids
+  data/       entity schema, the sample project
+  ingest/     parser registry entry point, shared text and table readers, zip, export detection
+  engine/     metrics, reminders, insight rules, triage
+  ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
+  ui/         shell, board, command bar, inspector, assistant, views, widgets, charts
+  styles/     tokens, base, layout, components, viz
+tests/        97 node:test cases over parsing, querying, analytics, triage and the assistant protocol
+backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
+```
+
+## Deliberately not here
+
+No drag-and-drop grid library (buttons reorder widgets and work identically with a
+mouse, a thumb and a keyboard). No state library — one object, one
+`useSyncExternalStore`. No chart library. No router. No backend. No AI SDK: the
+three providers differ by a URL, a header and a line format, and a single
+line reader serves all of them. No model-driven writes: the assistant proposes,
+a person applies. No PDF reading:
+extracting text from PDFs without a dependency is unreliable, and shipping
+something that half-works would be worse than saying so. Add it as a parser
+plugin when you need it.
+
+## Platform tier: API, workspace and EKS
+
+The browser app needs nothing but a browser. For a team that wants shared
+state, scheduled processing, money tracking and an API that agents can call,
+the repository also carries a containerised platform: a FastAPI service, a
+Celery worker, a hash-chained AI audit ledger, a Next.js 14 workspace, and the
+Kubernetes manifests to run it on AWS EKS. The two tiers share the entity idea
+and the MCP server exposes both.
+
+![The workspace: project pipelines, the day's checklist, the AI audit stream and the margin ribbon](docs/screenshots/workspace.png)
+
+### Repository tree
+
+```
+The-All-Dash/
+├── src/                        Browser app (React + Vite): parsers, engines, widgets, assistant
+│   └── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
+├── public/  tests/  docs/      PWA assets, node:test suite, screenshots, docs/openapi.json
+├── backend/                    Platform API and worker (Python 3.12)
+│   ├── app/
+│   │   ├── main.py             FastAPI factory, request-id middleware, routers
+│   │   ├── config.py           ALLDASH_* settings; production refuses to start without keys
+│   │   ├── db.py  models.py    Async SQLAlchemy 2.0; money in cents; string enums with checks
+│   │   ├── schemas.py          Pydantic v2, strict (unknown fields rejected)
+│   │   ├── security.py         X-API-Key, constant-time compare
+│   │   ├── audit.py            The ledger: SHA-256 over row + previous hash, advisory-locked appends, verify
+│   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /web /healthz /readyz
+│   │   ├── web/                guard (SSRF), fetch (robots, limits), html→Markdown, sitemap, firecrawl, llm, service
+│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin)
+│   │   └── worker.py           Celery app, beat schedule, three periodic decisions
+│   ├── alembic/                Migrations; 0001 also installs the append-only trigger on ai_audit_logs
+│   ├── scripts/seed.py         Sample workspace, idempotent
+│   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief
+│   └── Dockerfile              Multi-stage slim, uid 10001, tini, healthcheck
+├── frontend/                   Next.js 14 App Router + Tailwind (TypeScript strict)
+│   ├── app/page.tsx            The three-column workspace (server component)
+│   ├── app/api/                Route handlers that carry the key so the browser never sees it
+│   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
+│   ├── lib/                    Typed API client (server-only), types mirroring schemas.py, formatting
+│   └── Dockerfile              Standalone output, three-stage alpine, uid 10001
+├── mcp/                        MCP server (Node 20): stdio and Streamable HTTP, workspace and platform adapters
+├── k8s/
+│   ├── base/                   Namespace (restricted PSS), ConfigMap, storage, Postgres, Redis, API, worker, beat,
+│   │                           frontend, MCP, HPA, PDBs, NetworkPolicies, CronJobs, kustomization
+│   ├── ingress/alb/            AWS Load Balancer Controller Ingress (ACM, 80→443)
+│   ├── ingress/nginx-letsencrypt/  ingress-nginx Ingress + cert-manager ClusterIssuers (Let's Encrypt)
+│   ├── overlays/prod/          Registry, tag and host patches; `kubectl apply -k k8s/overlays/prod`
+│   └── secrets.example.yaml    Templates for the five Secrets (never applied as-is)
+├── docker-compose.yml  .env.example
+├── .mcp.json  .vscode/mcp.json  .claude/skills/all-dash/  .github/copilot-instructions.md
+├── .claude-plugin/             marketplace.json + plugin.json: `/plugin marketplace add drewc611/The-All-Dash`
+└── .github/workflows/ci.yml    Browser app in three timezones; backend, MCP, frontend, manifests
+```
+
+### Runtime architecture
+
+```mermaid
+flowchart TB
+  user([Browser / phone]) -->|HTTPS 443| lb[AWS Load Balancer<br/>ALB via AWS LB Controller, or NLB in front of ingress-nginx]
+  agents([Claude · Copilot · ChatGPT]) -->|HTTPS 443 · Bearer| lb
+  lb -->|"/"| ing[Ingress alldash<br/>TLS: ACM or cert-manager + Let's Encrypt]
+  lb -->|"/mcp"| ing
+  subgraph eks[EKS cluster · namespace alldash · default-deny NetworkPolicies]
+    ing -->|3000| fe[frontend ×2<br/>Next.js standalone]
+    ing -->|8080| mcp[mcp ×2<br/>Streamable HTTP]
+    fe -->|8000 · X-API-Key| api[backend ×2–6 HPA<br/>FastAPI + uvicorn<br/>init: alembic upgrade]
+    mcp -->|8000 · X-API-Key| api
+    cron[CronJob daily-brief<br/>0 4 * * * UTC] -->|POST /daily/run?sync=true| api
+    api -->|5432| pg[(postgres<br/>PVC 20Gi gp3, encrypted)]
+    api -->|6379| redis[(redis<br/>broker + results)]
+    worker[worker ×2<br/>Celery] --> redis
+    beat[beat ×1<br/>Celery beat] --> redis
+    worker --> pg
+    snap[CronJob postgres-snapshot<br/>30 3 * * *] -->|CHECKPOINT then VolumeSnapshot| pg
+  end
+  snap -.->|EBS CSI driver| ebs[(EBS snapshots<br/>VolumeSnapshotClass, Retain)]
+  api -.->|ai_audit_logs| ledger[[Hash chain<br/>SHA-256, append-only trigger]]
+```
+
+Traffic: the load balancer terminates TLS and forwards to the Ingress, which
+routes `/` to the workspace and `/mcp` to the MCP server. Only those two are
+public. The workspace reaches the API on the cluster network with the key from
+its own environment; browser writes go through Next.js route handlers, so the
+key never leaves the pod. The MCP server does the same for agents. The API is
+the only thing that talks to Postgres and Redis, apart from the worker, beat
+and the snapshot job.
+
+### The services
+
+**Backend (FastAPI).** `/projects` (with `/projects/pipeline` for the left
+column), `/tasks` with a `context` of `work` or `personal` and `/tasks/today`
+for the checklist, `/invoices` (with `/invoices/mark-overdue`), `/expenses`,
+`/finance/summary` and `/finance/burn-rate`, `/ai-audit-logs` (list, get,
+append, `/verify`), `/daily/run` (the daily update engine: `sync=true` builds
+inline for the cron ping, otherwise the worker does it), `/daily/latest`,
+`/daily/{date}`, `/healthz`, `/readyz`, `/docs`, `/openapi.json`. Every
+mutating route requires `X-API-Key`; production refuses to start without keys.
+
+**Daily update engine.** For a date: P1 tasks due that day, invoices past due
+(sent ones are marked overdue, each as an audited decision), yesterday's
+activity (tasks completed and created, invoices paid, spend, decisions
+logged), the money picture with a rolling burn rate against the window before
+it, and a one-paragraph summary. Stored per date; a rebuild replaces it, so the
+04:00 CronJob and Celery beat's 04:05 run agree.
+
+**Worker (Celery + Redis).** Three periodic jobs: the brief at 04:05, overdue
+marking hourly, and a six-hourly burn-rate decision. Each opens its own engine
+(Celery forks), commits once, and lands in the ledger. Beat runs as a separate
+single-replica Deployment so scaling workers never doubles the schedule.
+
+**AI audit ledger.** `ai_audit_logs` rows carry `seq`, `prev_hash` and
+`hash = SHA-256(prev_hash ‖ canonical JSON of the row)`. Appends take a Postgres
+advisory lock so two workers cannot both claim a sequence number. `/verify`
+recomputes the whole chain and names the first bad row. The initial migration
+installs a trigger that rejects UPDATE and DELETE on the table, so even a
+database client cannot edit history without leaving the chain broken.
+
+**Frontend (Next.js 14).** Left: project pipelines as stage tracks with task
+progress, open P1s, invoiced and spent against budget. Centre: the checklist
+with P1/P2/P3 colour coding, optimistic toggles, an add box and a priority
+filter; today's finished items stay visible. Right: the audit stream with a
+confidence ring per decision and the chain's verification state. A floating
+ribbon carries collected, spent, margin, burn per day and its change,
+outstanding and overdue. Context tabs scope everything to work or personal.
+
+### Run it locally
+
+```bash
+cp .env.example .env                      # set ALLDASH_API_KEYS and POSTGRES_PASSWORD
+docker compose up --build                 # migrate → api :8000, worker, beat, frontend :3000
+docker compose --profile seed run --rm seed
+open http://localhost:3000                # the workspace
+open http://localhost:8000/docs           # the API
+```
+
+Without Docker: `cd backend && python -m venv .venv && . .venv/bin/activate &&
+pip install -r requirements-dev.txt && pytest`, then `uvicorn app.main:app`
+with `ALLDASH_DATABASE_URL` pointing at a Postgres (or `sqlite+aiosqlite:///dev.db`
+for a quick look), `celery -A app.worker worker -B`, and `cd frontend && npm
+install && BACKEND_URL=http://localhost:8000 BACKEND_API_KEY=... npm run dev`.
+
+### Build, tag and push to ECR
+
+```bash
+export AWS_REGION=us-east-1 AWS_ACCOUNT=123456789012 TAG=0.1.0
+export ECR=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+
+for repo in alldash-backend alldash-frontend alldash-mcp; do
+  aws ecr describe-repositories --repository-names $repo >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --image-scanning-configuration scanOnPush=true --encryption-configuration encryptionType=AES256
+done
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR
+
+docker build -t $ECR/alldash-backend:$TAG  backend
+docker build -t $ECR/alldash-frontend:$TAG frontend
+docker build -t $ECR/alldash-mcp:$TAG -f mcp/Dockerfile .      # context is the repo root
+
+docker push $ECR/alldash-backend:$TAG
+docker push $ECR/alldash-frontend:$TAG
+docker push $ECR/alldash-mcp:$TAG
+```
+
+For multi-architecture nodes (Graviton), add `--platform linux/amd64,linux/arm64`
+with `docker buildx build --push`.
+
+### Deploy to EKS
+
+Prerequisites on the cluster: the AWS Load Balancer Controller, the EBS CSI
+driver with the snapshot controller and CRDs, metrics-server (for the HPA),
+and, for the Let's Encrypt path, ingress-nginx and cert-manager.
+
+```bash
+# 0. Point kubectl at the cluster
+aws eks update-kubeconfig --region $AWS_REGION --name my-cluster
+
+# 1. Cluster add-ons (skip any you already run)
+kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=v8.2.0"
+kubectl apply -k "github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v8.2.0"
+aws eks create-addon --cluster-name my-cluster --addon-name aws-ebs-csi-driver   # needs an IRSA role
+helm repo add eks https://aws.github.io/eks-charts && helm repo update
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system --set clusterName=my-cluster --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# 2. Namespace first, so the Secrets have somewhere to live
+kubectl apply -f k8s/base/namespace.yaml
+
+# 3. Bootstrap secrets (values from a password manager or AWS Secrets Manager; never from git)
+PG_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
+REDIS_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
+API_KEY=$(openssl rand -hex 32)
+MCP_TOKEN=$(openssl rand -hex 32)
+WEB_PASS=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
+kubectl -n alldash create secret generic postgres-credentials \
+  --from-literal=POSTGRES_USER=alldash \
+  --from-literal=POSTGRES_PASSWORD="$PG_PASS" \
+  --from-literal=ALLDASH_DATABASE_URL="postgresql+asyncpg://alldash:$PG_PASS@postgres.alldash.svc.cluster.local:5432/alldash"
+kubectl -n alldash create secret generic alldash-api \
+  --from-literal=ALLDASH_API_KEYS="$API_KEY" --from-literal=BACKEND_API_KEY="$API_KEY" \
+  --from-literal=ALLDASH_FIRECRAWL_API_KEY="" \
+  --from-literal=ALLDASH_LLM_PROVIDER="" --from-literal=ALLDASH_LLM_MODEL="" \
+  --from-literal=ALLDASH_LLM_API_KEY="" --from-literal=ALLDASH_LLM_BASE_URL=""   # web tier extras, fill in to turn on
+kubectl -n alldash create secret generic alldash-mcp --from-literal=MCP_AUTH_TOKEN="$MCP_TOKEN"
+kubectl -n alldash create secret generic redis-credentials \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASS" \
+  --from-literal=ALLDASH_REDIS_URL="redis://:$REDIS_PASS@redis.alldash.svc.cluster.local:6379/0"
+kubectl -n alldash create secret generic alldash-frontend \
+  --from-literal=FRONTEND_AUTH_USER=drew --from-literal=FRONTEND_AUTH_PASSWORD="$WEB_PASS"   # the workspace login
+
+# 4. Storage class and snapshot class (cluster-scoped, applied with the base)
+# 5. Point the overlay at your registry and host
+cd k8s/overlays/prod
+kustomize edit set image \
+  alldash-backend=$ECR/alldash-backend:$TAG \
+  alldash-frontend=$ECR/alldash-frontend:$TAG \
+  alldash-mcp=$ECR/alldash-mcp:$TAG
+sed -i "s/alldash.example.com/dash.yourdomain.com/g" host-patch.yaml config-patch.yaml
+cd -
+
+# 6. Certificates
+#    ALB path: request or import a certificate in ACM for dash.yourdomain.com;
+#    the controller discovers it by host name. Nothing to apply.
+#    Let's Encrypt path: install cert-manager and ingress-nginx, then in the overlay
+#    replace ../../ingress/alb with ../../ingress/nginx-letsencrypt and edit the
+#    email in k8s/ingress/nginx-letsencrypt/clusterissuer.yaml.
+helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true   # LE path only
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=external \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-nlb-target-type"=ip \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-scheme"=internet-facing   # LE path only
+
+# 7. Everything else
+kubectl apply -k k8s/overlays/prod
+kubectl -n alldash rollout status deploy/backend deploy/frontend deploy/mcp deploy/worker deploy/beat
+
+# 8. DNS: CNAME dash.yourdomain.com to the load balancer
+kubectl -n alldash get ingress alldash -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+# 9. Verify
+curl -s https://dash.yourdomain.com/api/readyz
+kubectl -n alldash create job --from=cronjob/daily-brief daily-brief-now && kubectl -n alldash logs job/daily-brief-now
+kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubectl -n alldash get volumesnapshots
+```
+
+### Security notes
+
+- **The workspace has a login.** `frontend/middleware.ts` enforces HTTP Basic
+  auth from the `alldash-frontend` Secret and refuses to serve in production
+  until it is set (`FRONTEND_AUTH_DISABLED=true` opts out behind an
+  authenticating proxy such as ALB OIDC or oauth2-proxy). Mutating calls to
+  `/api/*` must come from the same origin (Sec-Fetch-Site or Origin), every
+  page carries a nonce-based Content-Security-Policy, HSTS, `frame-ancestors
+  'none'`, and the health endpoints stay open for the kubelet.
+- **The API is not on the Ingress.** Only the frontend and the MCP server are
+  published; the API is reached on the cluster network by pods that hold the
+  key. Every request needs `X-API-Key` (compared as SHA-256 digests in
+  constant time), bodies are capped at 1 MiB (413) and must declare a length
+  (411), the audit `inputs` payload at 64 KiB, and `/docs` and `/openapi.json`
+  are off in production unless `ALLDASH_EXPOSE_DOCS=true`. `X-Forwarded-*`
+  headers are trusted from loopback only; set `FORWARDED_ALLOW_IPS` when a
+  proxy sits in front.
+- **The MCP server fails closed.** HTTP mode will not start without
+  `MCP_AUTH_TOKEN`; `MCP_ALLOW_UNAUTHENTICATED=true` is for a laptop and then
+  binds to 127.0.0.1 with localhost-only Host headers (DNS rebinding cannot
+  reach it). `MCP_ALLOWED_HOSTS` pins host names on the cluster.
+- **Redis and Postgres both need a password**, from the `redis-credentials`
+  and `postgres-credentials` Secrets, on top of the default-deny
+  NetworkPolicies. Celery accepts JSON only.
+- **Pods** run as uid 10001 on a read-only filesystem with all capabilities
+  dropped, no service-account token, restricted Pod Security, and CPU and
+  memory limits; the workflow token is read-only.
+- **The browser app** never sends an API key over plain HTTP to anything but
+  localhost, keeps keys out of workspace exports, and treats model output as
+  proposals.
+
+### The web tier: search, scrape, map, crawl, batch, extract, agent
+
+`/web/*` turns the web into input. Everything native is deterministic and
+needs no account; the two paid dependencies are optional and their absence
+is reported with a 501, never hidden.
+
+| Endpoint | What it does | Needs |
+|---|---|---|
+| `POST /web/scrape` | One URL to Markdown, plain text, links or HTML. `render: true` runs JavaScript first; `formats: ["screenshot"]` returns an image. | Nothing; render and screenshot need Firecrawl |
+| `POST /web/map` | Every URL a site publishes: its sitemaps (from robots.txt, `/sitemap.xml`, sitemap indexes), then the links off the front page. `search` filters. | Nothing |
+| `POST /web/crawl` | Breadth-first over one site, bounded by `limit`, `max_depth` and path globs (`include: ["/docs/*"]`). Over the synchronous cap, or with `?async=true`, it becomes a worker job. | Nothing |
+| `POST /web/batch` | Up to 1000 URLs, a few at a time, in order. Large batches become jobs. | Nothing |
+| `POST /web/search` | Web search with page content. | Firecrawl |
+| `POST /web/extract` | Scrape up to 10 URLs, then answer a prompt or fill a JSON Schema. | A model |
+| `POST /web/agent` | Describe what you need. With `start_url` it maps the site, ranks pages against the goal, reads them and extracts; without one it searches. | A model (search: Firecrawl) |
+| `GET /web/jobs/{id}` | Status and pages of a crawl or batch job. | |
+| `GET /web/capabilities` | What this deployment has switched on. | |
+
+**How it stays safe.** Every URL, and every redirect hop, is resolved and
+checked before a byte is fetched: http and https only, public addresses
+only, never the cluster's own names, never link-local (instance metadata)
+or private ranges. robots.txt is honoured (including `Crawl-delay`), one
+request per host per half second, a 5 MiB cap, a 20-second timeout, and the
+NetworkPolicies let the API and worker reach only public 80 and 443. Extract
+and agent are decisions made on your behalf, so each one lands in the audit
+ledger with the model, the sources and the prompt.
+
+<p>
+  <img src="docs/screenshots/import-url.png" width="49%" alt="Import from the web sheet with a page address and a crawl option" />
+  <img src="docs/screenshots/library-web.png" width="49%" alt="Library after importing a page and crawling a site: documents with source links and the items they produced" />
+</p>
+
+**Why it matters.** Most of what a project needs to know is on a page
+somewhere: a vendor's status page, a public roadmap, a wiki, a changelog, a
+tender, a competitor's pricing. Scrape puts one of those into the dashboard
+in the shape the rest of the app already understands, crawl brings a whole
+docs site, map tells you what a site has before you read it, and batch
+keeps a list of pages fresh. With a model configured, extract turns "what
+does the team plan cost" into a JSON answer with its sources, and agent
+does the map-read-extract loop from a sentence. In the browser app, *Import
+a web page* (first run, Library, the command bar) uses the same endpoints
+through Settings → Platform, and importing a page again refreshes what it
+produced.
+
+```bash
+# Turn on the extras (both optional)
+export ALLDASH_FIRECRAWL_API_KEY=fc-...                       # search, render, screenshots
+export ALLDASH_LLM_PROVIDER=anthropic ALLDASH_LLM_MODEL=claude-sonnet-5 ALLDASH_LLM_API_KEY=sk-ant-...   # extract, agent
+# or ALLDASH_LLM_PROVIDER=openai with ALLDASH_LLM_BASE_URL for any chat-completions endpoint, or ollama
+
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/scrape -d '{"url":"https://example.com/docs"}' -H 'content-type: application/json'
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/crawl  -d '{"url":"https://example.com","limit":50,"include":["/docs/*"]}' -H 'content-type: application/json'
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8000/web/agent  -d '{"goal":"pricing per seat and the enterprise terms","start_url":"https://example.com"}' -H 'content-type: application/json'
+```
+
+From Claude, Copilot or ChatGPT the same operations are `web_scrape`,
+`web_map`, `web_crawl`, `web_batch`, `web_job`, `web_search`, `web_extract`,
+`web_agent` and `web_capabilities` on the MCP server.
+
+### Disaster recovery
+
+The `postgres-snapshot` CronJob runs at 03:30 UTC: it checkpoints Postgres,
+creates a `VolumeSnapshot` through the EBS CSI driver's `VolumeSnapshotClass`
+(deletion policy Retain, tagged `purpose=postgres-backup`), waits for it to be
+ready, and deletes snapshot objects older than 14 days. Restore by creating a
+PVC from a snapshot and pointing the Postgres Deployment at it:
+
+```bash
+kubectl -n alldash get volumesnapshots
+kubectl -n alldash scale deploy/postgres --replicas=0
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: postgres-data-restored, namespace: alldash }
+spec:
+  storageClassName: alldash-gp3
+  dataSource: { name: postgres-data-20260908-033000, kind: VolumeSnapshot, apiGroup: snapshot.storage.k8s.io }
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 20Gi } }
+EOF
+kubectl -n alldash patch deploy/postgres --type=json \
+  -p='[{"op":"replace","path":"/spec/template/spec/volumes/0/persistentVolumeClaim/claimName","value":"postgres-data-restored"}]'
+kubectl -n alldash scale deploy/postgres --replicas=1
+```
+
+Point `ALLDASH_DATABASE_URL` at RDS instead and the PVC, Postgres Deployment
+and snapshot job become unnecessary; RDS automated backups take over.
+
+### TLS
+
+Two paths, chosen in the overlay. **ALB**: TLS terminates on the load balancer
+with an ACM certificate discovered by host name; port 80 only redirects to 443;
+the policy is TLS 1.3/1.2. cert-manager cannot feed an ALB, because ALB reads
+ACM, not Kubernetes Secrets. **ingress-nginx + cert-manager**: the controller's
+Service is an NLB provisioned by the AWS Load Balancer Controller; cert-manager
+answers the HTTP-01 challenge, stores the certificate in the `alldash-tls`
+Secret, renews it 30 days before expiry, and the Ingress forces HTTPS and sets
+HSTS. Use the `letsencrypt-staging` issuer first to rehearse.
+
+### Agents: Claude, Copilot and ChatGPT
+
+`mcp/` is an MCP server over both tiers. `.mcp.json` registers it for Claude
+Code, `.vscode/mcp.json` for Copilot agent mode, the `all-dash` skill tells
+Claude how to use it, and the cluster publishes it at `/mcp` for ChatGPT
+connectors and remote clients. Agents read briefs, triage and finances, add
+and close tasks, and record their own judgements in the audit ledger with a
+confidence score. See `mcp/README.md`.
+
+### Install the Claude plugin
+
+The repository is also a Claude Code plugin marketplace. Two commands install
+the skill and the MCP server, in the terminal, the desktop app or Claude Code
+on the web:
+
+```
+/plugin marketplace add drewc611/The-All-Dash
+/plugin install all-dash@the-all-dash
+```
+
+Then export your workspace from the app (Settings → *Your data* → Export) and
+save it as `~/.all-dash/workspace.json`, or point the server at a running
+platform:
+
+```bash
+export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json   # or the default path above
+export ALLDASH_API_URL=https://dash.yourdomain.com/api  ALLDASH_API_KEY=...   # optional
+```
+
+Ask "what's late?", "review my day", or "add a task to send the deck by
+Friday". The skill has Claude cite items by title, propose before it writes,
+and log every judgement to the ledger with a confidence score. Tools show up
+under `all-dash`; the `morning-review` and `explain-signal` prompts come with
+it.
+
+**On your phone.** The Claude iOS and Android apps do not run plugins, but
+they do connect to remote MCP servers: deploy the platform, then in the Claude
+app open Settings → Connectors, add `https://<your-host>/mcp`, and paste the
+bearer token from the `alldash-mcp` Secret. The same tools appear in chat.
+
+## Get it on your phone
+
+The build ships a web manifest, PNG icons for every launcher, home-screen
+shortcuts and a small service worker, so it installs to a phone's home screen
+or a desktop dock and opens offline. The worker caches the app shell only;
+there is no network traffic to cache, and your workspace never leaves the
+device.
+
+1. Serve the `dist/` folder over HTTPS (any static host: Netlify, Vercel,
+   GitHub Pages, S3 + CloudFront, or `npm run preview` on your LAN for a try).
+2. **iPhone or iPad:** open it in Safari, tap Share, then *Add to Home Screen*.
+3. **Android:** open it in Chrome and tap *Install app* in the banner or the
+   menu.
+4. **Mac or Windows:** Chrome and Edge show an install icon in the address bar.
+
+Long-press the installed icon for the **Today**, **Triage** and **Analytics**
+shortcuts. The app keeps working with no connection; reminders fire while the
+tab or the installed app is open.
+
+To use the dashboard from the Claude app on your phone, deploy the
+[platform tier](#platform-tier-api-workspace-and-eks) and add
+`https://<your-host>/mcp` as a connector in Claude's settings (see
+[Install the Claude plugin](#install-the-claude-plugin)).
+
+## Storage
+
+`localStorage`, under `all-dash:v1`. Export and restore as JSON from Settings →
+*Your data*. Clearing site data clears the workspace, so export before you do
+anything drastic.

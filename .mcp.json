@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "all-dash": {
+      "command": "node",
+      "args": ["mcp/src/server.js"],
+      "env": {
+        "ALLDASH_WORKSPACE_FILE": "${ALLDASH_WORKSPACE_FILE}",
+        "ALLDASH_API_URL": "${ALLDASH_API_URL}",
+        "ALLDASH_API_KEY": "${ALLDASH_API_KEY}"
+      }
+    }
+  }
+}
