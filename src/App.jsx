@@ -15,6 +15,8 @@ import { Library } from './ui/views/Library.jsx'
 import { Settings } from './ui/views/Settings.jsx'
 import { Triage } from './ui/views/Triage.jsx'
 import { Brain } from './ui/views/Brain.jsx'
+import { Work } from './ui/views/Work.jsx'
+import { runTimedAutomations } from './work/store.js'
 import { useBrainSync } from './ui/brainSync.js'
 import { Assistant } from './ui/Assistant.jsx'
 import { buildTriage } from './engine/triage.js'
@@ -22,7 +24,7 @@ import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
-  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain,
+  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -30,6 +32,7 @@ import './ui/commands.js'
 
 const VIEWS = [
   { id: 'today', label: 'Today', Icon: IconToday, board: true },
+  { id: 'work', label: 'Boards', Icon: IconGrid },
   { id: 'triage', label: 'Triage', Icon: IconPulse, filters: true },
   { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
@@ -118,7 +121,7 @@ export default function App() {
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -144,7 +147,7 @@ export default function App() {
   // Reminders tick on a minute, plus whenever the tab comes back into focus.
   const [, setTick] = useState(0)
   useEffect(() => {
-    const bump = () => setTick((n) => n + 1)
+    const bump = () => { setTick((n) => n + 1); runTimedAutomations() }
     const timer = setInterval(bump, 60000)
     document.addEventListener('visibilitychange', bump)
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', bump) }
@@ -175,6 +178,7 @@ export default function App() {
     [state.entities, range, state.customMetrics, state.triage, state.brain]
   )
 
+  const unreadWork = (state.work?.notifications || []).filter((n) => !n.read).length
   const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
   const empty = allEntities.length === 0
@@ -202,6 +206,7 @@ export default function App() {
               <Icon />
               <span>{label}</span>
               {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
+              {id === 'work' && unreadWork > 0 && <span className="rail__count">{unreadWork}</span>}
               {id === 'triage' && urgent > 0 && <span className="rail__count" style={{ color: 'var(--critical)', fontWeight: 600 }}>{urgent}</span>}
             </button>
           ))}
@@ -256,7 +261,9 @@ export default function App() {
         {(active.board || active.filters) && !empty && <FilterBar entityList={allEntities} ui={state.ui} />}
 
         <div className="scroller">
-          {empty && view !== 'settings' ? (
+          {/* Boards and Settings work on an empty workspace; every other
+              view needs something to read first. */}
+          {empty && view !== 'settings' && view !== 'work' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
@@ -266,6 +273,8 @@ export default function App() {
             <Timeline entityList={entityList} onOpen={setInspecting} />
           ) : view === 'library' ? (
             <Library entityList={allEntities} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
+          ) : view === 'work' ? (
+            <Work state={state} onToast={toast} onOpenEntity={setInspecting} />
           ) : view === 'brain' ? (
             <Brain state={state} onOpen={setInspecting} onToast={toast} />
           ) : (

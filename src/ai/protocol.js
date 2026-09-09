@@ -11,7 +11,8 @@ import { parseLooseDate } from '../core/time.js'
  * skips. The model never writes to the store; it only ever asks.
  */
 
-export const VIEWS = ['today', 'triage', 'timeline', 'analytics', 'library', 'settings']
+// Mirrors the views in App.jsx, so "open the board" is a valid answer.
+export const VIEWS = ['today', 'work', 'triage', 'timeline', 'analytics', 'library', 'brain', 'settings']
 export const PATCH_KEYS = ['status', 'priority', 'due', 'people', 'tags', 'title']
 
 export const CITATION = /\[\[([a-z]+_[a-z0-9]+)\]\]/g

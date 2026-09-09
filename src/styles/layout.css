@@ -185,12 +185,15 @@
 
 @media (max-width: 720px) {
   .app {
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr), not 1fr: the tab strip's own content must not be
+       allowed to set the width of the whole page. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .rail {
     grid-row: 2;
+    min-width: 0;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
@@ -208,13 +211,25 @@
   .rail__spacer,
   .rail__group--desktop { display: none; }
 
+  /* Eight views do not fit a phone at a readable size, so the bar scrolls
+     rather than squeezing the last label off the edge. */
   .rail__group {
     flex-direction: row;
     flex: 1;
-    justify-content: space-around;
+    min-width: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
   }
+  .rail__group::-webkit-scrollbar { display: none; }
 
   .rail__item {
+    /* The desktop rail is a full-width column; on a phone each item is a
+       tab that must not stretch to the scroll width of the whole strip. */
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 64px;
     flex-direction: column;
     gap: 2px;
     justify-content: center;
@@ -222,6 +237,7 @@
     padding: var(--gap-1);
     font-size: var(--t-xs);
     border-radius: var(--r-md);
+    scroll-snap-align: center;
   }
 
   .rail__item[aria-current='true'] { background: transparent; color: var(--accent); }
