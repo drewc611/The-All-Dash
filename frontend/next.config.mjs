@@ -9,6 +9,8 @@ const nextConfig = {
     {
       source: '/:path*',
       headers: [
+        // Only honoured over HTTPS, which is the only way the Ingress serves it.
+        { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
         { key: 'X-Content-Type-Options', value: 'nosniff' },
         { key: 'X-Frame-Options', value: 'DENY' },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

@@ -111,6 +111,10 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       BACKEND_API_KEY: ${ALLDASH_API_KEYS:-dev-key-change-me}
+      # The workspace login. The image runs in production mode, which
+      # refuses to serve without a user and password.
+      FRONTEND_AUTH_USER: ${FRONTEND_AUTH_USER:-admin}
+      FRONTEND_AUTH_PASSWORD: ${FRONTEND_AUTH_PASSWORD:-dev-password-change-me}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

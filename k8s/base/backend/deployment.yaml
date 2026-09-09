@@ -54,6 +54,8 @@ spec:
                 name: postgres-credentials
             - secretRef:
                 name: alldash-api
+            - secretRef:
+                name: redis-credentials
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: 500m, memory: 256Mi }
@@ -78,6 +80,8 @@ spec:
                 name: postgres-credentials
             - secretRef:
                 name: alldash-api
+            - secretRef:
+                name: redis-credentials
           readinessProbe:
             httpGet:
               path: /readyz

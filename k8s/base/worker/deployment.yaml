@@ -39,6 +39,8 @@ spec:
                 name: postgres-credentials
             - secretRef:
                 name: alldash-api
+            - secretRef:
+                name: redis-credentials
           readinessProbe:
             exec:
               command: ["/bin/sh", "-c", "celery -A app.worker inspect ping -d celery@$HOSTNAME --timeout 10"]
@@ -109,6 +111,8 @@ spec:
                 name: postgres-credentials
             - secretRef:
                 name: alldash-api
+            - secretRef:
+                name: redis-credentials
           livenessProbe:
             exec:
               command: ["/bin/sh", "-c", "test -f /tmp/celerybeat-schedule"]

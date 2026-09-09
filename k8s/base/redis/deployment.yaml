@@ -30,7 +30,20 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
-          args: ["redis-server", "--appendonly", "yes", "--maxmemory", "200mb", "--maxmemory-policy", "noeviction", "--save", ""]
+          # Password from the redis-credentials Secret; the probes read it
+          # through REDISCLI_AUTH so redis-cli can still ping.
+          args: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)", "--appendonly", "yes", "--maxmemory", "200mb", "--maxmemory-policy", "noeviction", "--save", ""]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: REDIS_PASSWORD
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: REDIS_PASSWORD
           ports:
             - name: redis
               containerPort: 6379

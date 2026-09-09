@@ -57,6 +57,18 @@ spec:
                 secretKeyRef:
                   name: alldash-api
                   key: BACKEND_API_KEY
+            # The workspace is behind HTTP Basic auth; the server refuses to
+            # serve without these (see frontend/middleware.ts).
+            - name: FRONTEND_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: alldash-frontend
+                  key: FRONTEND_AUTH_USER
+            - name: FRONTEND_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: alldash-frontend
+                  key: FRONTEND_AUTH_PASSWORD
           readinessProbe:
             httpGet:
               path: /api/readyz

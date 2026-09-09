@@ -503,7 +503,7 @@ The-All-Dash/
 │   ├── ingress/alb/            AWS Load Balancer Controller Ingress (ACM, 80→443)
 │   ├── ingress/nginx-letsencrypt/  ingress-nginx Ingress + cert-manager ClusterIssuers (Let's Encrypt)
 │   ├── overlays/prod/          Registry, tag and host patches; `kubectl apply -k k8s/overlays/prod`
-│   └── secrets.example.yaml    Templates for the three Secrets (never applied as-is)
+│   └── secrets.example.yaml    Templates for the five Secrets (never applied as-is)
 ├── docker-compose.yml  .env.example
 ├── .mcp.json  .vscode/mcp.json  .claude/skills/all-dash/  .github/copilot-instructions.md
 ├── .claude-plugin/             marketplace.json + plugin.json: `/plugin marketplace add drewc611/The-All-Dash`
@@ -646,8 +646,10 @@ kubectl apply -f k8s/base/namespace.yaml
 
 # 3. Bootstrap secrets (values from a password manager or AWS Secrets Manager; never from git)
 PG_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
+REDIS_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
 API_KEY=$(openssl rand -hex 32)
 MCP_TOKEN=$(openssl rand -hex 32)
+WEB_PASS=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
 kubectl -n alldash create secret generic postgres-credentials \
   --from-literal=POSTGRES_USER=alldash \
   --from-literal=POSTGRES_PASSWORD="$PG_PASS" \
@@ -655,6 +657,11 @@ kubectl -n alldash create secret generic postgres-credentials \
 kubectl -n alldash create secret generic alldash-api \
   --from-literal=ALLDASH_API_KEYS="$API_KEY" --from-literal=BACKEND_API_KEY="$API_KEY"
 kubectl -n alldash create secret generic alldash-mcp --from-literal=MCP_AUTH_TOKEN="$MCP_TOKEN"
+kubectl -n alldash create secret generic redis-credentials \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASS" \
+  --from-literal=ALLDASH_REDIS_URL="redis://:$REDIS_PASS@redis.alldash.svc.cluster.local:6379/0"
+kubectl -n alldash create secret generic alldash-frontend \
+  --from-literal=FRONTEND_AUTH_USER=drew --from-literal=FRONTEND_AUTH_PASSWORD="$WEB_PASS"   # the workspace login
 
 # 4. Storage class and snapshot class (cluster-scoped, applied with the base)
 # 5. Point the overlay at your registry and host
@@ -690,6 +697,37 @@ curl -s https://dash.yourdomain.com/api/readyz
 kubectl -n alldash create job --from=cronjob/daily-brief daily-brief-now && kubectl -n alldash logs job/daily-brief-now
 kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubectl -n alldash get volumesnapshots
 ```
+
+### Security notes
+
+- **The workspace has a login.** `frontend/middleware.ts` enforces HTTP Basic
+  auth from the `alldash-frontend` Secret and refuses to serve in production
+  until it is set (`FRONTEND_AUTH_DISABLED=true` opts out behind an
+  authenticating proxy such as ALB OIDC or oauth2-proxy). Mutating calls to
+  `/api/*` must come from the same origin (Sec-Fetch-Site or Origin), every
+  page carries a nonce-based Content-Security-Policy, HSTS, `frame-ancestors
+  'none'`, and the health endpoints stay open for the kubelet.
+- **The API is not on the Ingress.** Only the frontend and the MCP server are
+  published; the API is reached on the cluster network by pods that hold the
+  key. Every request needs `X-API-Key` (compared as SHA-256 digests in
+  constant time), bodies are capped at 1 MiB (413) and must declare a length
+  (411), the audit `inputs` payload at 64 KiB, and `/docs` and `/openapi.json`
+  are off in production unless `ALLDASH_EXPOSE_DOCS=true`. `X-Forwarded-*`
+  headers are trusted from loopback only; set `FORWARDED_ALLOW_IPS` when a
+  proxy sits in front.
+- **The MCP server fails closed.** HTTP mode will not start without
+  `MCP_AUTH_TOKEN`; `MCP_ALLOW_UNAUTHENTICATED=true` is for a laptop and then
+  binds to 127.0.0.1 with localhost-only Host headers (DNS rebinding cannot
+  reach it). `MCP_ALLOWED_HOSTS` pins host names on the cluster.
+- **Redis and Postgres both need a password**, from the `redis-credentials`
+  and `postgres-credentials` Secrets, on top of the default-deny
+  NetworkPolicies. Celery accepts JSON only.
+- **Pods** run as uid 10001 on a read-only filesystem with all capabilities
+  dropped, no service-account token, restricted Pod Security, and CPU and
+  memory limits; the workflow token is read-only.
+- **The browser app** never sends an API key over plain HTTP to anything but
+  localhost, keeps keys out of workspace exports, and treats model output as
+  proposals.
 
 ### Disaster recovery
 
