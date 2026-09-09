@@ -36,6 +36,12 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
 - **Builds the day.** Today's agenda, the focus list, what is due this week,
   reminders that fire in the browser, and a recent-activity stream, filtered
   by person or topic with one click.
+- **Boards, the way a work tool does them.** Groups, twenty-two column kinds,
+  and seven views over the same rows: table, Kanban, timeline, calendar,
+  chart, workload and a fillable form. Rules fire when a status changes or a
+  date arrives, formulas compute from other columns, dependencies push the
+  dates that follow, timers bill by the row, and every row is also a task
+  everywhere else in the app.
 - **Triage.** A ranked worklist of what is wrong right now: overdue and blocked
   work, stalled items, milestones that passed with tasks still open, clashing
   meetings, unowned urgent work, metrics off target. Each row carries the
@@ -91,6 +97,14 @@ the real parsers, not fixture data.
 
 ![Today: agenda, focus list, reminders, pulse and recent activity, with person and topic filters above the board](docs/screenshots/today.png)
 
+**Boards.** Groups, typed columns and seven views over the same rows. Open a
+row for its columns, its conversation and everything that has changed on it.
+
+<p>
+  <img src="docs/screenshots/boards-table.png" width="49%" alt="A project board: groups, owner, status, timeline, priority and progress columns with per-group summaries" />
+  <img src="docs/screenshots/boards-item.png" width="49%" alt="One row open: every column, an update with an @mention, and the activity log" />
+</p>
+
 **Triage.** Everything that is wrong right now, most urgent first: overdue and
 blocked work, milestones that passed with tasks still open, stalled items,
 clashing meetings, off-target metrics. Each row carries the one or two buttons
@@ -133,13 +147,18 @@ document.
   <img src="docs/screenshots/inspector.png" width="49%" alt="Inspector panel for a calendar event" />
 </p>
 
-**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, boards go
-single-column, and the theme follows the OS or the toggle in Settings.
+**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, the
+widget grid goes single-column, and the theme follows the OS or the toggle in
+Settings.
 
 <p>
   <img src="docs/screenshots/mobile.png" width="24%" alt="Today on a phone" />
   <img src="docs/screenshots/mobile-triage.png" width="24%" alt="Triage on a phone in dark mode" />
-  <img src="docs/screenshots/today-dark.png" width="50%" alt="Today in dark mode" />
+  <img src="docs/screenshots/boards-mobile.png" width="24%" alt="A sprint board on a phone" />
+</p>
+<p>
+  <img src="docs/screenshots/today-dark.png" width="49%" alt="Today in dark mode" />
+  <img src="docs/screenshots/boards-dark.png" width="49%" alt="A board in dark mode" />
 </p>
 
 ## The one idea
@@ -168,6 +187,114 @@ file ──▶ parser registry ──▶ entities ──▶ store ──▶ quer
                                              ├──▶ triage ──▶ worklist with actions
                                              └──▶ context builder ──▶ assistant ──▶ proposals
 ```
+
+## Boards
+
+A board is a shape: which columns exist, how rows are grouped, which views are
+saved on it, and which rules watch it. The rows are ordinary entities with a
+`meta.board` tag, which is the whole trick. A row you type into a board is a
+task, so it shows up in Today, in Triage, on the timeline, in the brain's
+Markdown files and in every export, and none of those had to learn what a
+board is.
+
+![The main table: groups, typed columns, per-group summaries and a row open in the item panel](docs/screenshots/boards-table.png)
+
+### Columns
+
+Twenty-two kinds. Six of them bind to a field the rest of the app already
+reads, which is why a board row behaves like a task without any syncing.
+
+| Kind | What it holds | Binds to |
+| --- | --- | --- |
+| Status | Your own coloured labels, each meaning open, in progress, done, blocked or cancelled | `status` |
+| People | Names, with initials avatars and suggestions from everything you have imported | `people` |
+| Date | One day | `due` |
+| Timeline | A start and an end | `at` / `end` |
+| Priority | Low to Critical | `priority` |
+| Tags | Free labels | `tags` |
+| Text, Long text, Email, Phone, Link | The plain ones | |
+| Number, Rating, Progress, Checkbox | The countable ones, with a unit | |
+| Dropdown | One or many labels | |
+| Time tracking | A timer you start and stop, per row | |
+| Dependency | Other rows on the board | |
+| Formula | Arithmetic over the other columns | |
+| Created, Last updated, Item ID | Read-only facts | |
+
+Formulas are parsed and walked, never `eval`-ed, so a board someone sends you
+cannot run code in your tab. `{Deal value} * {Probability %} / 100` is a
+weighted forecast; `IF({Current} >= {Target}, "hit", "short")` is a judgement;
+`DAYS({Start}, {End})` is a duration. Sixteen functions, the usual operators,
+and a column reference in braces.
+
+![A sales pipeline: deal value, probability, and a formula column carrying the weighted forecast, summed under the group](docs/screenshots/boards-formula.png)
+
+### Seven views over the same rows
+
+Every view reads one saved filter list, one sort and one group-by, so
+switching view never changes what you are looking at, only how.
+
+| View | What it is for |
+| --- | --- |
+| Table | Rows in groups, a summary line under each group and one under the board |
+| Kanban | One lane per label; dropping a card writes that label, rules and all |
+| Timeline | A Gantt chart with dependency elbows and a today line |
+| Calendar | A month at a time; dropping a card writes that day |
+| Chart | Count, sum or average, split by any column |
+| Workload | Who is carrying what, by week, against a capacity you set |
+| Form | A fillable form that adds a row, built from the same cell editors |
+
+<p align="center">
+  <img src="docs/screenshots/boards-kanban.png" width="49%" alt="Kanban lanes with cards carrying owner, dates and status" />
+  <img src="docs/screenshots/boards-timeline.png" width="49%" alt="Gantt view with a bar per row and a zoom control" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/boards-chart.png" width="49%" alt="Chart view: deal value summed by stage" />
+  <img src="docs/screenshots/boards-workload.png" width="49%" alt="Workload view: load per person per week against a capacity" />
+</p>
+
+### Rules
+
+A rule is a trigger, some conditions and a list of actions, and it is data the
+app interprets. Seven triggers (created, a status becomes something, a column
+changes, someone is assigned, an item moves group, a date arrives, an item
+goes overdue) and nine actions (set a column, move it, assign someone, notify,
+post an update, create a subitem, create an item on another board, push its
+dates, archive it). Date rules fire once a day per row, on the same minute
+tick the reminders use.
+
+Rules that trigger rules are allowed, three deep. Past that the chain stops,
+because "when Done, set Not started" should not lock the tab.
+
+![The automations panel: a live rule with its run count, and recipes to start from](docs/screenshots/boards-automations.png)
+
+### The rest of it
+
+Subitems, an updates feed where `@name` puts a notification in the bell, an
+activity log that records every cell that changed and what it changed from,
+bulk select with move, duplicate and delete, per-column summaries (sum,
+average, median, breakdown, overdue, tracked time), drag to reorder or
+regroup, board duplication with or without the rows, and CSV out.
+
+CSV and Excel come in as boards, not just as tasks: the header row becomes
+columns with the right kinds, a status-shaped column becomes labels with your
+own vocabulary, and a small repeating vocabulary becomes a dropdown.
+
+Nine templates cover the usual jobs, each one the smallest set of columns that
+makes its job work: project plan, sprint backlog, sales pipeline, bug tracker,
+content calendar, hiring pipeline, client work, goals and OKRs, and a plain
+task list.
+
+<p align="center">
+  <img src="docs/screenshots/boards-form.png" width="49%" alt="A form view collecting a new lead" />
+  <img src="docs/screenshots/boards-calendar.png" width="49%" alt="A content calendar with items on their publish dates" />
+</p>
+
+### What boards do not do
+
+No permissions, guests or per-user views: this half of the app is one person's
+browser, and everything in it stays there. No file uploads on a row, because
+localStorage is the wrong place for binaries. No documents. If you need people
+to share a board, that is what the platform tier below is for.
 
 ## What it reads
 
@@ -435,7 +562,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `r` `l` `a` `d` `b` `s` | Today, Triage, Timeline, Analytics, Library, Brain, Settings |
+| `g` then `t` `w` `r` `l` `a` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Library, Brain, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -446,17 +573,20 @@ src/
   data/       entity schema, the sample project
   ingest/     parser registry entry point, shared text and table readers, zip, export detection
   engine/     metrics, reminders, insight rules, triage
+  work/       boards: column types, view queries, the rule engine, formulas, templates, CSV
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
-  ui/         shell, board, command bar, inspector, assistant, views, widgets, charts
+  ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
+  ui/work/    the seven board views, cell editors, the item panel, the rule builder
   styles/     tokens, base, layout, components, viz
-tests/        node:test cases over parsing, querying, analytics, triage, the brain and the assistant protocol
+tests/        node:test cases over parsing, querying, analytics, triage, boards, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 
 ## Deliberately not here
 
-No drag-and-drop grid library (buttons reorder widgets and work identically with a
-mouse, a thumb and a keyboard). No state library — one object, one
+No drag-and-drop library. Widgets and board rows reorder with buttons that work
+identically with a mouse, a thumb and a keyboard; dragging is the fast path on
+top, built on the browser's own drag events. No state library — one object, one
 `useSyncExternalStore`. No chart library. No router. No backend. No AI SDK: the
 three providers differ by a URL, a header and a line format, and a single
 line reader serves all of them. No model-driven writes: the assistant proposes,
@@ -481,7 +611,8 @@ and the MCP server exposes both.
 ```
 The-All-Dash/
 ├── src/                        Browser app (React + Vite): parsers, engines, widgets, assistant
-│   └── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
+│   ├── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
+│   └── work/                   columns.js (22 kinds), query.js, automations.js, formula.js, templates.js, store.js
 ├── public/  tests/  docs/      PWA assets, node:test suite, screenshots, docs/openapi.json
 ├── backend/                    Platform API and worker (Python 3.12)
 │   ├── app/
