@@ -24,8 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from . import audit
 from .config import get_settings
 from .db import make_engine
+from .models import WebJob, utcnow
 from .services import daily as daily_service
 from .services import finance
+from .web.factory import build_web_service
 
 log = logging.getLogger("alldash.worker")
 settings = get_settings()
@@ -123,3 +125,48 @@ def compute_burn_rate() -> dict[str, Any]:
         return rate.model_dump()
 
     return run_async(_work)
+
+
+@celery_app.task(name="alldash.web_job", bind=True, max_retries=0)
+def run_web_job(self: Any, job_id: str) -> dict[str, Any]:
+    """A crawl or batch scrape too large for one request."""
+
+    async def _work(session: AsyncSession) -> dict[str, Any]:
+        job = await session.get(WebJob, job_id)
+        if job is None:
+            return {"id": job_id, "status": "missing"}
+        job.status = "running"
+        await session.flush()
+        await session.commit()
+        web = build_web_service(settings)
+        try:
+            request = dict(job.request)
+            if job.kind == "crawl":
+                result = await web.crawl(
+                    request["url"],
+                    limit=int(request.get("limit", 20)),
+                    max_depth=int(request.get("max_depth", 2)),
+                    include=list(request.get("include") or []),
+                    exclude=list(request.get("exclude") or []),
+                    formats=tuple(request.get("formats") or ["markdown"]),
+                )
+            else:
+                result = await web.batch(
+                    list(request["urls"]),
+                    formats=tuple(request.get("formats") or ["markdown"]),
+                    render=bool(request.get("render")),
+                )
+            job.result = result
+            job.status = "done"
+        except Exception as exc:  # noqa: BLE001 - the job records its own failure
+            job.status = "failed"
+            job.error = str(exc)[:4000]
+        finally:
+            await web.aclose()
+        job.finished_at = utcnow()
+        await session.flush()
+        return {"id": job.id, "status": job.status}
+
+    out = run_async(_work)
+    log.info("web job finished", extra=out)
+    return out

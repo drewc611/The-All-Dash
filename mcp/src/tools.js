@@ -273,6 +273,86 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
       },
       guard(async (body) => text(await platform.logDecision(body)))
     )
+    // ------------------------------------------------------------- web
+
+    const Url = z.string().min(1).max(2048)
+    const Formats = z.array(z.enum(['markdown', 'html', 'text', 'links', 'screenshot'])).max(5).optional()
+    const trim = (page, max = 20000) =>
+      page && typeof page === 'object'
+        ? { ...page, markdown: typeof page.markdown === 'string' && page.markdown.length > max ? `${page.markdown.slice(0, max)}\n\n[truncated ${page.markdown.length - max} characters]` : page.markdown, html: page.html ? `[${page.html.length} characters of HTML omitted; ask for markdown]` : page.html }
+        : page
+
+    server.registerTool(
+      'web_capabilities',
+      { title: 'What the web tier can do here', description: 'Which web operations this platform supports: native scrape, map, crawl and batch always; search, rendering and screenshots when Firecrawl is configured; extract and agent when a model is.', inputSchema: {} },
+      guard(async () => text(await platform.webCapabilities()))
+    )
+    server.registerTool(
+      'web_scrape',
+      {
+        title: 'Scrape a page',
+        description: 'One URL to Markdown (default), plain text, links, HTML or a screenshot. Public sites only; robots.txt is respected. render: true runs JavaScript first (needs Firecrawl).',
+        inputSchema: { url: Url, formats: Formats, render: z.boolean().optional(), wait_ms: z.number().int().min(0).max(10000).optional() },
+      },
+      guard(async (body) => text(trim(await platform.webScrape(body))))
+    )
+    server.registerTool(
+      'web_map',
+      { title: 'Map a site', description: 'Every URL a site publishes: its sitemaps, then the links off the front page. Filter with search (substring of the URL).', inputSchema: { url: Url, limit: z.number().int().min(1).max(5000).optional(), search: z.string().max(200).optional(), sitemap: z.boolean().optional() } },
+      guard(async (body) => text(await platform.webMap(body)))
+    )
+    server.registerTool(
+      'web_crawl',
+      {
+        title: 'Crawl a site',
+        description: 'Breadth-first over one site, bounded by limit, max_depth and path globs (include: ["/docs/*"]). Small crawls answer at once; larger ones (or async: true) return a job id for web_job.',
+        inputSchema: { url: Url, limit: z.number().int().min(1).max(2000).optional(), max_depth: z.number().int().min(0).max(5).optional(), include: z.array(z.string()).max(20).optional(), exclude: z.array(z.string()).max(20).optional(), formats: Formats, async: z.boolean().optional() },
+      },
+      guard(async ({ async: runAsync, ...body }) => {
+        const result = await platform.webCrawl(body, runAsync)
+        return text(result.pages ? { ...result, pages: result.pages.map((p) => trim(p, 8000)) } : result)
+      })
+    )
+    server.registerTool(
+      'web_batch',
+      { title: 'Scrape many URLs', description: 'Up to 1000 URLs. Small batches answer at once; larger ones (or async: true) return a job id for web_job.', inputSchema: { urls: z.array(Url).min(1).max(1000), formats: Formats, render: z.boolean().optional(), async: z.boolean().optional() } },
+      guard(async ({ async: runAsync, ...body }) => {
+        const result = await platform.webBatch(body, runAsync)
+        return text(result.pages ? { ...result, pages: result.pages.map((p) => trim(p, 8000)) } : result)
+      })
+    )
+    server.registerTool(
+      'web_job',
+      { title: 'A crawl or batch job', description: 'Status and, once done, the pages of a job started by web_crawl or web_batch.', inputSchema: { id: z.string().min(1) } },
+      guard(async ({ id }) => {
+        const job = await platform.webJob(id)
+        return text(job.result?.pages ? { ...job, result: { ...job.result, pages: job.result.pages.map((p) => trim(p, 4000)) } } : job)
+      })
+    )
+    server.registerTool(
+      'web_search',
+      { title: 'Search the web', description: 'Web search with page content (needs Firecrawl on the platform; web_capabilities says).', inputSchema: { query: z.string().min(1).max(400), limit: z.number().int().min(1).max(20).optional(), scrape: z.boolean().optional() } },
+      guard(async (body) => text(await platform.webSearch(body)))
+    )
+    server.registerTool(
+      'web_extract',
+      {
+        title: 'Extract structured data from pages',
+        description: 'Scrape up to 10 URLs and have the platform\'s model answer a prompt or fill a JSON schema. Recorded in the audit ledger. Needs a model on the platform.',
+        inputSchema: { urls: z.array(Url).min(1).max(10), prompt: z.string().min(1).max(4000), schema: z.record(z.any()).optional(), render: z.boolean().optional() },
+      },
+      guard(async (body) => text(await platform.webExtract(body)))
+    )
+    server.registerTool(
+      'web_agent',
+      {
+        title: 'Gather data from the web',
+        description: 'Describe what you need. With start_url the platform maps the site, picks the pages that match, reads them and extracts; without one it searches the web (Firecrawl). Recorded in the audit ledger. Needs a model on the platform.',
+        inputSchema: { goal: z.string().min(1).max(4000), start_url: Url.optional(), schema: z.record(z.any()).optional(), max_pages: z.number().int().min(1).max(10).optional(), render: z.boolean().optional() },
+      },
+      guard(async (body) => text(await platform.webAgent(body)))
+    )
+
     server.registerResource(
       'platform-brief',
       'alldash://platform/brief/latest',

@@ -36,6 +36,8 @@ TASK_PRIORITIES = ("P1", "P2", "P3")
 TASK_STATUSES = ("open", "doing", "done")
 INVOICE_STATUSES = ("draft", "sent", "paid", "overdue", "void")
 AUDIT_ACTORS = ("system", "worker", "user", "assistant")
+WEB_JOB_KINDS = ("crawl", "batch")
+WEB_JOB_STATUSES = ("queued", "running", "done", "failed")
 
 
 def new_id() -> str:
@@ -219,3 +221,26 @@ class DailyBrief(Base):
     triggered_by: Mapped[str] = mapped_column(String(32), default="api", nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class WebJob(Base):
+    """A crawl or batch scrape too large for one request, run by the worker."""
+
+    __tablename__ = "web_jobs"
+    __table_args__ = (
+        CheckConstraint(_in("kind", WEB_JOB_KINDS), name="ck_web_jobs_kind"),
+        CheckConstraint(_in("status", WEB_JOB_STATUSES), name="ck_web_jobs_status"),
+        Index("ix_web_jobs_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    request: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

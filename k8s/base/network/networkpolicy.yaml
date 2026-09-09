@@ -102,6 +102,22 @@ spec:
               app.kubernetes.io/name: redis
       ports:
         - port: 6379
+    # The web tier: public sites on 80 and 443 only. Private ranges, link-local
+    # (instance metadata) and the cluster's own networks stay unreachable; the
+    # scraper's own guard refuses them too.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 127.0.0.0/8
+              - 100.64.0.0/10
+      ports:
+        - port: 443
+        - port: 80
     - to:
         - namespaceSelector: {}
           podSelector:
@@ -138,6 +154,22 @@ spec:
               app.kubernetes.io/name: redis
       ports:
         - port: 6379
+    # The web tier: public sites on 80 and 443 only. Private ranges, link-local
+    # (instance metadata) and the cluster's own networks stay unreachable; the
+    # scraper's own guard refuses them too.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 127.0.0.0/8
+              - 100.64.0.0/10
+      ports:
+        - port: 443
+        - port: 80
     - to:
         - namespaceSelector: {}
           podSelector:

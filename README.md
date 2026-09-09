@@ -655,7 +655,10 @@ kubectl -n alldash create secret generic postgres-credentials \
   --from-literal=POSTGRES_PASSWORD="$PG_PASS" \
   --from-literal=ALLDASH_DATABASE_URL="postgresql+asyncpg://alldash:$PG_PASS@postgres.alldash.svc.cluster.local:5432/alldash"
 kubectl -n alldash create secret generic alldash-api \
-  --from-literal=ALLDASH_API_KEYS="$API_KEY" --from-literal=BACKEND_API_KEY="$API_KEY"
+  --from-literal=ALLDASH_API_KEYS="$API_KEY" --from-literal=BACKEND_API_KEY="$API_KEY" \
+  --from-literal=ALLDASH_FIRECRAWL_API_KEY="" \
+  --from-literal=ALLDASH_LLM_PROVIDER="" --from-literal=ALLDASH_LLM_MODEL="" \
+  --from-literal=ALLDASH_LLM_API_KEY="" --from-literal=ALLDASH_LLM_BASE_URL=""   # web tier extras, fill in to turn on
 kubectl -n alldash create secret generic alldash-mcp --from-literal=MCP_AUTH_TOKEN="$MCP_TOKEN"
 kubectl -n alldash create secret generic redis-credentials \
   --from-literal=REDIS_PASSWORD="$REDIS_PASS" \

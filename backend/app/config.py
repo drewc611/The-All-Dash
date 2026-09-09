@@ -30,6 +30,26 @@ class Settings(BaseSettings):
     expose_docs: bool = Field(default=False, description="Serve /docs and /openapi.json in production too")
     max_body_bytes: int = Field(default=1_048_576, ge=16_384, description="Largest request body accepted")
 
+    # The web tier. Native scrape, map, crawl and batch need nothing; search,
+    # rendering and screenshots use Firecrawl when a key is set; extract and
+    # agent use the model below when one is set.
+    web_user_agent: str = "AllDash/0.1 (+https://github.com/drewc611/The-All-Dash)"
+    web_timeout_seconds: float = Field(default=20.0, ge=3, le=120)
+    web_max_bytes: int = Field(default=5 * 1024 * 1024, ge=65_536, le=50 * 1024 * 1024)
+    web_max_pages: int = Field(default=200, ge=1, le=2000, description="Largest crawl or batch, run by the worker")
+    web_sync_max_pages: int = Field(
+        default=25, ge=1, le=200, description="Largest crawl or batch answered inside a request"
+    )
+    web_per_host_interval: float = Field(default=0.5, ge=0, le=30)
+    web_respect_robots: bool = True
+    web_allow_private: bool = Field(default=False, description="Let the scraper reach private addresses (tests only)")
+    firecrawl_api_key: str = ""
+    firecrawl_url: str = "https://api.firecrawl.dev"
+    llm_provider: Literal["", "anthropic", "openai", "ollama"] = ""
+    llm_model: str = ""
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+
     @field_validator("database_url")
     @classmethod
     def _async_driver(cls, value: str) -> str:

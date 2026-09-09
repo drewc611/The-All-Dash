@@ -309,3 +309,171 @@ class Health(BaseModel):
     environment: str
     database: bool
     redis: bool
+
+
+# ----------------------------------------------------------------- web tier
+
+WebFormat = Literal["markdown", "html", "text", "links", "screenshot"]
+WebJobKind = Literal["crawl", "batch"]
+WebJobStatus = Literal["queued", "running", "done", "failed"]
+
+MAX_URL = 2048
+
+
+class WebScrapeIn(StrictModel):
+    url: str = Field(min_length=1, max_length=MAX_URL)
+    formats: list[WebFormat] = Field(default_factory=lambda: ["markdown"], max_length=5)
+    render: bool = Field(default=False, description="Render JavaScript first (needs Firecrawl)")
+    wait_ms: int = Field(default=0, ge=0, le=10_000)
+
+
+class WebPage(BaseModel):
+    url: str
+    final_url: str
+    status: int
+    title: str
+    description: str = ""
+    language: str = ""
+    markdown: str
+    html: str | None = None
+    text: str | None = None
+    links: list[str] | None = None
+    screenshot: str | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
+    engine: str
+    fetched_ms: int = 0
+    depth: int | None = None
+
+
+class WebFailure(BaseModel):
+    url: str
+    error: str
+
+
+class WebMapIn(StrictModel):
+    url: str = Field(min_length=1, max_length=MAX_URL)
+    limit: int = Field(default=200, ge=1, le=5000)
+    search: str | None = Field(default=None, max_length=200)
+    sitemap: bool = True
+
+
+class WebMapOut(BaseModel):
+    url: str
+    urls: list[str]
+    total: int
+    source: str
+
+
+class WebCrawlIn(StrictModel):
+    url: str = Field(min_length=1, max_length=MAX_URL)
+    limit: int = Field(default=20, ge=1, le=2000)
+    max_depth: int = Field(default=2, ge=0, le=5)
+    include: list[str] = Field(default_factory=list, max_length=20, description="Path globs to keep, e.g. /docs/*")
+    exclude: list[str] = Field(default_factory=list, max_length=20)
+    formats: list[WebFormat] = Field(default_factory=lambda: ["markdown"], max_length=4)
+
+
+class WebCrawlOut(BaseModel):
+    url: str
+    pages: list[WebPage]
+    failures: list[WebFailure]
+    visited: int
+    truncated: bool
+
+
+class WebBatchIn(StrictModel):
+    urls: list[str] = Field(min_length=1, max_length=1000)
+    formats: list[WebFormat] = Field(default_factory=lambda: ["markdown"], max_length=4)
+    render: bool = False
+
+
+class WebBatchOut(BaseModel):
+    pages: list[WebPage]
+    failures: list[WebFailure]
+
+
+class WebSearchIn(StrictModel):
+    query: str = Field(min_length=1, max_length=400)
+    limit: int = Field(default=5, ge=1, le=20)
+    scrape: bool = Field(default=True, description="Also fetch each result's content")
+
+
+class WebSearchResult(BaseModel):
+    url: str
+    title: str = ""
+    description: str = ""
+    markdown: str = ""
+
+
+class WebSearchOut(BaseModel):
+    query: str
+    results: list[WebSearchResult]
+    engine: str
+
+
+class WebExtractIn(StrictModel):
+    urls: list[str] = Field(min_length=1, max_length=10)
+    prompt: str = Field(min_length=1, max_length=4000)
+    schema_: dict[str, Any] | None = Field(default=None, alias="schema", description="JSON Schema the answer must fit")
+    render: bool = False
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, populate_by_name=True)
+
+
+class WebExtractOut(BaseModel):
+    data: Any
+    sources: list[str]
+    failures: list[WebFailure]
+    model: str
+    audit_id: str
+
+
+class WebAgentIn(StrictModel):
+    goal: str = Field(min_length=1, max_length=4000, description="What you need, in a sentence or two")
+    start_url: str | None = Field(
+        default=None, max_length=MAX_URL, description="A site to work from; without one the agent searches the web"
+    )
+    schema_: dict[str, Any] | None = Field(default=None, alias="schema")
+    max_pages: int = Field(default=5, ge=1, le=10)
+    render: bool = False
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, populate_by_name=True)
+
+
+class WebAgentOut(BaseModel):
+    data: Any
+    sources: list[str]
+    failures: list[WebFailure]
+    steps: list[str]
+    model: str
+    audit_id: str
+
+
+class WebJobAccepted(BaseModel):
+    id: str
+    kind: WebJobKind
+    status: WebJobStatus
+
+
+class WebJobOut(OrmModel):
+    id: str
+    kind: WebJobKind
+    status: WebJobStatus
+    request: dict[str, Any]
+    result: dict[str, Any] | None
+    error: str
+    created_at: datetime
+    updated_at: datetime
+    finished_at: datetime | None
+
+
+class WebCapabilities(BaseModel):
+    native: list[str]
+    firecrawl: bool
+    search: bool
+    render: bool
+    screenshot: bool
+    model: str | None
+    extract: bool
+    agent: bool
+    limits: dict[str, int]

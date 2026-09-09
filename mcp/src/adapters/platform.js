@@ -45,6 +45,19 @@ export class PlatformAdapter {
   auditVerify() { return this.call('/ai-audit-logs/verify') }
   logDecision(body) { return this.call('/ai-audit-logs', { method: 'POST', body: { actor: 'assistant', ...body } }) }
 
+  // The web tier. Native scrape, map, crawl and batch; search, rendering and
+  // screenshots through Firecrawl when the platform has a key; extract and
+  // agent through the platform's model when one is configured.
+  webCapabilities() { return this.call('/web/capabilities') }
+  webScrape(body) { return this.call('/web/scrape', { method: 'POST', body }) }
+  webMap(body) { return this.call('/web/map', { method: 'POST', body }) }
+  webCrawl(body, runAsync = false) { return this.call('/web/crawl', { method: 'POST', body, params: runAsync ? { async: 'true' } : {} }) }
+  webBatch(body, runAsync = false) { return this.call('/web/batch', { method: 'POST', body, params: runAsync ? { async: 'true' } : {} }) }
+  webSearch(body) { return this.call('/web/search', { method: 'POST', body }) }
+  webExtract(body) { return this.call('/web/extract', { method: 'POST', body }) }
+  webAgent(body) { return this.call('/web/agent', { method: 'POST', body }) }
+  webJob(id) { return this.call(`/web/jobs/${encodeURIComponent(id)}`) }
+
   /** Client-side text search across the record types, for `search`. */
   async search(query, { limit = 20 } = {}) {
     const needle = query.toLowerCase().split(/\s+/).filter(Boolean)
