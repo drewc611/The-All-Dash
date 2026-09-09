@@ -60,6 +60,7 @@ export const resolve = (settings = {}) => {
  */
 export async function stream({ provider, baseUrl, model, apiKey, system, messages, signal, maxTokens = 4096 }, onDelta) {
   if (!model) throw new Error('Pick a model in Settings first.')
+  assertKeyTransport(baseUrl, apiKey)
   const { url, headers, body } = request({ provider, baseUrl, model, apiKey, system, messages, maxTokens })
   let res
   try {
@@ -93,6 +94,7 @@ export async function stream({ provider, baseUrl, model, apiKey, system, message
 /** Ask the provider which models it offers; empty when it cannot say. */
 export async function listModels({ provider, baseUrl, apiKey }) {
   try {
+    assertKeyTransport(baseUrl, apiKey)
     if (provider === 'ollama') {
       const res = await fetch(`${baseUrl}/api/tags`)
       const data = await res.json()
@@ -109,6 +111,27 @@ export async function listModels({ provider, baseUrl, apiKey }) {
   } catch {
     return []
   }
+}
+
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+/**
+ * A key travels only over TLS or to this machine. A base URL someone typed
+ * as http://api.example.com would otherwise send the key in clear text to
+ * every hop between here and there.
+ */
+export function assertKeyTransport(baseUrl, apiKey) {
+  if (!apiKey) return
+  let url
+  try {
+    url = new URL(baseUrl)
+  } catch {
+    throw new Error(`"${baseUrl}" is not a valid URL.`)
+  }
+  if (url.protocol === 'https:') return
+  const host = url.hostname.toLowerCase()
+  if (LOOPBACK.has(host) || host.endsWith('.localhost')) return
+  throw new Error(`Refusing to send your API key to ${url.host} over plain HTTP. Use an https:// endpoint, or one on this machine (localhost).`)
 }
 
 function request({ provider, baseUrl, model, apiKey, system, messages, maxTokens }) {

@@ -101,8 +101,11 @@ manifests deliberately leave off; add a `/api/platform` path to
 
 ## Security
 
-- The bearer token is compared in constant time; without `MCP_AUTH_TOKEN` the
-  HTTP mode is open, which is only acceptable on a loopback address.
+- The bearer token is compared in constant time. HTTP mode refuses to start
+  without `MCP_AUTH_TOKEN`; `MCP_ALLOW_UNAUTHENTICATED=true` overrides that for
+  local use, and then the server binds to 127.0.0.1 only and answers only
+  localhost `Host` headers (421 otherwise), which defeats DNS rebinding.
+  `MCP_ALLOWED_HOSTS` pins the accepted host names on a deployed server too.
 - HTTP mode is stateless (a fresh server per request), so it scales behind a
   load balancer with no session affinity.
 - The server never holds the workspace in memory longer than two seconds

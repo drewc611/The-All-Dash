@@ -108,7 +108,9 @@ export class WorkspaceAdapter {
 
   async get(id) {
     const state = await this.load()
-    return state.entities[id] || null
+    // hasOwn, so ids like "__proto__" or "constructor" resolve to nothing
+    // instead of to Object.prototype.
+    return Object.hasOwn(state.entities, id) ? state.entities[id] : null
   }
 
   async addTask({ title, due, people = [], tags = [], priority = 0, body = '' }) {
@@ -132,7 +134,7 @@ export class WorkspaceAdapter {
 
   async updateTask(id, patch) {
     const state = await this.load(true)
-    const current = state.entities[id]
+    const current = Object.hasOwn(state.entities, id) ? state.entities[id] : null
     if (!current) throw new Error(`No entity ${id}`)
     const next = { ...current }
     if (patch.status) next.status = patch.status

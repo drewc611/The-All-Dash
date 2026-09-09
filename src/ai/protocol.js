@@ -63,7 +63,7 @@ export function visiblePortion(partial) {
 export function validateAction(action, known) {
   if (!action || typeof action !== 'object') return null
   if (action.op === 'update') {
-    if (typeof action.id !== 'string' || (known && !known[action.id])) return null
+    if (typeof action.id !== 'string' || (known && !Object.hasOwn(known, action.id))) return null
     const patch = {}
     for (const key of PATCH_KEYS) {
       if (!(key in (action.patch || {}))) continue

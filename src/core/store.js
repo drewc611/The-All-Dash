@@ -167,7 +167,7 @@ export function syncDoc(docId, list) {
 
 export function updateEntity(id, patch) {
   set((s) => {
-    const current = s.entities[id]
+    const current = Object.hasOwn(s.entities, id) ? s.entities[id] : null
     if (!current) return s
     const next = {
       ...current,

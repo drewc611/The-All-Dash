@@ -9,7 +9,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 
 import { readConfig } from '../src/config.js'
-import { createServer, startHttp } from '../src/server.js'
+import { createServer, hostName, startHttp } from '../src/server.js'
 import { makeEntity } from '../../src/data/schema.js'
 import { addDays, iso } from '../../src/core/time.js'
 
@@ -258,4 +258,64 @@ test('http transport: health is open, the MCP path needs the bearer token, and i
   } finally {
     httpServer.close()
   }
+})
+
+/** node:http, because fetch() rewrites the Host header and the test needs to forge one. */
+const post = (url, headers, body) =>
+  new Promise((resolve, reject) => {
+    const req = http.request(url, { method: 'POST', headers: { ...headers, 'content-length': Buffer.byteLength(body) } }, (res) => {
+      let text = ''
+      res.on('data', (c) => { text += c })
+      res.on('end', () => resolve({ status: res.statusCode, text }))
+    })
+    req.on('error', reject)
+    req.end(body)
+  })
+
+test('http transport fails closed: no token refuses to start, open mode is loopback-only with a Host allow-list', async () => {
+  const { file } = await fixtureWorkspace()
+  const base = { workspaceFile: file, apiUrl: '', apiKey: '', publicUrl: '', port: 0, path: '/mcp', authToken: '' }
+  assert.throws(() => startHttp({ ...base }), /MCP_AUTH_TOKEN is required/)
+  assert.throws(() => startHttp({ ...base, allowUnauthenticated: true, host: '0.0.0.0' }), /loopback/)
+  assert.equal(hostName('[::1]:8080'), '[::1]')
+  assert.equal(hostName(' Dash.Example.com:443 '), 'dash.example.com')
+
+  const open = startHttp({ ...base, allowUnauthenticated: true })
+  await new Promise((r) => open.once('listening', r))
+  assert.equal(open.address().address, '127.0.0.1')
+  const url = `http://127.0.0.1:${open.address().port}`
+  const init = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } }
+  const headers = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }
+  try {
+    const rebinding = await post(`${url}/mcp`, { ...headers, host: 'evil.example' }, JSON.stringify(init))
+    assert.equal(rebinding.status, 421)
+    assert.equal((await fetch(`${url}/healthz`)).status, 200)
+    const ok = await post(`${url}/mcp`, headers, JSON.stringify(init))
+    assert.equal(ok.status, 200)
+  } finally {
+    open.close()
+  }
+
+  // With a token, an explicit allow-list still applies on the MCP path.
+  const pinned = startHttp({ ...base, authToken: 't', allowedHosts: ['dash.example.com'] })
+  await new Promise((r) => pinned.once('listening', r))
+  const purl = `http://127.0.0.1:${pinned.address().port}`
+  try {
+    const wrong = await post(`${purl}/mcp`, { ...headers, authorization: 'Bearer t' }, JSON.stringify(init))
+    assert.equal(wrong.status, 421)
+    const right = await post(`${purl}/mcp`, { ...headers, authorization: 'Bearer t', host: 'dash.example.com' }, JSON.stringify(init))
+    assert.equal(right.status, 200)
+  } finally {
+    pinned.close()
+  }
+})
+
+test('workspace ids that name Object.prototype members resolve to nothing', async () => {
+  const { file } = await fixtureWorkspace()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '', apiKey: '', publicUrl: '' })
+  const fetched = await client.callTool({ name: 'fetch', arguments: { id: 'ws:__proto__' } })
+  assert.equal(fetched.isError, true)
+  const updated = await client.callTool({ name: 'workspace_update_task', arguments: { id: 'constructor', status: 'done' } })
+  assert.equal(updated.isError, true)
+  assert.match(updated.content[0].text, /No entity/)
 })

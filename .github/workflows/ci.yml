@@ -8,6 +8,10 @@ on:
   # pull_request runs, so allow a manual run from the Actions tab.
   workflow_dispatch:
 
+# The workflow only reads the checkout; no job needs a write token.
+permissions:
+  contents: read
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest

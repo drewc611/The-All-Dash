@@ -11,7 +11,7 @@ import { TYPE_LABEL } from '../data/schema.js'
 
 export function describeProposal(action, entities = getState().entities) {
   if (action.op === 'update') {
-    const target = entities[action.id]
+    const target = Object.hasOwn(entities, action.id) ? entities[action.id] : undefined
     const name = target ? `"${target.title}"` : action.id
     const changes = Object.entries(action.patch).map(([key, value]) => {
       const before = target ? target[key] : undefined
@@ -31,7 +31,7 @@ export function describeProposal(action, entities = getState().entities) {
 /** Apply one proposal. Returns a sentence for the toast, or throws. */
 export function applyProposal(action, { navigate } = {}) {
   if (action.op === 'update') {
-    if (!getState().entities[action.id]) throw new Error('That item no longer exists.')
+    if (!Object.hasOwn(getState().entities, action.id)) throw new Error('That item no longer exists.')
     updateEntity(action.id, action.patch)
     return `Updated "${getState().entities[action.id].title}".`
   }

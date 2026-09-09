@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { parseReply, plainText, visiblePortion, validateAction, lineReader, deltaFromLine, stopFromLine } from '../src/ai/protocol.js'
 import { terms, relevance, retrieve, describe, buildContext, SYSTEM_PROMPT } from '../src/ai/context.js'
-import { resolve, PROVIDERS } from '../src/ai/providers.js'
+import { resolve, PROVIDERS, assertKeyTransport } from '../src/ai/providers.js'
 import { makeEntity } from '../src/data/schema.js'
 import { addDays, iso, rangeFor } from '../src/core/time.js'
 
@@ -156,4 +156,22 @@ test('resolve fills provider defaults and strips a trailing slash from the base 
   assert.equal(local.baseUrl, 'http://box:11434')
   assert.equal(local.needsKey, false)
   assert.equal(resolve({ provider: 'openai' }).model, '')
+})
+
+test('an API key only travels over TLS or to this machine', () => {
+  assert.throws(() => assertKeyTransport('http://api.example.com/v1', 'sk-x'), /plain HTTP/)
+  assert.throws(() => assertKeyTransport('not a url', 'sk-x'), /not a valid URL/)
+  assert.doesNotThrow(() => assertKeyTransport('https://api.example.com/v1', 'sk-x'))
+  assert.doesNotThrow(() => assertKeyTransport('http://localhost:1234/v1', 'sk-x'))
+  assert.doesNotThrow(() => assertKeyTransport('http://127.0.0.1:1234', 'sk-x'))
+  assert.doesNotThrow(() => assertKeyTransport('http://[::1]:11434', 'sk-x'))
+  assert.doesNotThrow(() => assertKeyTransport('http://lmstudio.localhost:1234', 'sk-x'))
+  assert.doesNotThrow(() => assertKeyTransport('http://api.example.com/v1', ''))
+})
+
+test('validateAction ignores ids that only exist on Object.prototype', () => {
+  const known = { t1: { id: 't1' } }
+  assert.equal(validateAction({ op: 'update', id: '__proto__', patch: { status: 'done' } }, known), null)
+  assert.equal(validateAction({ op: 'update', id: 'constructor', patch: { status: 'done' } }, known), null)
+  assert.equal(validateAction({ op: 'update', id: 't1', patch: { status: 'done' } }, known).id, 't1')
 })

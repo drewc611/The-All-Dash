@@ -20,7 +20,18 @@ import { registerAll } from './tools.js'
  *
  * HTTP mode is stateless: every request gets its own server and transport,
  * so the process can sit behind a load balancer with no session affinity.
+ *
+ * HTTP mode fails closed: without MCP_AUTH_TOKEN it refuses to start, unless
+ * MCP_ALLOW_UNAUTHENTICATED=true, in which case it binds to loopback only and
+ * accepts only localhost Host headers, so a web page cannot reach it through
+ * DNS rebinding.
  */
+
+const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost'])
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+
+/** The Host header without its port, lower-cased; "[::1]:8080" becomes "[::1]". */
+export const hostName = (header) => String(header || '').trim().toLowerCase().replace(/:\d+$/, '')
 
 export function createServer(config = readConfig()) {
   const workspace = config.workspaceFile ? new WorkspaceAdapter(config.workspaceFile) : null
@@ -54,6 +65,18 @@ export async function startStdio(config = readConfig()) {
 }
 
 export function startHttp(config = readConfig()) {
+  if (!config.authToken && !config.allowUnauthenticated) {
+    throw new Error(
+      'MCP_AUTH_TOKEN is required in HTTP mode. To serve without a token on this machine only, set MCP_ALLOW_UNAUTHENTICATED=true.'
+    )
+  }
+  const bind = config.host || (config.authToken ? '0.0.0.0' : '127.0.0.1')
+  if (!config.authToken && !LOOPBACK.has(bind)) {
+    throw new Error(`Unauthenticated HTTP mode may only bind to a loopback address, not ${bind}. Set MCP_AUTH_TOKEN to serve on ${bind}.`)
+  }
+  const allowedHosts = config.allowedHosts?.length ? config.allowedHosts : config.authToken ? [] : LOCAL_HOSTS
+  const hostAllowed = (req) => !allowedHosts.length || allowedHosts.includes(hostName(req.headers.host))
+
   const authorised = (req) => {
     if (!config.authToken) return true
     const header = req.headers.authorization || ''
@@ -75,6 +98,11 @@ export function startHttp(config = readConfig()) {
       res.end(JSON.stringify({ error: 'not found' }))
       return
     }
+    if (!hostAllowed(req)) {
+      res.writeHead(421, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'misdirected request: Host header not allowed' }))
+      return
+    }
     if (!authorised(req)) {
       res.writeHead(401, { 'content-type': 'application/json', 'www-authenticate': 'Bearer' })
       res.end(JSON.stringify({ error: 'unauthorized' }))
@@ -93,8 +121,10 @@ export function startHttp(config = readConfig()) {
       }
     }
   })
-  httpServer.listen(config.port, '0.0.0.0', () => {
-    process.stderr.write(`all-dash mcp: http://0.0.0.0:${config.port}${config.path} (${config.authToken ? 'bearer auth' : 'no auth'})\n`)
+  httpServer.listen(config.port, bind, () => {
+    const mode = config.authToken ? 'bearer auth' : 'NO AUTH, loopback only'
+    const hosts = allowedHosts.length ? `, hosts: ${allowedHosts.join(', ')}` : ''
+    process.stderr.write(`all-dash mcp: http://${bind}:${config.port}${config.path} (${mode}${hosts})\n`)
   })
   return httpServer
 }
