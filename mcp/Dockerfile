@@ -17,6 +17,9 @@ WORKDIR /app
 COPY --from=deps --chown=mcp:mcp /app/mcp/node_modules ./mcp/node_modules
 COPY --chown=mcp:mcp mcp/package.json ./mcp/package.json
 COPY --chown=mcp:mcp mcp/src ./mcp/src
+# The root package.json says "type": "module"; without it the copied src/
+# files would be read as CommonJS and the import of the engines fails.
+COPY --chown=mcp:mcp package.json ./package.json
 COPY --chown=mcp:mcp src/core ./src/core
 COPY --chown=mcp:mcp src/data/schema.js ./src/data/schema.js
 COPY --chown=mcp:mcp src/engine ./src/engine

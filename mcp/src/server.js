@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import http from 'node:http'
 import { timingSafeEqual } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -129,7 +131,17 @@ export function startHttp(config = readConfig()) {
   return httpServer
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href
+/** True when this file is the entry point, through a bin symlink or a path with odd characters too. */
+function isEntryPoint() {
+  if (!process.argv[1]) return false
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
+  } catch {
+    return false
+  }
+}
+
+const invokedDirectly = isEntryPoint()
 if (invokedDirectly) {
   const config = readConfig()
   if (config.transport === 'http') startHttp(config)

@@ -335,3 +335,34 @@ test('workspace ids that name Object.prototype members resolve to nothing', asyn
   assert.equal(updated.isError, true)
   assert.match(updated.content[0].text, /No entity/)
 })
+
+test('adding the same task twice keeps both, and concurrent writes all land', async () => {
+  const { file } = await fixtureWorkspace()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '', apiKey: '', publicUrl: '' })
+  const first = parse(await client.callTool({ name: 'workspace_add_task', arguments: { title: 'Call Legal', due: '2026-10-01' } }))
+  const second = parse(await client.callTool({ name: 'workspace_add_task', arguments: { title: 'Call Legal', due: '2026-10-01' } }))
+  assert.notEqual(first.id, second.id)
+  await Promise.all([1, 2, 3, 4].map((n) => client.callTool({ name: 'workspace_add_task', arguments: { title: `Parallel ${n}` } })))
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  const titles = Object.values(state.entities).map((e) => e.title)
+  assert.equal(titles.filter((t) => t === 'Call Legal').length, 2)
+  for (const n of [1, 2, 3, 4]) assert.ok(titles.includes(`Parallel ${n}`), `Parallel ${n} was lost`)
+})
+
+test('config ignores unexpanded placeholders of both shapes and takes one public URL', () => {
+  const c = readConfig({ ALLDASH_WORKSPACE_FILE: '${ALLDASH_WORKSPACE_FILE:-}', ALLDASH_API_URL: '${ALLDASH_API_URL}', MCP_PUBLIC_URL: 'https://a.example, https://b.example' }, () => false)
+  assert.equal(c.workspaceFile, '')
+  assert.equal(c.apiUrl, '')
+  assert.equal(c.publicUrl, 'https://a.example')
+})
+
+test('crawl and batch refuse a fifth format before the platform would', async () => {
+  const stub = await stubPlatform()
+  const { client } = await connect({ workspaceFile: '', apiUrl: stub.url, apiKey: 'k', publicUrl: '' })
+  try {
+    const result = await client.callTool({ name: 'web_batch', arguments: { urls: ['https://example.com/'], formats: ['markdown', 'html', 'text', 'links', 'screenshot'] } })
+    assert.equal(result.isError, true)
+  } finally {
+    stub.server.close()
+  }
+})

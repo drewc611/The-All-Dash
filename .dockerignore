@@ -1,0 +1,12 @@
+# Context for `docker build -f mcp/Dockerfile .` (the MCP image needs the
+# browser app's engines from src/). Everything else stays out of the context.
+.git
+node_modules
+dist
+docs
+backend
+frontend
+public
+tests
+*.md
+!package.json

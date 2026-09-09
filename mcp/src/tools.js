@@ -68,7 +68,9 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
       if (prefix === 'ws' && workspace) {
         const e = await workspace.get(key)
         if (!e) return fail(`No workspace item ${key}`)
-        const body = [e.body, e.people.length ? `People: ${e.people.join(', ')}` : '', e.tags.length ? `Tags: ${e.tags.join(', ')}` : '', e.due ? `Due: ${e.due}` : '', e.at ? `At: ${e.at}` : '', e.source?.name ? `From: ${e.source.name}` : '']
+        const people = Array.isArray(e.people) ? e.people : []
+        const tags = Array.isArray(e.tags) ? e.tags : []
+        const body = [e.body, people.length ? `People: ${people.join(', ')}` : '', tags.length ? `Tags: ${tags.join(', ')}` : '', e.due ? `Due: ${e.due}` : '', e.at ? `At: ${e.at}` : '', e.source?.name ? `From: ${e.source.name}` : '']
           .filter(Boolean)
           .join('\n')
         return text({ id, title: e.title, text: body || e.title, url: link('workspace', e.id), metadata: slim(e) })
@@ -277,6 +279,8 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
 
     const Url = z.string().min(1).max(2048)
     const Formats = z.array(z.enum(['markdown', 'html', 'text', 'links', 'screenshot'])).max(5).optional()
+    // Crawl and batch accept four formats on the platform (no screenshot per page).
+    const BulkFormats = z.array(z.enum(['markdown', 'html', 'text', 'links'])).max(4).optional()
     const trim = (page, max = 20000) =>
       page && typeof page === 'object'
         ? { ...page, markdown: typeof page.markdown === 'string' && page.markdown.length > max ? `${page.markdown.slice(0, max)}\n\n[truncated ${page.markdown.length - max} characters]` : page.markdown, html: page.html ? `[${page.html.length} characters of HTML omitted; ask for markdown]` : page.html }
@@ -306,7 +310,7 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
       {
         title: 'Crawl a site',
         description: 'Breadth-first over one site, bounded by limit, max_depth and path globs (include: ["/docs/*"]). Small crawls answer at once; larger ones (or async: true) return a job id for web_job.',
-        inputSchema: { url: Url, limit: z.number().int().min(1).max(2000).optional(), max_depth: z.number().int().min(0).max(5).optional(), include: z.array(z.string()).max(20).optional(), exclude: z.array(z.string()).max(20).optional(), formats: Formats, async: z.boolean().optional() },
+        inputSchema: { url: Url, limit: z.number().int().min(1).max(2000).optional(), max_depth: z.number().int().min(0).max(5).optional(), include: z.array(z.string()).max(20).optional(), exclude: z.array(z.string()).max(20).optional(), formats: BulkFormats, async: z.boolean().optional() },
       },
       guard(async ({ async: runAsync, ...body }) => {
         const result = await platform.webCrawl(body, runAsync)
@@ -315,7 +319,7 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
     )
     server.registerTool(
       'web_batch',
-      { title: 'Scrape many URLs', description: 'Up to 1000 URLs. Small batches answer at once; larger ones (or async: true) return a job id for web_job.', inputSchema: { urls: z.array(Url).min(1).max(1000), formats: Formats, render: z.boolean().optional(), async: z.boolean().optional() } },
+      { title: 'Scrape many URLs', description: 'Up to 1000 URLs. Small batches answer at once; larger ones (or async: true) return a job id for web_job.', inputSchema: { urls: z.array(Url).min(1).max(1000), formats: BulkFormats, render: z.boolean().optional(), async: z.boolean().optional() } },
       guard(async ({ async: runAsync, ...body }) => {
         const result = await platform.webBatch(body, runAsync)
         return text(result.pages ? { ...result, pages: result.pages.map((p) => trim(p, 8000)) } : result)

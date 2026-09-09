@@ -3,6 +3,10 @@ const nextConfig = {
   // Standalone output copies only what the server needs, which is what the
   // Dockerfile ships: no node_modules tree, no source.
   output: 'standalone',
+  // Pin the tracing root to this package: with another lockfile above it
+  // (the browser app's), Next would otherwise nest the standalone output
+  // under frontend/ and the Dockerfile's `node server.js` would miss it.
+  outputFileTracingRoot: import.meta.dirname,
   reactStrictMode: true,
   poweredByHeader: false,
   headers: async () => [
