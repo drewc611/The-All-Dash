@@ -14,10 +14,12 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from .guard import BlockedUrl, check_url, normalise
+from .guard import BlockedUrl, CheckedUrl, check_url, normalise
+from .pinned import PinnedTransport
 from .sitemap import Robots, parse_robots
 
 MAX_REDIRECTS = 5
+ROBOTS_MAX_BYTES = 512 * 1024
 
 
 @dataclass
@@ -88,6 +90,10 @@ class Fetcher:
         self.allow_private = allow_private
         self._gate = _HostGate(per_host_interval)
         self._robots: dict[str, Robots] = {}
+        # host -> the address the guard approved; the transport dials that one.
+        self._pins: dict[str, str] = {}
+        if transport is None:
+            transport = PinnedTransport(self._pins)
         self._client = httpx.AsyncClient(
             transport=transport,
             timeout=httpx.Timeout(timeout),
@@ -104,19 +110,34 @@ class Fetcher:
     async def robots(self, url: str) -> Robots:
         """The robots.txt for the URL's origin, fetched once per origin."""
         checked = await check_url(url, allow_private=self.allow_private)
-        origin = f"{checked.scheme}://{checked.host}"
+        self._pin(checked)
+        port = httpx.URL(checked.url).port
+        origin = f"{checked.scheme}://{checked.host}" + (f":{port}" if port else "")
         if origin in self._robots:
             return self._robots[origin]
         rules = Robots()
         try:
             await self._gate.wait(checked.host)
-            response = await self._client.get(f"{origin}/robots.txt")
-            if response.status_code == 200 and len(response.content) < 512 * 1024:
-                rules = parse_robots(response.text, origin, agent="alldash")
+            async with self._client.stream("GET", f"{origin}/robots.txt") as response:
+                if response.status_code == 200:
+                    chunks: list[bytes] = []
+                    size = 0
+                    async for chunk in response.aiter_bytes():
+                        size += len(chunk)
+                        if size > ROBOTS_MAX_BYTES:
+                            break
+                        chunks.append(chunk)
+                    if size <= ROBOTS_MAX_BYTES:
+                        text = b"".join(chunks).decode("utf-8", errors="replace")
+                        rules = parse_robots(text, origin, agent="alldash")
         except httpx.HTTPError:
             pass
         self._robots[origin] = rules
         return rules
+
+    def _pin(self, checked: CheckedUrl) -> None:
+        if checked.addresses:
+            self._pins[checked.host.lower()] = checked.addresses[0]
 
     async def get(self, url: str, *, accept: str | None = None) -> Fetched:
         """GET with guarded redirects, robots and the size cap."""
@@ -127,6 +148,7 @@ class Fetcher:
                 checked = await check_url(current, allow_private=self.allow_private)
             except BlockedUrl as exc:
                 raise FetchError(str(exc)) from exc
+            self._pin(checked)
             rules = await self.robots(checked.url) if self.respect_robots else Robots()
             if self.respect_robots and not rules.allows(checked.url):
                 raise FetchError(f"robots.txt disallows {checked.url}")

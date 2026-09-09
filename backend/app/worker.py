@@ -22,6 +22,7 @@ from celery.schedules import crontab
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from . import audit
+from .clock import today_local
 from .config import get_settings
 from .db import make_engine
 from .models import WebJob, utcnow
@@ -61,7 +62,9 @@ def run_async(fn: Callable[[AsyncSession], Awaitable[T]]) -> T:
     """Run one unit of work in a fresh engine and a single committed session."""
 
     async def _go() -> T:
-        engine = make_engine(settings.database_url)
+        # A task holds one connection at a time; a big pool per fork would
+        # multiply against Postgres's max_connections for nothing.
+        engine = make_engine(settings.database_url, pool_size=1, max_overflow=2)
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 try:
@@ -79,7 +82,7 @@ def run_async(fn: Callable[[AsyncSession], Awaitable[T]]) -> T:
 
 @celery_app.task(name="alldash.build_daily_brief", bind=True, max_retries=3, default_retry_delay=60)
 def build_daily_brief(self: Any, on: str | None = None) -> dict[str, Any]:
-    brief_date = date.fromisoformat(on) if on else date.today()
+    brief_date = date.fromisoformat(on) if on else today_local()
     try:
         out = run_async(
             lambda s: daily_service.build_brief(
@@ -95,14 +98,14 @@ def build_daily_brief(self: Any, on: str | None = None) -> dict[str, Any]:
 
 @celery_app.task(name="alldash.mark_overdue_invoices")
 def mark_overdue_invoices() -> int:
-    rows = run_async(lambda s: daily_service.mark_overdue(s, date.today(), actor="worker"))
+    rows = run_async(lambda s: daily_service.mark_overdue(s, today_local(), actor="worker"))
     return len(rows)
 
 
 @celery_app.task(name="alldash.compute_burn_rate")
 def compute_burn_rate() -> dict[str, Any]:
     async def _work(session: AsyncSession) -> dict[str, Any]:
-        rate = await finance.burn_rate(session, date.today(), settings.burn_rate_window_days)
+        rate = await finance.burn_rate(session, today_local(), settings.burn_rate_window_days)
         trend = (
             "flat"
             if rate.change_pct is None or abs(rate.change_pct) < 5
@@ -127,22 +130,48 @@ def compute_burn_rate() -> dict[str, Any]:
     return run_async(_work)
 
 
-@celery_app.task(name="alldash.web_job", bind=True, max_retries=0)
+@celery_app.task(name="alldash.web_job", bind=True, max_retries=5, acks_late=False)
 def run_web_job(self: Any, job_id: str) -> dict[str, Any]:
-    """A crawl or batch scrape too large for one request."""
+    """A crawl or batch scrape too large for one request.
 
-    async def _work(session: AsyncSession) -> dict[str, Any]:
+    acks_late is off for this task on purpose: a worker killed mid-crawl (an
+    OOM on a huge site) must not have the same message redelivered forever.
+    The row records the outcome instead, and a job found already "running"
+    on pickup is marked failed as a lost worker.
+    """
+
+    async def _claim(session: AsyncSession) -> tuple[str, str, dict[str, Any]] | None:
         job = await session.get(WebJob, job_id)
         if job is None:
-            return {"id": job_id, "status": "missing"}
+            return None
+        if job.status == "running":
+            job.status = "failed"
+            job.error = "The worker running this job was lost before it finished"
+            job.finished_at = utcnow()
+            await session.flush()
+            return ("failed", job.kind, {})
+        if job.status != "queued":
+            return (job.status, job.kind, {})
         job.status = "running"
         await session.flush()
-        await session.commit()
-        web = build_web_service(settings)
-        try:
-            request = dict(job.request)
-            if job.kind == "crawl":
-                result = await web.crawl(
+        return ("running", job.kind, dict(job.request))
+
+    claimed = run_async(_claim)
+    if claimed is None:
+        # The API commits before it enqueues, but a replica lagging behind can
+        # still answer first; try again shortly rather than losing the job.
+        raise self.retry(countdown=2)
+    status, kind, request = claimed
+    if status != "running":
+        return {"id": job_id, "status": status}
+
+    result: dict[str, Any] | None = None
+    error = ""
+    web = build_web_service(settings)
+    try:
+        if kind == "crawl":
+            result = _run_async_web(
+                web.crawl(
                     request["url"],
                     limit=int(request.get("limit", 20)),
                     max_depth=int(request.get("max_depth", 2)),
@@ -150,23 +179,65 @@ def run_web_job(self: Any, job_id: str) -> dict[str, Any]:
                     exclude=list(request.get("exclude") or []),
                     formats=tuple(request.get("formats") or ["markdown"]),
                 )
-            else:
-                result = await web.batch(
+            )
+        else:
+            result = _run_async_web(
+                web.batch(
                     list(request["urls"]),
                     formats=tuple(request.get("formats") or ["markdown"]),
                     render=bool(request.get("render")),
                 )
-            job.result = result
-            job.status = "done"
-        except Exception as exc:  # noqa: BLE001 - the job records its own failure
-            job.status = "failed"
-            job.error = str(exc)[:4000]
-        finally:
-            await web.aclose()
-        job.finished_at = utcnow()
-        await session.flush()
-        return {"id": job.id, "status": job.status}
+            )
+    except Exception as exc:  # noqa: BLE001 - the job records its own failure
+        error = str(exc)[:4000]
+    finally:
+        _run_async_web(web.aclose())
 
-    out = run_async(_work)
+    async def _store(session: AsyncSession) -> dict[str, Any]:
+        job = await session.get(WebJob, job_id)
+        if job is None:
+            return {"id": job_id, "status": "missing"}
+        try:
+            if error:
+                job.status = "failed"
+                job.error = error
+            else:
+                job.result = compact_result(result or {})
+                job.status = "done"
+            job.finished_at = utcnow()
+            await session.flush()
+        except Exception as exc:  # noqa: BLE001 - a result that cannot be stored is still a finished job
+            await session.rollback()
+            job = await session.get(WebJob, job_id)
+            if job is not None:
+                job.status = "failed"
+                job.error = f"Could not store the result: {str(exc)[:2000]}"
+                job.finished_at = utcnow()
+                await session.flush()
+        return {"id": job_id, "status": job.status if job else "missing"}
+
+    out = run_async(_store)
     log.info("web job finished", extra=out)
     return out
+
+
+STORED_MARKDOWN_MAX = 200_000
+
+
+def compact_result(result: dict[str, Any]) -> dict[str, Any]:
+    """What a job keeps: Markdown (capped per page), never the raw HTML, so one
+    row stays a few megabytes at most rather than pages times the size cap."""
+    pages = []
+    for page in result.get("pages") or []:
+        slim = {k: v for k, v in page.items() if k != "html"}
+        text = slim.get("markdown")
+        if isinstance(text, str) and len(text) > STORED_MARKDOWN_MAX:
+            cut = len(text) - STORED_MARKDOWN_MAX
+            slim["markdown"] = text[:STORED_MARKDOWN_MAX] + f"\n\n[truncated {cut} characters]"
+        pages.append(slim)
+    return {**result, "pages": pages}
+
+
+def _run_async_web(coro: Awaitable[T]) -> T:
+    """Run one web-tier coroutine on its own loop (Celery tasks are synchronous)."""
+    return asyncio.run(coro)  # type: ignore[arg-type]

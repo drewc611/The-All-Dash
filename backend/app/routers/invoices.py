@@ -8,15 +8,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clock import today_local
 from ..db import get_session
 from ..models import Invoice
 from ..schemas import InvoiceIn, InvoiceOut, InvoicePatch, InvoiceStatus, Page
 from ..security import Authed
 from ..services.daily import mark_overdue
-from ._common import Limit, Offset, apply_patch, get_or_404, paginate
+from ._common import Limit, Offset, apply_patch, check_project, get_or_404, paginate
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 @router.get("", response_model=Page[InvoiceOut])
@@ -35,7 +36,7 @@ async def list_invoices(
     if project_id:
         stmt = stmt.where(Invoice.project_id == project_id)
     if past_due:
-        stmt = stmt.where(Invoice.status.in_(("sent", "overdue")), Invoice.due_on < date.today())
+        stmt = stmt.where(Invoice.status.in_(("sent", "overdue")), Invoice.due_on < today_local())
     rows, total = await paginate(session, stmt, limit, offset)
     return Page(items=[InvoiceOut.model_validate(r) for r in rows], total=total, limit=limit, offset=offset)
 
@@ -43,7 +44,8 @@ async def list_invoices(
 @router.post("", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
 async def create_invoice(body: InvoiceIn, session: Session, _: Authed) -> InvoiceOut:
     if body.due_on < body.issued_on:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="due_on is before issued_on")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="due_on is before issued_on")
+    await check_project(session, body.project_id)
     row = Invoice(**body.model_dump())
     session.add(row)
     try:
@@ -55,7 +57,7 @@ async def create_invoice(body: InvoiceIn, session: Session, _: Authed) -> Invoic
 
 @router.post("/mark-overdue", response_model=list[InvoiceOut], summary="Run the overdue decision now")
 async def run_mark_overdue(session: Session, _: Authed, as_of: date | None = None) -> list[InvoiceOut]:
-    rows = await mark_overdue(session, as_of or date.today(), actor="user")
+    rows = await mark_overdue(session, as_of or today_local(), actor="user")
     return [InvoiceOut.model_validate(r) for r in rows]
 
 
@@ -68,8 +70,10 @@ async def get_invoice(invoice_id: str, session: Session, _: Authed) -> InvoiceOu
 async def update_invoice(invoice_id: str, body: InvoicePatch, session: Session, _: Authed) -> InvoiceOut:
     row = await get_or_404(session, Invoice, invoice_id, "Invoice")
     patch = body.model_dump(exclude_unset=True)
+    if "project_id" in patch:
+        await check_project(session, patch["project_id"])
     if patch.get("status") == "paid" and not (patch.get("paid_on") or row.paid_on):
-        patch["paid_on"] = date.today()
+        patch["paid_on"] = today_local()
     apply_patch(row, patch)
     await session.flush()
     return InvoiceOut.model_validate(row)

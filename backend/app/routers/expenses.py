@@ -11,10 +11,10 @@ from ..db import get_session
 from ..models import Expense
 from ..schemas import ExpenseIn, ExpenseOut, ExpensePatch, Page
 from ..security import Authed
-from ._common import Limit, Offset, apply_patch, get_or_404, paginate
+from ._common import Limit, Offset, apply_patch, check_project, get_or_404, paginate
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 @router.get("", response_model=Page[ExpenseOut])
@@ -43,6 +43,7 @@ async def list_expenses(
 
 @router.post("", response_model=ExpenseOut, status_code=status.HTTP_201_CREATED)
 async def create_expense(body: ExpenseIn, session: Session, _: Authed) -> ExpenseOut:
+    await check_project(session, body.project_id)
     row = Expense(**body.model_dump())
     session.add(row)
     await session.flush()
@@ -57,7 +58,10 @@ async def get_expense(expense_id: str, session: Session, _: Authed) -> ExpenseOu
 @router.patch("/{expense_id}", response_model=ExpenseOut)
 async def update_expense(expense_id: str, body: ExpensePatch, session: Session, _: Authed) -> ExpenseOut:
     row = await get_or_404(session, Expense, expense_id, "Expense")
-    apply_patch(row, body.model_dump(exclude_unset=True))
+    patch = body.model_dump(exclude_unset=True)
+    if "project_id" in patch:
+        await check_project(session, patch["project_id"])
+    apply_patch(row, patch)
     await session.flush()
     return ExpenseOut.model_validate(row)
 

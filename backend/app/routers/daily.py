@@ -8,6 +8,7 @@ worker and a task id comes back.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date
 from typing import Annotated
 
@@ -15,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clock import today_local
 from ..config import Settings, get_settings
 from ..db import get_session
 from ..models import DailyBrief
@@ -23,7 +25,7 @@ from ..security import Authed
 from ..services import daily as daily_service
 
 router = APIRouter(prefix="/daily", tags=["daily"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 @router.post("/run", response_model=DailyRunAccepted, status_code=status.HTTP_202_ACCEPTED)
@@ -34,7 +36,7 @@ async def run_daily(
     on: date | None = None,
     sync: bool = False,
 ) -> DailyRunAccepted:
-    brief_date = on or date.today()
+    brief_date = on or today_local()
     if sync:
         brief = await daily_service.build_brief(
             session, brief_date, triggered_by="api", window_days=settings.burn_rate_window_days
@@ -42,7 +44,7 @@ async def run_daily(
         return DailyRunAccepted(status="built", brief_date=brief_date, brief=brief)
     from ..worker import build_daily_brief  # imported here so the API never needs a broker at import time
 
-    result = build_daily_brief.delay(brief_date.isoformat())
+    result = await asyncio.to_thread(build_daily_brief.delay, brief_date.isoformat())
     return DailyRunAccepted(status="queued", brief_date=brief_date, task_id=result.id)
 
 

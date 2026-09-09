@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin
+
+from .guard import match_path
+
+MAX_CRAWL_DELAY = 10.0
 
 
 @dataclass
@@ -18,7 +22,7 @@ class Robots:
     crawl_delay: float | None = None
 
     def allows(self, url: str) -> bool:
-        path = urlsplit(url).path or "/"
+        path = match_path(url)
         best: tuple[int, bool] | None = None
         for rule, verdict in [(r, False) for r in self.disallow] + [(r, True) for r in self.allow]:
             if not rule:
@@ -64,7 +68,8 @@ def parse_robots(text: str, base: str, agent: str = "alldash") -> Robots:
                     g.allow.append(value)
                 else:
                     try:
-                        g.crawl_delay = float(value)
+                        # A hostile or careless Crawl-delay must not park a worker for hours.
+                        g.crawl_delay = min(MAX_CRAWL_DELAY, max(0.0, float(value)))
                     except ValueError:
                         pass
     chosen = groups.get(agent.lower()) or groups.get("*") or Robots()
