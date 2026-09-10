@@ -14,6 +14,7 @@ body {
   margin: 0;
   font-family: var(--font);
   font-size: var(--t-md);
+  font-weight: var(--w-normal);
   line-height: 1.5;
   color: var(--ink);
   background: var(--plane);
@@ -31,14 +32,17 @@ ul, ol {
   list-style: none;
 }
 
-h1 { font-size: var(--t-xl); font-weight: 640; letter-spacing: -0.015em; }
-h2 { font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.01em; }
-h3 { font-size: var(--t-md); font-weight: 600; }
+h1 { font-size: var(--t-xl); font-weight: var(--w-bold); letter-spacing: -0.021em; line-height: 1.2; }
+h2 { font-size: var(--t-lg); font-weight: var(--w-bold); letter-spacing: -0.014em; line-height: 1.3; }
+h3 { font-size: var(--t-md); font-weight: var(--w-bold); letter-spacing: -0.006em; }
 
 a {
   color: var(--accent);
   text-decoration: none;
+  text-underline-offset: 2px;
 }
+
+a:hover { text-decoration: underline; }
 
 button,
 input,
@@ -66,8 +70,14 @@ svg {
   border-radius: var(--r-sm);
 }
 
+/* Inside a scrolling table the offset ring would be clipped by the next
+   cell, so those rings sit on the element itself. */
+.wtable :focus-visible,
+.list :focus-visible { outline-offset: 1px; }
+
 ::selection {
   background: var(--accent-soft);
+  color: var(--ink);
 }
 
 /* Scrollbars stay out of the way but remain grabbable. */
@@ -92,7 +102,9 @@ svg {
   background: transparent;
 }
 
-.mono { font-family: var(--mono); }
+/* Prose is capped at a readable measure even where the column is wider. */
+.prose { max-width: 68ch; }
+.mono { font-family: var(--mono); font-size: 0.94em; }
 .tabular { font-variant-numeric: tabular-nums; }
 .muted { color: var(--ink-muted); }
 .secondary { color: var(--ink-2); }

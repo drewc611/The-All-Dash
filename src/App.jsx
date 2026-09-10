@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useStore, updateUi, recordUsage, getState } from './core/store.js'
 import { onRegistryChange } from './core/registry.js'
 import { q } from './core/query.js'
@@ -25,6 +25,7 @@ import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
   IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
+  IconDoc, IconLink, IconPlay,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -52,6 +53,7 @@ const readHash = () => {
 export default function App() {
   const state = useStore()
   const [view, setView] = useState(readHash)
+  const scroller = useRef(null)
   const [editing, setEditing] = useState(false)
   const [palette, setPalette] = useState(false)
   const [pasting, setPasting] = useState(false)
@@ -183,6 +185,10 @@ export default function App() {
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
   const empty = allEntities.length === 0
 
+  /* A new view starts at the top. Without this, arriving at Today from a
+     scrolled Analytics leaves the first card halfway up the screen. */
+  useEffect(() => { scroller.current?.scrollTo({ top: 0, behavior: 'instant' }) }, [view, empty])
+
   const related = inspecting
     ? q(allEntities).where((e) => e.source?.docId === inspecting.source?.docId && e.id !== inspecting.id).take(8)
     : []
@@ -207,7 +213,7 @@ export default function App() {
               <span>{label}</span>
               {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
               {id === 'work' && unreadWork > 0 && <span className="rail__count">{unreadWork}</span>}
-              {id === 'triage' && urgent > 0 && <span className="rail__count" style={{ color: 'var(--critical)', fontWeight: 600 }}>{urgent}</span>}
+              {id === 'triage' && urgent > 0 && <span className="rail__count rail__count--urgent">{urgent}</span>}
             </button>
           ))}
         </div>
@@ -240,7 +246,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__title">
             <h1>{active.label}</h1>
-            {active.board && <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{range.label}</span>}
+            {active.board && <span className="topbar__sub">{range.label}</span>}
           </div>
 
           <div className="topbar__actions">
@@ -260,7 +266,7 @@ export default function App() {
 
         {(active.board || active.filters) && !empty && <FilterBar entityList={allEntities} ui={state.ui} />}
 
-        <div className="scroller">
+        <div className="scroller" ref={scroller}>
           {/* Boards and Settings work on an empty workspace; every other
               view needs something to read first. */}
           {empty && view !== 'settings' && view !== 'work' ? (
@@ -323,28 +329,44 @@ export default function App() {
 
 function FirstRun({ onSeed, onFiles, onPaste, onUrl }) {
   return (
-    <div className="card" style={{ maxWidth: 620, margin: '8vh auto' }}>
-      <div className="card__body" style={{ padding: 'var(--gap-6)' }}>
-        <div className="stack">
-          <h2 style={{ fontSize: 'var(--t-2xl)', letterSpacing: '-0.02em' }}>Give it something to read.</h2>
-          <p className="secondary" style={{ margin: 0 }}>
-            Drop meeting notes, a calendar export, a transcript or a spreadsheet anywhere on this page.
-            It gets parsed into tasks, events, decisions, risks and metrics, and the dashboard builds itself
-            from what it finds. Nothing leaves your browser.
-          </p>
-          <div className="row row--wrap" style={{ marginTop: 'var(--gap-2)' }}>
-            <FilePicker onFiles={onFiles} className="btn btn--primary"><IconUpload width={13} height={13} /> Choose files</FilePicker>
-            <button className="btn" onClick={onPaste}>Paste notes</button>
-            <button className="btn" onClick={onUrl}>Import a web page</button>
-            <button className="btn" onClick={onSeed}>Load a sample project</button>
-          </div>
-          <div className="divider" style={{ margin: 'var(--gap-3) 0' }} />
-          <div className="row row--wrap" style={{ gap: 'var(--gap-1)' }}>
-            {['.md', '.txt', '.docx', '.pptx', '.xlsx', '.csv', '.json', '.ics', '.vtt', '.html'].map((ext) => (
-              <span key={ext} className="chip mono">{ext}</span>
-            ))}
-          </div>
-        </div>
+    <div className="firstrun">
+      <span className="firstrun__mark">AD</span>
+      <h2 className="firstrun__head">Give it something to read.</h2>
+      <p className="firstrun__lede">
+        Drop meeting notes, a calendar export, a transcript or a spreadsheet anywhere on this page.
+        It gets parsed into tasks, events, decisions, risks and metrics, and the dashboard builds
+        itself from what it finds. Nothing leaves your browser.
+      </p>
+
+      {/* Four ways in, each with the case for taking it - four identical
+          buttons would leave the choice to guesswork. */}
+      <div className="firstrun__ways">
+        <FilePicker onFiles={onFiles} className="way">
+          <IconUpload className="way__icon" />
+          <strong>Choose files</strong>
+          <span>Notes, decks, sheets, calendars, transcripts.</span>
+        </FilePicker>
+        <button className="way" onClick={onPaste}>
+          <IconDoc className="way__icon" />
+          <strong>Paste notes</strong>
+          <span>Straight from a doc or a chat window.</span>
+        </button>
+        <button className="way" onClick={onUrl}>
+          <IconLink className="way__icon" />
+          <strong>Import a web page</strong>
+          <span>A wiki page, a changelog, a status post.</span>
+        </button>
+        <button className="way" onClick={onSeed}>
+          <IconPlay className="way__icon" />
+          <strong>Load a sample project</strong>
+          <span>See the whole thing working in one click.</span>
+        </button>
+      </div>
+
+      <div className="firstrun__exts">
+        {['.md', '.txt', '.docx', '.pptx', '.xlsx', '.csv', '.json', '.ics', '.vtt', '.html'].map((ext) => (
+          <span key={ext} className="chip mono">{ext}</span>
+        ))}
       </div>
     </div>
   )

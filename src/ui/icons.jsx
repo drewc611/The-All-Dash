@@ -45,6 +45,7 @@ export const IconCommand = make(<><path d="M5.5 2.5a1.5 1.5 0 1 0 1.5 1.5v8a1.5 
 export const IconMic = make(<><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" /><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2M5.5 14.5h5" /></>)
 export const IconSend = make(<><path d="M2.5 8 13.5 2.5 9.5 13.5 8 8.8 2.5 8Z" /><path d="M8 8.8 13.5 2.5" /></>)
 export const IconStop = make(<rect x="4" y="4" width="8" height="8" rx="1.5" />)
+export const IconPlay = make(<path d="M5.5 3.2 12 8l-6.5 4.8V3.2Z" />)
 export const IconPulse = make(<path d="M1.5 8.5h3l2-5 3 9 2-6 1.2 2h1.8" />)
 export const IconMap = make(<><circle cx="3" cy="8" r="1.8" /><circle cx="13" cy="3.5" r="1.8" /><circle cx="13" cy="12.5" r="1.8" /><path d="M4.7 7.3 11.3 4.2M4.7 8.7l6.6 3.1" /></>)
 export const IconSpeaker = make(<><path d="M2.5 6v4h2.5L9 13V3L5 6H2.5Z" /><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.5a6 6 0 0 1 0 9" /></>)
