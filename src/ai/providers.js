@@ -21,6 +21,8 @@ export const PROVIDERS = {
     id: 'anthropic',
     label: 'Anthropic',
     baseUrl: 'https://api.anthropic.com',
+    // There is one Anthropic, at one address. Nothing may override it.
+    byo: false,
     model: 'claude-opus-5',
     needsKey: true,
     hint: 'Claude, called directly from the browser. Nothing but the context block leaves this machine.',
@@ -31,6 +33,8 @@ export const PROVIDERS = {
     id: 'openai',
     label: 'OpenAI-compatible',
     baseUrl: 'https://api.openai.com/v1',
+    // Choosing the address is the entire point of this one.
+    byo: true,
     model: '',
     needsKey: true,
     hint: 'Any endpoint that speaks /chat/completions: OpenAI, Groq, OpenRouter, Mistral, LM Studio, vLLM, LocalAI.',
@@ -41,6 +45,7 @@ export const PROVIDERS = {
     id: 'ollama',
     label: 'Ollama (local)',
     baseUrl: 'http://localhost:11434',
+    byo: true,
     model: 'llama3.1',
     needsKey: false,
     hint: 'Runs on your own machine; nothing leaves it. Start Ollama with OLLAMA_ORIGINS set to this site\'s origin so the browser may call it.',
@@ -49,11 +54,36 @@ export const PROVIDERS = {
   },
 }
 
+/**
+ * Where a request actually goes.
+ *
+ * Resolved here, at the moment of the call, rather than trusted from whatever
+ * is sitting in settings - the same rule the router catalogue follows. A
+ * named vendor's address comes from the table above and an override of it is
+ * meaningless, so it is ignored.
+ *
+ * That only helps where the table has an answer. "OpenAI-compatible" and
+ * Ollama exist precisely so someone can point them at their own endpoint, so
+ * for those the address has to be allowed - and the defence that matters is
+ * that it cannot arrive in a restored file at all. See core/settings-schema.js.
+ */
+export const endpointFor = (providerId, requested = '') => {
+  const spec = PROVIDERS[providerId] || PROVIDERS.anthropic
+  const wanted = String(requested || '').trim().replace(/\/+$/, '')
+  if (!spec.byo || !wanted) return spec.baseUrl
+  try {
+    const url = new URL(wanted)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? wanted : spec.baseUrl
+  } catch {
+    return spec.baseUrl
+  }
+}
+
 export const resolve = (settings = {}) => {
   const spec = PROVIDERS[settings.provider] || PROVIDERS.anthropic
   return {
     provider: spec.id,
-    baseUrl: (settings.baseUrl || spec.baseUrl).replace(/\/+$/, ''),
+    baseUrl: endpointFor(spec.id, settings.baseUrl),
     model: settings.model || spec.model,
     needsKey: spec.needsKey,
   }

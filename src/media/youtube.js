@@ -78,9 +78,15 @@ export function parseYouTube(input) {
 
 /** The privacy-enhanced embed URL, with the options the player needs. */
 export function embedUrl({ id, list = null, start = 0, autoplay = false, origin = '' } = {}) {
-  if (!id && !list) return ''
-  const base = id
-    ? `https://www.youtube-nocookie.com/embed/${id}`
+  // Checked here, not only where a link was parsed. A video id can reach this
+  // from a restored workspace without ever going through parse(), and
+  // thumbnails() has always checked - there is no reason for the frame to be
+  // the one place that does not.
+  const video = ID.test(String(id || '')) ? String(id) : null
+  const playlist = LIST.test(String(list || '')) ? String(list) : null
+  if (!video && !playlist) return ''
+  const base = video
+    ? `https://www.youtube-nocookie.com/embed/${video}`
     : 'https://www.youtube-nocookie.com/embed/videoseries'
   const params = new URLSearchParams({
     rel: '0',
@@ -88,7 +94,7 @@ export function embedUrl({ id, list = null, start = 0, autoplay = false, origin 
     playsinline: '1',
     enablejsapi: '1',
   })
-  if (list) params.set('list', list)
+  if (playlist) params.set('list', playlist)
   if (start > 0) params.set('start', String(Math.floor(start)))
   if (autoplay) params.set('autoplay', '1')
   // Without a matching origin the IFrame API refuses postMessage in Chrome.
@@ -108,4 +114,6 @@ export function thumbnails(id) {
 }
 
 export const watchUrl = (id, start = 0) =>
-  `https://www.youtube.com/watch?v=${id}${start > 0 ? `&t=${Math.floor(start)}` : ''}`
+  (ID.test(String(id || ''))
+    ? `https://www.youtube.com/watch?v=${id}${start > 0 ? `&t=${Math.floor(start)}` : ''}`
+    : '')

@@ -5,6 +5,7 @@ import { iso } from './time.js'
 import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
 import { normaliseWork } from '../work/schema.js'
 import { normaliseRouter } from '../ai/router-schema.js'
+import { normaliseSettings } from './settings-schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -457,6 +458,9 @@ export function exportWorkspace() {
 export function importWorkspace(json, { merge = false } = {}) {
   const incoming = typeof json === 'string' ? JSON.parse(json) : json
   if (!incoming || typeof incoming !== 'object') throw new Error('Not a workspace file')
+  // What the restore refused to take from the file, so the caller can say so
+  // rather than leaving the person with a platform tier that quietly stopped.
+  let dropped = []
   // Every entity goes back through the schema, so a hand-edited or older
   // export cannot put a record without people/tags arrays into the store.
   const entities = {}
@@ -470,6 +474,8 @@ export function importWorkspace(json, { merge = false } = {}) {
   set((s) => {
     if (!merge) {
       const base = initialState()
+      const restored = normaliseSettings(incoming.settings, base.settings, { trusted: false })
+      dropped = restored.dropped
       return {
         ...base,
         ...incoming,
@@ -478,11 +484,9 @@ export function importWorkspace(json, { merge = false } = {}) {
         docs,
         customMetrics,
         boards: incoming.boards && typeof incoming.boards === 'object' ? { ...base.boards, ...incoming.boards } : base.boards,
-        settings: {
-          ...base.settings,
-          ...(incoming.settings || {}),
-          assistant: { ...base.settings.assistant, ...(incoming.settings?.assistant || {}) },
-        },
+        // A restored file does not get to say where a key is sent, or to
+        // consent to anything on the person's behalf. See settings-schema.js.
+        settings: restored.settings,
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         brain: normaliseBrainState(incoming.brain),
         work: normaliseWork(incoming.work),
@@ -508,6 +512,7 @@ export function importWorkspace(json, { merge = false } = {}) {
       },
     }
   })
+  return { dropped }
 }
 
 export function clearWorkspace() {

