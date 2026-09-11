@@ -110,12 +110,72 @@ test('the Analyst catches two different figures for the same measure', () => {
   assert.match(pair.why, /264|180/)
 })
 
+test('a claim whose body is empty still reads as a denial', () => {
+  // The corpus text already opens with the title, so prepending the title
+  // counts its negators twice - and "has never been run" with two "never"s
+  // parses as a positive claim, losing the contradiction entirely.
+  const bare = [
+    entity('risk_x', 'risk', 'the rollback script has never been run against production data', '', ['risks']),
+    entity('note_x', 'note', 'The rollback script was run against production data last week',
+      'We did run the rollback script against production data last week and it finished in 40 minutes.', ['atlas']),
+  ]
+  const passages = retrieve(indexCorpus(corpusFrom(bare, [])), 'rollback script production data', { now: NOW })
+  const found = contradictions(passages)
+  assert.equal(found.length, 1, JSON.stringify(passages.map((p) => p.id)))
+  assert.equal(found[0].kind, 'negation')
+})
+
+test('a long document is judged on the sentence that is about the subject', () => {
+  // A meeting note contains the word "not" somewhere. Judging the whole
+  // document by that says it denies everything in it, and pairs it with every
+  // short claim that agrees with it.
+  const long = [
+    entity('doc_x', 'doc', 'Atlas weekly sync.md',
+      'The cutover went out with no downtime. Support saw three tickets. The rollback script was run against production data last week. We are not changing the plan.', ['markdown']),
+    entity('note_y', 'note', 'The rollback script was run against production data',
+      'The rollback script was run against production data and it finished.', ['atlas']),
+  ]
+  const passages = retrieve(indexCorpus(corpusFrom(long, [])), 'rollback script production data', { now: NOW })
+  assert.deepEqual(contradictions(passages), [], 'these agree; a stray "not" elsewhere must not say otherwise')
+})
+
 test('the Analyst stays quiet about passages that merely share a word', () => {
   const unrelated = [
     { id: 'a', title: 'The invoice was paid on Tuesday', text: 'The invoice was paid on Tuesday.', excerpt: null },
     { id: 'b', title: 'The cluster was resized on Tuesday', text: 'The cluster was resized on Tuesday.', excerpt: null },
   ]
   assert.deepEqual(contradictions(unrelated), [], 'sharing "Tuesday" is not a disagreement')
+})
+
+test('two sources saying the same thing in different words agree', () => {
+  // Grouping by an exact hash of the content words sounds stricter and is
+  // useless: nobody writes the same fact twice with the identical vocabulary,
+  // so nothing ever agrees with anything.
+  const same = [
+    entity('p3', 'note', 'The cutover runbook is out of date',
+      'The cutover runbook is out of date and nobody has revised it since phase one.', ['atlas']),
+    entity('p4', 'decision', 'The cutover runbook is out of date',
+      'Marco confirmed the cutover runbook is out of date after the phase one retro.', ['atlas']),
+  ]
+  const passages = retrieve(indexCorpus(corpusFrom(same, [])), 'cutover runbook out of date', { now: NOW })
+  const result = analyse(passages, { question: 'cutover runbook out of date' })
+  assert.equal(result.agreement.length, 1)
+  assert.equal(result.agreement[0].count, 2)
+
+  const proposals = plan(result, passages, { now: NOW })
+  assert.ok(proposals.some((p) => p.kind === 'remember'), 'agreement is what earns a claim a file')
+})
+
+test('passages that contradict each other are not also counted as agreeing', () => {
+  const passages = retrieve(build(), 'rollback script production data', { now: NOW })
+  const found = contradictions(passages)
+  const agreed = analyse(passages, { question: 'rollback script production data' }).agreement
+  for (const clash of found) {
+    for (const group of agreed) {
+      const both = clash.between.every((id) => group.sources.includes(id))
+      assert.equal(both, false, `${clash.between.join(' vs ')} cannot both disagree and agree`)
+    }
+  }
 })
 
 test('a word in the question that nothing answers is reported as a gap', () => {
@@ -274,6 +334,29 @@ test('the Planner does not propose a task that already exists', () => {
 
   const again = plan(analysis, passages, { now: NOW, existing: new Set(first.map((p) => p.title)) })
   assert.equal(again.length, 0, 'proposing the same task twice is how people stop reading suggestions')
+})
+
+test('a claim worth keeping is not deduplicated against the record it came from', () => {
+  // The proposal's text IS the text of a passage that exists - that is what
+  // makes it worth keeping. Checked against one combined set, every such
+  // proposal removes itself and the genome never gains anything.
+  const same = [
+    entity('p3', 'note', 'The cutover runbook is out of date',
+      'The cutover runbook is out of date and nobody has revised it since phase one.', ['atlas']),
+    entity('p4', 'decision', 'The cutover runbook is out of date',
+      'Marco confirmed the cutover runbook is out of date after the phase one retro.', ['atlas']),
+  ]
+  const passages = retrieve(indexCorpus(corpusFrom(same, [])), 'cutover runbook out of date', { now: NOW })
+  const analysis = analyse(passages, { question: 'cutover runbook out of date' })
+
+  const existing = new Set(same.map((e) => e.title))
+  const offered = plan(analysis, passages, { now: NOW, existing })
+  assert.ok(offered.some((p) => p.kind === 'remember'), 'the record existing is the reason, not an objection')
+
+  // But once the genome already says it, it is not offered again.
+  const claims = new Set(['The cutover runbook is out of date'])
+  const again = plan(analysis, passages, { now: NOW, existing, claims })
+  assert.equal(again.some((p) => p.kind === 'remember'), false)
 })
 
 test('summarise says what was proposed without anybody counting', () => {

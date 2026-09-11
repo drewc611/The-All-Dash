@@ -53,6 +53,28 @@ const polarity = (text) => {
   return flips % 2 === 0 ? 1 : -1
 }
 
+const sentencesOf = (text) =>
+  String(text ?? '').split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean)
+
+/**
+ * The sentence in this passage that is most about the given subject.
+ *
+ * Polarity has to be measured on the sentence that makes the claim, not on
+ * the passage containing it. A meeting note is forty lines long and will
+ * contain the word "not" somewhere; judging the whole document by that says
+ * the document denies everything in it, and pairs it with every short claim
+ * that agrees.
+ */
+function focus(text, against) {
+  let best = text
+  let bestScore = -1
+  for (const sentence of sentencesOf(text)) {
+    const score = overlap(subject(sentence), against)
+    if (score > bestScore) { bestScore = score; best = sentence }
+  }
+  return best
+}
+
 /** Numbers stated in a passage, with the unit if one is attached. */
 export function measures(text) {
   const out = []
@@ -85,8 +107,16 @@ const SAME_SUBJECT = 0.6
  */
 export function contradictions(passages) {
   const prepared = passages.map((p) => {
-    const text = `${p.title}\n${p.excerpt?.text || p.text || ''}`
-    return { passage: p, text, subject: subject(text), polarity: polarity(text), measures: measures(text) }
+    // The whole passage, not the excerpt. An excerpt is a 220-character
+    // window around the query match, and the word that flips a claim is
+    // routinely outside it - "never" three sentences from the term you
+    // searched for is exactly the case this exists to catch.
+    //
+    // The title is not prepended: the corpus text already opens with it, and
+    // counting it twice counts its negators twice, which flips "has never
+    // been run" back to a positive claim and loses the contradiction.
+    const text = p.text || p.title || p.excerpt?.text || ''
+    return { passage: p, text, subject: subject(text), measures: measures(text) }
   })
 
   const found = []
@@ -96,7 +126,9 @@ export function contradictions(passages) {
       const b = prepared[j]
       if (overlap(a.subject, b.subject) < SAME_SUBJECT) continue
 
-      if (a.polarity !== b.polarity) {
+      // Judged on the sentence in each that is actually about the shared
+      // subject, rather than on the whole passage.
+      if (polarity(focus(a.text, b.subject)) !== polarity(focus(b.text, a.subject))) {
         found.push({ kind: 'negation', between: [a.passage.id, b.passage.id], why: 'One of these says the opposite of the other about the same subject.' })
         continue
       }
@@ -119,29 +151,56 @@ export function contradictions(passages) {
   return found
 }
 
-/** The same claim, arriving from more than one place. Independent agreement is
-    worth more than one source repeated, so sources are counted, not passages. */
-export function agreement(passages) {
-  const bySubject = new Map()
-  for (const p of passages) {
-    const key = [...subject(`${p.title} ${p.excerpt?.text || ''}`)].sort().slice(0, 6).join(' ')
-    if (!key) continue
-    if (!bySubject.has(key)) bySubject.set(key, [])
-    bySubject.get(key).push(p)
+/**
+ * The same claim, arriving from more than one place.
+ *
+ * Grouped by subject overlap, using the same threshold as the contradiction
+ * test above rather than a second mechanism. The obvious alternative - hash
+ * the content words and group by equality - sounds stricter and is in fact
+ * useless: two people writing the same fact in two sentences never choose the
+ * identical set of words, so nothing ever agrees with anything.
+ *
+ * Passages already known to contradict each other are not counted as
+ * agreeing, which is why the clashes are passed in.
+ */
+export function agreement(passages, clashes = []) {
+  const opposed = new Set()
+  for (const clash of clashes) {
+    opposed.add(`${clash.between[0]}|${clash.between[1]}`)
+    opposed.add(`${clash.between[1]}|${clash.between[0]}`)
   }
-  return [...bySubject.entries()]
-    .filter(([, group]) => group.length > 1)
-    .map(([key, group]) => ({ subject: key, sources: group.map((p) => p.id), count: group.length }))
-    .sort((a, b) => b.count - a.count)
+
+  const prepared = passages.map((p) => ({ p, subject: subject(p.text || p.title || p.excerpt?.text || '') }))
+  const taken = new Set()
+  const groups = []
+
+  for (let i = 0; i < prepared.length; i += 1) {
+    if (taken.has(prepared[i].p.id)) continue
+    const group = [prepared[i]]
+    for (let j = i + 1; j < prepared.length; j += 1) {
+      if (taken.has(prepared[j].p.id)) continue
+      if (overlap(prepared[i].subject, prepared[j].subject) < SAME_SUBJECT) continue
+      if (opposed.has(`${prepared[i].p.id}|${prepared[j].p.id}`)) continue
+      group.push(prepared[j])
+    }
+    if (group.length < 2) continue
+    for (const member of group) taken.add(member.p.id)
+    groups.push({
+      subject: [...prepared[i].subject].slice(0, 6).join(' '),
+      sources: group.map((g) => g.p.id),
+      count: group.length,
+    })
+  }
+  return groups.sort((a, b) => b.count - a.count)
 }
 
 /** Everything the Analyst has to say about one retrieval. */
 export function analyse(passages, { question = '' } = {}) {
   const found = contradictions(passages)
-  const agreed = agreement(passages)
+  const agreed = agreement(passages, found)
   const asked = subject(question)
   const covered = new Set()
-  for (const p of passages) for (const word of subject(`${p.title} ${p.excerpt?.text || ''}`)) covered.add(word)
+  for (const p of passages) for (const word of subject(`${p.title} ${p.text || p.excerpt?.text || ''}`)) covered.add(word)
   const gaps = [...asked].filter((word) => !covered.has(word))
 
   return {

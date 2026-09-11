@@ -38,20 +38,30 @@ const proposal = ({ kind, title, why, evidence, apply }) => ({
  *
  * @param {object} analysis  from the Analyst
  * @param {object[]} passages from the Librarian
- * @param {{question?: string, now?: Date, existing?: Set<string>}} options
- *        `existing` is the titles already in the workspace, so the Planner
- *        does not propose a task that is already sitting on a board - the
- *        fastest way to make somebody stop reading suggestions.
+ * @param {{question?: string, now?: Date, existing?: Set<string>, claims?: Set<string>}} options
+ *        `existing` is the task titles already in the workspace, so the
+ *        Planner does not propose a task already sitting on a board - the
+ *        fastest way to make somebody stop reading suggestions. `claims` is
+ *        what the genome already says.
+ *
+ *        The two are checked separately, and they have to be. A claim worth
+ *        keeping is worth keeping *because* several records say it, so its
+ *        text is by construction the text of a record that already exists.
+ *        Checked against one combined set, every such proposal deduplicates
+ *        itself out of existence and the genome never gains anything.
  */
-export function plan(analysis, passages, { question = '', now = new Date(), existing = new Set() } = {}) {
+export function plan(analysis, passages, { question = '', now = new Date(), existing = new Set(), claims = new Set() } = {}) {
   const byId = new Map(passages.map((p) => [p.id, p]))
-  const seen = new Set([...existing].map((t) => String(t).toLowerCase().trim()))
+  const normal = (text) => String(text).toLowerCase().trim()
+  const seenTasks = new Set([...existing].map(normal))
+  const seenClaims = new Set([...claims].map(normal))
   const out = []
 
   const push = (item) => {
-    const key = item.title.toLowerCase().trim()
-    if (seen.has(key)) return
-    seen.add(key)
+    const against = item.apply.type === 'gene' ? seenClaims : seenTasks
+    const key = normal(item.apply.type === 'gene' ? item.apply.claim : item.title)
+    if (against.has(key)) return
+    against.add(key)
     out.push(item)
   }
 

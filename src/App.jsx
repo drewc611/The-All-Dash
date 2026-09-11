@@ -46,6 +46,7 @@ const load = {
   studio: () => import('./ui/views/Studio.jsx'),
   stash: () => import('./ui/stash/Stash.jsx'),
   brain: () => import('./ui/views/Brain.jsx'),
+  agents: () => import('./ui/views/Agents.jsx'),
   settings: () => import('./ui/views/Settings.jsx'),
   assistant: () => import('./ui/Assistant.jsx'),
 }
@@ -57,6 +58,7 @@ const Work = lazy(() => load.work().then((m) => ({ default: m.Work })))
 const Studio = lazy(() => load.studio().then((m) => ({ default: m.Studio })))
 const Stash = lazy(() => load.stash().then((m) => ({ default: m.Stash })))
 const Brain = lazy(() => load.brain().then((m) => ({ default: m.Brain })))
+const Agents = lazy(() => load.agents().then((m) => ({ default: m.Agents })))
 const Settings = lazy(() => load.settings().then((m) => ({ default: m.Settings })))
 const Assistant = lazy(() => load.assistant().then((m) => ({ default: m.Assistant })))
 
@@ -75,6 +77,7 @@ const VIEWS = [
   { id: 'studio', label: 'Studio', Icon: IconVideo },
   { id: 'library', label: 'Library', Icon: IconLibrary },
   { id: 'brain', label: 'Brain', Icon: IconBrain },
+  { id: 'agents', label: 'Agents', Icon: IconSpark },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ]
 
@@ -165,7 +168,7 @@ export default function App() {
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work', m: 'studio', k: 'stash' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work', m: 'studio', k: 'stash', g: 'agents' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -312,7 +315,7 @@ export default function App() {
           <Suspense fallback={<Loading />}>
           {/* Boards and Settings work on an empty workspace; every other
               view needs something to read first. */}
-          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' ? (
+          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' && view !== 'agents' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
@@ -330,6 +333,8 @@ export default function App() {
             <Stash entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : view === 'brain' ? (
             <Brain state={state} onOpen={setInspecting} onToast={toast} />
+          ) : view === 'agents' ? (
+            <Agents state={state} entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}

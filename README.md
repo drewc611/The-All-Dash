@@ -859,6 +859,107 @@ you turn that off in Settings. The store keeps only what cannot be recomputed:
 your name, role and focus, your notes, which opinions you accepted or
 dismissed, and the usage counters. *Reset the brain* clears exactly that.
 
+## The agents
+
+Five of them, over a memory that has to earn its place. The whole thing runs
+with no API key and no network; a model, when you have one configured, writes
+the prose and nothing else.
+
+<p>
+  <img src="docs/screenshots/agents-answer.png" alt="An answer with every claim cited, the contradictions found, and what the Critic cut" width="100%">
+</p>
+
+| Agent | What it does | Ever a model? |
+|---|---|---|
+| **Librarian** | Finds passages across your records, your saved articles and the genome, one BM25 index over all three | Never |
+| **Analyst** | Contradictions, agreement, and words in your question that appear in nothing you saved | Never |
+| **Tutor** | Cuts spaced-repetition cards from your own sentences and schedules them with SM-2 | Never |
+| **Planner** | Turns a contradiction into a task and an agreement into a claim worth keeping. Proposes; never writes | Never |
+| **Critic** | Cuts every claim that cannot be traced to a passage that was actually retrieved | Never |
+
+Retrieval and verification are never a model's job, however good the model is.
+A retriever that invents a passage has not made a mistake — it has removed the
+only reason to trust anything downstream of it. So the model gets exactly one
+job, writing, and its output goes through the same Critic as everything else:
+if a sentence cites something that was not retrieved, it is cut before you see
+it, and if the whole draft fails, the assembled answer stands instead. Turning
+the model off changes how the answer reads, not what it says.
+
+**Contradictions are found by arithmetic, not by opinion.** Two passages about
+the same subject where one negates the other, or where both state a figure in
+the same unit and the figures differ. Polarity is judged on the sentence that
+is actually about the shared subject, because a forty-line meeting note
+contains the word "not" somewhere and judging the whole document by that says
+it denies everything in it. Everything subtler is left alone: a contradiction
+detector that cries wolf gets switched off in a week and then catches nothing.
+
+### The genome
+
+A claim is a Markdown file with front matter — a generation, the claim it
+descended from, the records it was drawn from, and a tally of how often it has
+been cited, confirmed and contradicted since.
+
+```md
+---
+id: gene_1xbdan21sjtahg
+generation: 3
+parents: [gene_9fz2k1, gene_44ba0x]
+sources: [risk_hs3t2v2zvjyx, task_imdss133ulpc]
+cited: 14
+confirmed: 9
+contradicted: 1
+retired: false
+---
+
+The rollback script is the riskiest part of the Atlas cutover.
+```
+
+<p>
+  <img src="docs/screenshots/agents-genome.png" alt="The genome: claims ranked by fitness, with their generation and evidence" width="100%">
+</p>
+
+That tally is the point. **Fitness is support × usefulness × recency:**
+
+- **Support** is confirmed against contradicted, Laplace-smoothed — a new claim
+  sits at 0.5 rather than at certainty, and one contradiction against nine
+  confirmations moves it to 0.77 rather than throwing it out. One person
+  disagreeing once is not a refutation.
+- **Usefulness** saturates. The difference between never cited and cited twice
+  matters; the difference between the fortieth and the forty-first does not.
+- **Recency** decays on a 90-day half-life.
+
+Below a floor a claim is **retired** — archived, out of retrieval, never
+deleted. The floor is set against the decay curve rather than picked: a claim
+nothing ever confirmed and nothing ever cited lasts about 95 days, and one
+confirmation buys it 132. A passing thought lasts a quarter; something you
+agreed with once lasts two.
+
+**Rewording does not edit a claim, it has a child.** The parent is recorded,
+the counters carry over at half, and the lineage stays in the file. Every AI
+memory feature can tell you what it currently thinks. This one can tell you how
+it changed its mind.
+
+Matching is on the claim text, not on similarity. A threshold loose enough to
+match a rewording is loose enough to merge two claims that disagree, and
+merging those is how a memory starts lying.
+
+A claim is an ordinary entity, the way a saved article is, so it turns up in
+the Library, on the Timeline, in the command bar and in the export without any
+of them learning what a claim is.
+
+### Study
+
+<p>
+  <img src="docs/screenshots/agents-study.png" alt="A cloze card cut from a saved passage" width="100%">
+</p>
+
+Cards are cut from your own sentences by deleting the load-bearing term — the
+figure, the name, the rare word — not written by a model. A cloze made from a
+sentence you saved has an answer that is certainly in your material; a question
+a model generated has an answer that might be. Scheduling is SM-2 (Wozniak &
+Gorzelanczyk, 1994), unmodified: the interesting work is choosing what to ask,
+and the interval arithmetic has been settled for thirty years.
+
 ## What needs attention
 
 Rules that run over everything and return a sentence with its evidence attached.
@@ -913,7 +1014,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `w` `r` `l` `a` `k` `m` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Stash, Studio, Library, Brain, Settings |
+| `g` then `t` `w` `r` `l` `a` `k` `m` `d` `b` `g` `s` | Today, Boards, Triage, Timeline, Analytics, Stash, Studio, Library, Brain, Agents, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -921,6 +1022,8 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 ```
 src/
   core/       registry (the harness), store, query engine, time, format, ids
+  agents/     the five: librarian, analyst, tutor, planner, critic, and the pipeline
+  genome/     claims as Markdown files, and the selection that keeps them honest
   data/       entity schema, the sample project
   ingest/     parser registry entry point, shared text and table readers, zip, export detection
   engine/     metrics, reminders, insight rules, triage

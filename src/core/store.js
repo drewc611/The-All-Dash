@@ -6,6 +6,7 @@ import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
 import { normaliseWork } from '../work/schema.js'
 import { normaliseRouter } from '../ai/router-schema.js'
 import { normaliseSettings } from './settings-schema.js'
+import { normaliseStudy, emptyStudy } from '../agents/study-schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -76,6 +77,7 @@ const initialState = () => ({
   },
   triage: {},
   brain: emptyBrainState(),
+  study: emptyStudy(),
   work: normaliseWork(null),
   router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
@@ -96,6 +98,7 @@ function load() {
       version: SCHEMA_VERSION,
       settings: { ...base.settings, ...(parsed.settings || {}), media: { ...base.settings.media, ...(parsed.settings?.media || {}) }, assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
       brain: normaliseBrainState(parsed.brain),
+      study: normaliseStudy(parsed.study),
       work: normaliseWork(parsed.work),
       router: normaliseRouter(parsed.router),
     }
@@ -489,6 +492,7 @@ export function importWorkspace(json, { merge = false } = {}) {
         settings: restored.settings,
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         brain: normaliseBrainState(incoming.brain),
+        study: normaliseStudy(incoming.study),
         work: normaliseWork(incoming.work),
         // A restored file is untrusted: it may not carry an endpoint that a
         // provider key would then be sent to.

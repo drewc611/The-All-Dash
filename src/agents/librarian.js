@@ -33,7 +33,18 @@ import { fitness } from '../genome/evolve.js'
  */
 const WEIGHT = { gene: 1.25, entity: 1.0, page: 0.9 }
 
-const textOf = (entity) => [entity.title, entity.body, (entity.tags || []).join(' ')].filter(Boolean).join('\n')
+/*
+ * Two strings per document, and they are not the same string.
+ *
+ * `text` is what gets indexed, and tags belong in it - searching for a tag
+ * should find what carries it. `display` is what an answer, a card and the
+ * contradiction test read, and tags must not be in that: a claim rendered as
+ * "the rollback script has never been run against production data risks
+ * atlas" has had its filing system read out as if it were part of the
+ * sentence.
+ */
+const indexedText = (entity) => [entity.title, entity.body, (entity.tags || []).join(' ')].filter(Boolean).join('\n')
+const readableText = (entity) => [entity.title, entity.body].filter(Boolean).join('\n')
 
 /**
  * Build the corpus the Librarian searches.
@@ -50,7 +61,8 @@ export function corpusFrom(entities = [], genes = [], articles = new Map()) {
     docs.push({
       id: entity.id,
       title: entity.title,
-      text: article || textOf(entity),
+      text: article || indexedText(entity),
+      display: article || readableText(entity),
       kind: entity.type === 'page' ? 'page' : 'entity',
       entityType: entity.type,
       rev: `${entity.updatedAt || ''}`,
@@ -62,6 +74,7 @@ export function corpusFrom(entities = [], genes = [], articles = new Map()) {
       id: gene.id,
       title: gene.claim,
       text: `${gene.claim}\n${gene.body}`,
+      display: `${gene.claim}\n${gene.body}`,
       kind: 'gene',
       gene,
       rev: `${gene.changed || ''}:${gene.generation}`,
@@ -98,11 +111,12 @@ export function retrieve(index, question, { limit = 8, now = new Date() } = {}) 
         kind: doc.kind,
         entityType: doc.entityType || null,
         title: doc.title || '',
-        text: doc.text || '',
+        // Everything downstream reads prose, never the indexed form.
+        text: doc.display || doc.text || '',
         gene: doc.gene || null,
         score: hit.score * weight * (doc.kind === 'gene' ? 0.5 + 0.5 * fit : 1),
         why: { relevance: hit.score, weight, fitness: doc.kind === 'gene' ? fit : null },
-        excerpt: snippet(doc.text || '', question),
+        excerpt: snippet(doc.display || doc.text || '', question),
       }
     })
     .sort((a, b) => b.score - a.score)

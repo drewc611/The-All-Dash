@@ -1,0 +1,282 @@
+/*
+ * The agents view.
+ *
+ * The design decision here: an answer is presented as something to take apart,
+ * not as a paragraph to believe. So the citations are buttons rather than
+ * superscripts, the passages that produced the answer are listed underneath
+ * with their arithmetic, and what the Critic cut is shown rather than hidden.
+ * Everything below follows from that.
+ */
+
+.agents__ask {
+  display: flex;
+  gap: var(--gap-2);
+  align-items: center;
+}
+
+.agents__q { flex: 1; min-width: 0; }
+
+/* --------------------------------------------------------------- roster */
+
+.agents__roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--gap-2);
+}
+
+.agents__role {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-1);
+  padding: var(--pad-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.agents__role strong { font-size: var(--t-sm); }
+.agents__role .muted { font-size: var(--t-xs); line-height: 1.5; }
+
+.agents__note {
+  grid-column: 1 / -1;
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--t-xs);
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------- answer */
+
+.agents__answer p {
+  margin: 0 0 var(--gap-2);
+  /* The reading measure, same as the stash reader. An answer is prose and
+     obeys the same limit as any other prose in this app. */
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+.agents__answer p:last-child { margin-bottom: 0; }
+
+.agents__meta {
+  margin: var(--gap-2) 0 0;
+  font-size: var(--t-xs);
+}
+
+/* A citation is a link to the record, not a footnote marker. The whole point
+   is that you can go and look. */
+.cite {
+  display: inline;
+  padding: 0 4px;
+  margin: 0 1px;
+  font: inherit;
+  font-size: 0.92em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+
+.cite:hover { background: var(--accent); color: var(--accent-ink); }
+.cite:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ passages */
+
+.agents__passage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--pad-2) var(--pad-3);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.agents__passage:hover { background: var(--surface-hover); }
+.agents__ptitle { font-size: var(--t-sm); }
+.agents__pwhy { font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+
+.agents__cut {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--pad-2) var(--pad-3);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+  border-radius: var(--r-1);
+  font-size: var(--t-sm);
+}
+
+.agents__cut .muted { font-size: var(--t-xs); }
+
+/* ------------------------------------------------------------ proposals */
+
+.agents__proposal {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-3);
+  padding: var(--pad-2) var(--pad-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.agents__proposaltext { gap: 2px; min-width: 0; }
+.agents__proposal strong { font-size: var(--t-sm); }
+.agents__proposal .muted { font-size: var(--t-xs); }
+
+/* ---------------------------------------------------------------- study */
+
+.agents__progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-4);
+  padding: var(--pad-2) var(--pad-3);
+  background: var(--surface-2);
+  border-radius: var(--r-2);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+
+.agents__progress strong {
+  font-size: var(--t-md);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.agents__lapsing strong { color: var(--serious); }
+
+.agents__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-4);
+  padding: var(--pad-6) var(--pad-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  text-align: center;
+}
+
+.agents__question {
+  margin: 0;
+  max-width: 56ch;
+  font-size: var(--t-lg);
+  line-height: 1.5;
+}
+
+.agents__reveal {
+  margin: 0;
+  padding: var(--pad-2) var(--pad-4);
+  font-size: var(--t-lg);
+  font-weight: var(--w-bold);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-2);
+}
+
+/* --------------------------------------------------------------- genome */
+
+.agents__genomebar {
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+
+.agents__toggle {
+  gap: var(--gap-1);
+  align-items: center;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.agents__gene {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--pad-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+/* Retired is dimmed, not hidden, and says so in words as well as in opacity -
+   a state signalled only by how faint something looks is a state half the
+   people using it will miss. */
+.agents__gene.is-retired { opacity: 0.62; border-style: dashed; }
+
+.agents__genehead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2);
+}
+
+.agents__geneclaim {
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: var(--w-bold);
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.agents__geneclaim:hover { color: var(--accent); }
+
+.agents__gen {
+  flex: none;
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agents__fitness {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.agents__fitbar {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.agents__fitfill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.agents__genemeta { font-size: var(--t-xs); }
+.agents__geneactions { gap: var(--gap-1); }
+
+.wtab__count {
+  margin-left: 6px;
+  padding: 0 6px;
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  background: var(--surface-sunken);
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .agents__ask { flex-wrap: wrap; }
+  .agents__q { flex-basis: 100%; }
+  .agents__proposal { flex-direction: column; align-items: stretch; }
+  .agents__card { padding: var(--pad-4) var(--pad-3); }
+  .agents__question { font-size: var(--t-md); }
+}

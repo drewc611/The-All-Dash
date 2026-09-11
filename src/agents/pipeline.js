@@ -49,6 +49,7 @@ export function assemble(passages, analysis, { question = '' } = {}) {
   for (const p of passages.slice(0, 5)) {
     const text = (p.excerpt?.text || p.text || '').split(/(?<=[.!?])\s+/)[0] || p.title
     lines.push(`${text.trim().replace(/\s+$/, '')} [[${p.id}]]`)
+    lines.push('')
   }
 
   // One sentence each, opening with the citations. Any phrasing that puts a
@@ -63,7 +64,10 @@ export function assemble(passages, analysis, { question = '' } = {}) {
   // citation only means anything if there are no exceptions to it. The
   // caller gets them in `analysis.gaps` and the UI shows them beside the
   // answer rather than inside it.
-  return lines.join('\n')
+  // Blank lines between them, so each passage is its own claim. Joined with
+  // single newlines the Critic sees one enormous claim, and one bad citation
+  // anywhere in it would take the whole answer down.
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 /** The prompt a model gets: the passages, and a hard rule about citing them. */
@@ -95,7 +99,7 @@ export function promptFor(question, passages) {
  * answer is used instead. A model failure degrades the prose and never the
  * facts.
  */
-export async function run(question, { index, genes = [], existing = new Set(), write = null, now = new Date(), limit = 8 } = {}) {
+export async function run(question, { index, genes = [], existing = new Set(), claims = new Set(), write = null, now = new Date(), limit = 8 } = {}) {
   const passages = retrieve(index, question, { limit, now })
   const analysis = analyse(passages, { question })
 
@@ -126,7 +130,7 @@ export async function run(question, { index, genes = [], existing = new Set(), w
   const checked = review(answer, passages)
   const finalAnswer = checked.kept.join('\n\n')
   const cards = cardsFrom(passages, { now })
-  const proposals = plan(analysis, passages, { question, now, existing })
+  const proposals = plan(analysis, passages, { question, now, existing, claims })
 
   return {
     question,
