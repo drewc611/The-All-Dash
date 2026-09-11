@@ -58,6 +58,9 @@ const initialState = () => ({
     // The platform tier this app may talk to (Settings → Platform). Its key
     // lives with the assistant keys, never here.
     platform: { url: '' },
+    // Media. Both of these are off until asked for: one reaches a Google
+    // server, the other downloads 32MB from a CDN.
+    media: { youtube: false, ffmpeg: false },
     // The assistant's key is never in here; see src/ai/keys.js.
     assistant: {
       provider: 'anthropic',
@@ -88,7 +91,7 @@ function load() {
       ...base,
       ...parsed,
       version: SCHEMA_VERSION,
-      settings: { ...base.settings, ...(parsed.settings || {}), assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
+      settings: { ...base.settings, ...(parsed.settings || {}), media: { ...base.settings.media, ...(parsed.settings?.media || {}) }, assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
       brain: normaliseBrainState(parsed.brain),
       work: normaliseWork(parsed.work),
     }
@@ -302,6 +305,12 @@ export function updateSettings(patch) {
 
 export function updateAssistantSettings(patch) {
   set((s) => ({ ...s, settings: { ...s.settings, assistant: { ...(s.settings.assistant || {}), ...patch } } }))
+}
+
+/** Media flags merge rather than replace, so turning YouTube on cannot take
+    the ffmpeg setting down with it. */
+export function updateMediaSettings(patch) {
+  set((s) => ({ ...s, settings: { ...s.settings, media: { ...(s.settings.media || {}), ...patch } } }))
 }
 
 /** Silence one triage signal until a date. The signal itself is never stored. */

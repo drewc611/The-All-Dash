@@ -16,6 +16,8 @@ import { Settings } from './ui/views/Settings.jsx'
 import { Triage } from './ui/views/Triage.jsx'
 import { Brain } from './ui/views/Brain.jsx'
 import { Work } from './ui/views/Work.jsx'
+import { Studio } from './ui/views/Studio.jsx'
+import { MiniPlayer } from './ui/media/MiniPlayer.jsx'
 import { runTimedAutomations } from './work/store.js'
 import { useBrainSync } from './ui/brainSync.js'
 import { Assistant } from './ui/Assistant.jsx'
@@ -25,7 +27,7 @@ import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
   IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
-  IconDoc, IconLink, IconPlay,
+  IconDoc, IconLink, IconPlay, IconVideo,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -37,6 +39,7 @@ const VIEWS = [
   { id: 'triage', label: 'Triage', Icon: IconPulse, filters: true },
   { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
+  { id: 'studio', label: 'Studio', Icon: IconVideo },
   { id: 'library', label: 'Library', Icon: IconLibrary },
   { id: 'brain', label: 'Brain', Icon: IconBrain },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
@@ -123,7 +126,7 @@ export default function App() {
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work', m: 'studio' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -269,7 +272,7 @@ export default function App() {
         <div className="scroller" ref={scroller}>
           {/* Boards and Settings work on an empty workspace; every other
               view needs something to read first. */}
-          {empty && view !== 'settings' && view !== 'work' ? (
+          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
@@ -281,6 +284,8 @@ export default function App() {
             <Library entityList={allEntities} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
           ) : view === 'work' ? (
             <Work state={state} onToast={toast} onOpenEntity={setInspecting} />
+          ) : view === 'studio' ? (
+            <Studio entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : view === 'brain' ? (
             <Brain state={state} onOpen={setInspecting} onToast={toast} />
           ) : (
@@ -290,6 +295,7 @@ export default function App() {
       </div>
 
       {dragging && <DropHint />}
+      <MiniPlayer />
       <Toasts toasts={toasts} />
       {palette && (
         <CommandBar entities={state.entities} onClose={() => setPalette(false)} onOpen={setInspecting} navigate={navigate} />

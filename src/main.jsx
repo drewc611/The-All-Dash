@@ -8,6 +8,7 @@ import './styles/layout.css'
 import './styles/components.css'
 import './styles/work.css'
 import './styles/viz.css'
+import './styles/media.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

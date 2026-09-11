@@ -59,6 +59,14 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   search, JavaScript rendering and screenshots use Firecrawl when you add a
   key; extract and agent use a model you configure on the backend and record
   what they did in the audit ledger. Agents get the same seven tools over MCP.
+- **A Studio: camera, player, compression, YouTube.** Shoot a clip or a photo
+  from the webcam and it lands in the Library beside the notes from the same
+  meeting. Shrink a video without uploading it anywhere — the built-in encoder
+  decodes to a canvas and records the canvas at a bitrate you choose, and an
+  optional ffmpeg.wasm engine goes faster and writes MP4. Music and recordings
+  play from a bar in the shell rather than inside a view, so the sound carries
+  on while you work a board, and the OS media keys drive it. YouTube embeds
+  through youtube-nocookie.com, off until you switch it on.
 - **A brain that learns who you are, with no model.** Rules over your own
   data work out who you work with, which topics slip, when you are active,
   how far ahead you plan. Facts are recorded automatically; opinions ("#infra
@@ -103,6 +111,14 @@ row for its columns, its conversation and everything that has changed on it.
 <p>
   <img src="docs/screenshots/boards-table.png" width="49%" alt="A project board: groups, owner, status, timeline, priority and progress columns with per-group summaries" />
   <img src="docs/screenshots/boards-item.png" width="49%" alt="One row open: every column, an update with an @mention, and the activity log" />
+</p>
+
+**Studio.** Shoot it, shrink it, play it. The player lives in the shell, so the
+sound carries on while you work somewhere else.
+
+<p>
+  <img src="docs/screenshots/studio-camera.png" width="49%" alt="The camera mid-recording: preview, elapsed timer, photo and stop buttons, device and resolution pickers" />
+  <img src="docs/screenshots/studio-compress.png" width="49%" alt="A compressed video: the plan, then the result showing the file went from 439 KB to 51 KB" />
 </p>
 
 **Triage.** Everything that is wrong right now, most urgent first: overdue and
@@ -295,6 +311,106 @@ No permissions, guests or per-user views: this half of the app is one person's
 browser, and everything in it stays there. No file uploads on a row, because
 localStorage is the wrong place for binaries. No documents. If you need people
 to share a board, that is what the platform tier below is for.
+
+## Studio
+
+Media is the one half of this app that is about bytes rather than records, so
+it gets its own storage and its own rules. A recording, a photo and a saved
+YouTube link are all ordinary entities of type `media` — they appear in the
+Library, on the Timeline, in search and on a board — but the bytes live in
+IndexedDB and the entity only holds a pointer. Everything else in the app is a
+few hundred kilobytes of text in `localStorage`; a minute of 1080p video is
+twenty times that on its own, so the two never share a drawer.
+
+![The camera recording, with the elapsed timer and the device and resolution pickers](docs/screenshots/studio-camera.png)
+
+### Camera
+
+`getUserMedia` for the preview, a canvas for stills, `MediaRecorder` for
+clips. Pick a camera and a microphone, front or back, 1080p down to 480p,
+sound on or off; pause and resume mid-recording. Every capture is written to
+IndexedDB, gets a poster frame, and lands in the gallery and the Library.
+
+A front camera is previewed mirrored, because an un-mirrored preview of your
+own face is unsettling to look at. The saved photo is never mirrored — a
+mirrored photo puts the writing in the room backwards.
+
+Closing the view releases the camera. A lit indicator light on a view nobody
+is looking at is not acceptable.
+
+### Compression
+
+Two engines behind one interface.
+
+| | Built in | ffmpeg.wasm |
+|---|---|---|
+| Dependency | None | ~32MB from a CDN, once |
+| Offline | Yes | Only after the first run |
+| Speed | Real time — a ten-minute clip takes ten minutes | Much faster than the clip |
+| Writes | WebM (VP9 or VP8) | MP4 (H.264) or WebM (VP9) |
+| Default | Yes | Off until Settings → Media |
+
+The built-in path decodes the source into a `<video>`, draws each frame the
+decoder produces onto a canvas at the target size, captures that canvas as a
+`MediaStream`, and records the stream at a chosen bitrate. Audio is routed
+through a `MediaStreamDestination` so it is encoded without being played
+aloud. The real-time cost is not a bug to optimise away: a `<video>` decodes
+at the speed of the clip, and raising `playbackRate` would finish sooner and
+produce a sped-up video, because the canvas stream is captured against the
+wall clock.
+
+Presets name the **short** edge, so a portrait phone clip scales the way you
+expect instead of being squashed to letterbox height, and nothing is ever
+upscaled. Bitrate comes from bits-per-pixel-per-frame rather than a fixed
+number per preset, which is the only thing that survives a portrait source or
+a 60fps one. The plan — output size, bitrate, estimated bytes, estimated time
+— is shown before anything runs, because a person about to spend ten minutes
+re-encoding deserves to know that first. The estimate is labelled as one: a
+real encoder spends fewer bits on a static shot than on confetti.
+
+![The plan before an encode: output size, bitrate, estimated bytes and estimated time](docs/screenshots/studio-compress-plan.png)
+
+### The player
+
+One `<audio>` element, created in a module and never mounted into React.
+That is the whole trick behind music that keeps playing: a component that owns
+the element stops the sound the moment you change view, so the element lives
+outside the tree and React only reads its state. Queue, shuffle that pins the
+current track first, repeat off/all/one, seek, volume, and the OS media keys
+and lock screen through the Media Session API.
+
+### YouTube
+
+Paste a link — watch, share, Shorts, embed, music, playlist, or a bare
+eleven-character id, with `?t=` start times in any of the three formats
+Google uses. There is no search: that needs a Data API key, a Google Cloud
+project and a daily quota, and pasting a link is one keystroke more.
+
+This is the only surface in the browser app that talks to a server you did not
+choose, so it is off until you switch it on in Settings → Media, and the copy
+says plainly what changes when you do. Embeds use `youtube-nocookie.com`,
+which sets no tracking cookies for someone who merely opens the view. Google
+still sees which video you play and when.
+
+![The gallery with a storage meter, and the player bar still running at the bottom](docs/screenshots/studio-gallery.png)
+
+### Storage
+
+Media lives in IndexedDB with a visible meter: what these files cost, what the
+rest of the origin costs, and what is left. "Tidy up orphans" deletes bytes no
+record points at any more — closing a tab mid-recording leaves some. "Ask to
+keep it" requests `navigator.storage.persist()`, which stops the browser
+evicting the library under disk pressure.
+
+The workspace export does **not** carry the bytes. It keeps the records and
+their titles; a single video is a thousand times the size of everything else
+you have, and an export you cannot email is not an export.
+
+### What the Studio does not do
+
+No editing, no trimming, no filters, no green screen. No uploads, no sharing,
+no accounts. No YouTube search, no downloads from YouTube. Nothing here leaves
+the device except the YouTube embed you turned on yourself.
 
 ## What it reads
 
@@ -562,7 +678,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `w` `r` `l` `a` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Library, Brain, Settings |
+| `g` then `t` `w` `r` `l` `a` `m` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Studio, Library, Brain, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -574,11 +690,13 @@ src/
   ingest/     parser registry entry point, shared text and table readers, zip, export detection
   engine/     metrics, reminders, insight rules, triage
   work/       boards: column types, view queries, the rule engine, formulas, templates, CSV
+  media/      blob storage, the two encoders, camera and recorder, the player, YouTube links
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
   ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
   ui/work/    the seven board views, cell editors, the item panel, the rule builder
-  styles/     tokens, base, layout, components, viz
-tests/        node:test cases over parsing, querying, analytics, triage, boards, the brain and the assistant protocol
+  ui/media/   camera, compressor, gallery, YouTube, the shell player
+  styles/     tokens, base, layout, components, viz, media
+tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 
@@ -593,7 +711,10 @@ line reader serves all of them. No model-driven writes: the assistant proposes,
 a person applies. No PDF reading:
 extracting text from PDFs without a dependency is unreliable, and shipping
 something that half-works would be worse than saying so. Add it as a parser
-plugin when you need it.
+plugin when you need it. No video editor: the Studio compresses and records,
+and a trim UI that cannot cut on a keyframe is a toy. No YouTube search, which
+would need a Google Cloud project and a daily quota to save you pasting a
+link.
 
 ## Platform tier: API, workspace and EKS
 
@@ -1026,7 +1147,10 @@ The build ships a web manifest, PNG icons for every launcher, home-screen
 shortcuts and a small service worker, so it installs to a phone's home screen
 or a desktop dock and opens offline. The worker caches the app shell only;
 there is no network traffic to cache, and your workspace never leaves the
-device.
+device — with one exception you have to switch on yourself: turning YouTube
+on in Settings → Media embeds a player from `youtube-nocookie.com`, and from
+then on Google sees which video you play and when. Nothing else about the
+workspace is sent with it, and the switch is off until you flip it.
 
 1. Serve the `dist/` folder over HTTPS from the root of a host (Netlify,
    Vercel, S3 + CloudFront, a GitHub Pages *user* site, or `npm run preview`
