@@ -41,12 +41,27 @@ export function createServer(config = readConfig()) {
   // The five agents read and write the same export file, through the same lock.
   const agents = workspace ? new AgentsAdapter(workspace) : null
   const platform = config.apiUrl ? new PlatformAdapter(config.apiUrl, config.apiKey) : null
+  // Nothing configured is not a crash.
+  //
+  // Exiting here is what a server "should" do with nothing to serve, and it
+  // is the wrong thing: the host reports a closed connection, the sentence
+  // explaining how to fix it goes to a log nobody reads, and the person is
+  // left with a connector that is simply broken. Connecting and saying so
+  // puts the answer where they are actually looking.
   if (!workspace && !platform) {
-    throw new Error(
-      `Nothing to serve. Export your workspace from the app (Settings → Your data → Export) and save it as ${DEFAULT_WORKSPACE}, ` +
-        'or set ALLDASH_WORKSPACE_FILE to the export, and/or ALLDASH_API_URL plus ALLDASH_API_KEY for the platform API.'
+    const server = new McpServer({ name: 'all-dash', version: '0.1.0' }, { instructions: SETUP })
+    server.registerTool(
+      'setup',
+      {
+        title: 'The All Dash is not configured yet',
+        description: `Nothing is connected. ${SETUP} Call this to get the steps again.`,
+        inputSchema: {},
+      },
+      async () => ({ content: [{ type: 'text', text: SETUP }] })
     )
+    return server
   }
+
   const server = new McpServer(
     { name: 'all-dash', version: '0.1.0' },
     { instructions: instructions(workspace, platform) }
@@ -54,6 +69,14 @@ export function createServer(config = readConfig()) {
   registerAll(server, { workspace, platform, agents, publicUrl: config.publicUrl })
   return server
 }
+
+const SETUP = [
+  'The All Dash has no workspace and no platform API configured, so there is nothing to read yet.',
+  `To connect the workspace: in the app, Settings → Your data → Export, and save the file as ${DEFAULT_WORKSPACE}`,
+  '(or set ALLDASH_WORKSPACE_FILE to wherever you saved it).',
+  'To connect the platform API instead or as well: set ALLDASH_API_URL and ALLDASH_API_KEY.',
+  'Then restart this MCP server.',
+].join(' ')
 
 function instructions(workspace, platform) {
   const parts = ['The All Dash: a project and personal command center.']

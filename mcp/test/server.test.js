@@ -102,8 +102,12 @@ test('config: with nothing set, the default export path is used only when it exi
   assert.equal(readConfig({ ...env, ALLDASH_WORKSPACE_FILE: '/x.json' }, () => true).workspaceFile, '/x.json')
 })
 
-test('refuses to start with no source configured', () => {
-  assert.throws(() => createServer({ workspaceFile: '', apiUrl: '', apiKey: '', publicUrl: '' }), /ALLDASH_WORKSPACE_FILE/)
+test('with no source configured it starts anyway, rather than dying', () => {
+  // It used to throw. The host then reported a closed connection and the
+  // sentence explaining the fix went to a log nobody reads, which is a
+  // connector that is simply broken as far as anyone can tell. See the two
+  // setup tests at the end of this file for what it does instead.
+  assert.doesNotThrow(() => createServer({ workspaceFile: '', apiUrl: '', apiKey: '', publicUrl: '' }))
 })
 
 test('workspace mode: overview, triage, status update, search and fetch use the app engines', async () => {
@@ -561,4 +565,27 @@ test('agents: with no workspace file the agent tools are not offered at all', as
   for (const name of ['agents_ask', 'genome_list', 'study_queue']) {
     assert.equal(names.includes(name), false, `${name} needs a workspace`)
   }
+})
+
+test('setup: with nothing configured the server still connects and says why', async () => {
+  // Exiting is what a server "should" do with nothing to serve, and it is the
+  // wrong thing: the host reports a closed connection and the sentence
+  // explaining the fix goes to a log nobody reads.
+  const { client } = await connect({ workspaceFile: '', apiUrl: '' })
+
+  const tools = (await client.listTools()).tools
+  assert.deepEqual(tools.map((t) => t.name), ['setup'])
+
+  const help = (await client.callTool({ name: 'setup', arguments: {} })).content[0].text
+  assert.match(help, /Settings → Your data → Export/)
+  assert.match(help, /ALLDASH_WORKSPACE_FILE/)
+  assert.match(help, /ALLDASH_API_URL/)
+})
+
+test('setup: once a workspace is configured the setup tool is gone', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const names = (await client.listTools()).tools.map((t) => t.name)
+  assert.equal(names.includes('setup'), false)
+  assert.ok(names.includes('agents_ask'))
 })

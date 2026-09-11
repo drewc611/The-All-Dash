@@ -1478,8 +1478,14 @@ on the web:
 ```
 
 Then export your workspace from the app (Settings → *Your data* → Export) and
-save it as `~/.all-dash/workspace.json`, or point the server at a running
-platform:
+save it as `~/.all-dash/workspace.json`. To try it before you have used the
+app at all, seed the sample project instead — no browser needed:
+
+```bash
+npm run sample-workspace          # writes ~/.all-dash/workspace.json
+```
+
+Or point the server at a running platform:
 
 ```bash
 export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json   # or the default path above
