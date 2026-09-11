@@ -150,12 +150,29 @@ test('budget windows start at local midnight, where a person thinks they do', ()
 })
 
 test('the ceiling refuses rather than warns', () => {
-  const calls = [{ at: '2026-09-11T10:00:00.000Z', dollars: 0.9 }]
-  const pre = { known: true, dollars: 0.5 }
-  const verdict = checkBudget({ estimate: pre, limit: 1, period: 'day', calls, now: new Date('2026-09-11T12:00:00Z') })
+  // Placed relative to the window rather than at a fixed UTC instant: a day
+  // budget is deliberately the user's local day, so a hardcoded timestamp
+  // only lands inside it in the timezone it was written in.
+  const now = new Date('2026-09-11T12:00:00Z')
+  const since = Date.parse(windowStart('day', now))
+  const calls = [{ at: new Date(since + 60_000).toISOString(), dollars: 0.9 }]
+
+  const verdict = checkBudget({ estimate: { known: true, dollars: 0.5 }, limit: 1, period: 'day', calls, now })
   assert.equal(verdict.ok, false)
   assert.equal(verdict.code, 'over')
+  assert.equal(verdict.spent, 0.9)
   assert.match(verdict.reason, /ceiling/)
+})
+
+test('yesterday\'s spend does not count against today\'s ceiling', () => {
+  const now = new Date('2026-09-11T12:00:00Z')
+  const since = Date.parse(windowStart('day', now))
+  // One minute before the window opened.
+  const calls = [{ at: new Date(since - 60_000).toISOString(), dollars: 99 }]
+
+  const verdict = checkBudget({ estimate: { known: true, dollars: 0.5 }, limit: 1, period: 'day', calls, now })
+  assert.equal(verdict.ok, true)
+  assert.equal(verdict.spent, 0)
 })
 
 test('spending under the ceiling proceeds, and says what is left', () => {
