@@ -218,7 +218,7 @@ function meetingClashes(rows, now, add) {
   const soon = addDays(now, 2)
   const events = q(rows)
     .type('event')
-    .where((e) => e.status !== 'cancelled' && e.end)
+    .where((e) => e.status !== 'cancelled' && e.end && !e.meta?.allDay)
     .between(addDays(now, -1), soon, 'at')
     .sort('at')
     .all()

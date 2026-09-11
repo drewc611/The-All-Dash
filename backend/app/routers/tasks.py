@@ -3,25 +3,21 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import and_, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clock import today_local
 from ..db import get_session
-from ..models import Project, Task, utcnow
+from ..models import Task, utcnow
 from ..schemas import Context, Page, TaskIn, TaskOut, TaskPatch, TaskPriority, TaskStatus
 from ..security import Authed
-from ._common import Limit, Offset, apply_patch, get_or_404, paginate
+from ._common import Limit, Offset, apply_patch, check_project, get_or_404, paginate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 _priority_order = case((Task.priority == "P1", 0), (Task.priority == "P2", 1), else_=2)
-
-
-async def _check_project(session: AsyncSession, project_id: str | None) -> None:
-    if project_id is not None and await session.get(Project, project_id) is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Project {project_id} not found")
 
 
 @router.get("", response_model=Page[TaskOut])
@@ -63,7 +59,7 @@ async def list_tasks(
     summary="The checklist: open tasks due today or earlier, plus today's finished ones, P1 first",
 )
 async def today(session: Session, _: Authed, context: Context | None = None, on: date | None = None) -> list[TaskOut]:
-    day = on or date.today()
+    day = on or today_local()
     # Finished items due today stay on the list so a tick is visible after a
     # reload; finished items from earlier days drop off.
     stmt = (
@@ -84,7 +80,7 @@ async def today(session: Session, _: Authed, context: Context | None = None, on:
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 async def create_task(body: TaskIn, session: Session, _: Authed) -> TaskOut:
-    await _check_project(session, body.project_id)
+    await check_project(session, body.project_id)
     row = Task(**body.model_dump())
     if row.status == "done":
         row.completed_at = utcnow()
@@ -103,7 +99,7 @@ async def update_task(task_id: str, body: TaskPatch, session: Session, _: Authed
     row = await get_or_404(session, Task, task_id, "Task")
     patch = body.model_dump(exclude_unset=True)
     if "project_id" in patch:
-        await _check_project(session, patch["project_id"])
+        await check_project(session, patch["project_id"])
     apply_patch(row, patch)
     if "status" in patch:
         row.completed_at = utcnow() if patch["status"] == "done" else None

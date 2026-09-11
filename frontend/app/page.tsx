@@ -12,29 +12,19 @@ type Ctx = 'work' | 'personal' | 'all'
 const pickContext = (raw: string | string[] | undefined): Ctx =>
   raw === 'work' || raw === 'personal' ? raw : 'all'
 
-export default async function Workspace({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function Workspace(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const searchParams = await props.searchParams
   const context = pickContext(searchParams['context'])
+  // Load first, render after: JSX built inside a try/catch is not protected
+  // by it (React renders later), so the two paths stay separate.
+  let data: Awaited<ReturnType<typeof loadWorkspace>> | null = null
+  let message = ''
   try {
-    const data = await loadWorkspace(context)
-    return (
-      <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-4 px-4 pb-32 pt-4 md:px-6">
-        <Header context={context} brief={data.brief} />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <section className="lg:col-span-3" aria-label="Project pipelines">
-            <ProjectPipelines rows={data.pipeline} />
-          </section>
-          <section className="lg:col-span-5" aria-label="Daily tasks">
-            <DailyTasks initial={data.checklist} context={context} />
-          </section>
-          <section className="lg:col-span-4" aria-label="AI audit log">
-            <AuditStream entries={data.audit} verification={data.verification} />
-          </section>
-        </div>
-        <MarginRibbon finance={data.finance} />
-      </main>
-    )
+    data = await loadWorkspace(context)
   } catch (error) {
-    const message = error instanceof ApiError ? `The API answered ${error.status}: ${error.message}` : 'The API is not reachable.'
+    message = error instanceof ApiError ? `The API answered ${error.status}: ${error.message}` : 'The API is not reachable.'
+  }
+  if (!data) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-3 px-6">
         <h1 className="text-xl font-semibold tracking-tight">Workspace unavailable</h1>
@@ -46,4 +36,21 @@ export default async function Workspace({ searchParams }: { searchParams: Record
       </main>
     )
   }
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-4 px-4 pb-32 pt-4 md:px-6">
+      <Header context={context} brief={data.brief} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <section className="lg:col-span-3" aria-label="Project pipelines">
+          <ProjectPipelines rows={data.pipeline} />
+        </section>
+        <section className="lg:col-span-5" aria-label="Daily tasks">
+          <DailyTasks key={context} initial={data.checklist} context={context} />
+        </section>
+        <section className="lg:col-span-4" aria-label="AI audit log">
+          <AuditStream entries={data.audit} verification={data.verification} />
+        </section>
+      </div>
+      <MarginRibbon finance={data.finance} />
+    </main>
+  )
 }

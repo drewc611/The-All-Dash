@@ -24,7 +24,9 @@ export function notesToEntities({ name, text, docId, kind, tables = [] }) {
   const out = entities.map((e) => ({
     ...e,
     at: e.at || (e.type === 'metric' ? at : null),
-    people: e.people?.length ? canonicalPeople(e.people, meta.people) : meta.people.slice(0, 1),
+    // No owner named means no owner: the attendee list stays on the note, so
+    // "unowned" in triage and the leaderboard mean what they say.
+    people: e.people?.length ? canonicalPeople(e.people, meta.people) : [],
     tags: [...(e.tags || []), ...projectTag],
   }))
 

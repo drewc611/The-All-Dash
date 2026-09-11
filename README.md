@@ -1,13 +1,13 @@
 # The All Dash
 
 [![CI](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml/badge.svg)](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml)
-[![React 18](https://img.shields.io/badge/React-18-20232a?logo=react&logoColor=61dafb)](package.json)
-[![Vite 5](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)](vite.config.js)
+[![React 19](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)](package.json)
+[![Vite 8](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](vite.config.js)
 [![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
 [![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
 [![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](backend/)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](frontend/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](backend/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](frontend/)
 [![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
 [![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
@@ -36,6 +36,12 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
 - **Builds the day.** Today's agenda, the focus list, what is due this week,
   reminders that fire in the browser, and a recent-activity stream, filtered
   by person or topic with one click.
+- **Boards, the way a work tool does them.** Groups, twenty-two column kinds,
+  and seven views over the same rows: table, Kanban, timeline, calendar,
+  chart, workload and a fillable form. Rules fire when a status changes or a
+  date arrives, formulas compute from other columns, dependencies push the
+  dates that follow, timers bill by the row, and every row is also a task
+  everywhere else in the app.
 - **Triage.** A ranked worklist of what is wrong right now: overdue and blocked
   work, stalled items, milestones that passed with tasks still open, clashing
   meetings, unowned urgent work, metrics off target. Each row carries the
@@ -53,12 +59,34 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   search, JavaScript rendering and screenshots use Firecrawl when you add a
   key; extract and agent use a model you configure on the backend and record
   what they did in the audit ledger. Agents get the same seven tools over MCP.
+- **A stash that outlives what you saved.** Paste a link and the whole article
+  is kept, not the URL: it reads offline, it is searched by the words inside it
+  rather than its headline, and a page you are watching shows you what changed
+  since you read it. Highlights, and your own ideas, sit in the same list.
+  Pocket shut in 2025 and handed people a CSV of links with the articles gone;
+  this archive is a file on your disk and an export that carries the text.
+- **A Studio: camera, player, compression, YouTube.** Shoot a clip or a photo
+  from the webcam and it lands in the Library beside the notes from the same
+  meeting. Shrink a video without uploading it anywhere — the built-in encoder
+  decodes to a canvas and records the canvas at a bitrate you choose, and an
+  optional ffmpeg.wasm engine goes faster and writes MP4. Music and recordings
+  play from a bar in the shell rather than inside a view, so the sound carries
+  on while you work a board, and the OS media keys drive it. YouTube embeds
+  through youtube-nocookie.com, off until you switch it on.
 - **A brain that learns who you are, with no model.** Rules over your own
   data work out who you work with, which topics slip, when you are active,
   how far ahead you plan. Facts are recorded automatically; opinions ("#infra
   usually finishes late", "Priya carries 40% of the open work") wait for your
   yes, and once accepted they change triage, reminders and the start view. It
   all becomes a folder of Markdown files on your disk, kept in sync.
+- **A router in front of the models, that grades their answers.** One chain
+  across a dozen providers, tried in order, where a *bad answer* falls through
+  as readily as a 500: an answer citing a task you do not have is a failure,
+  and the next provider gets a turn. A ceiling checked before the call, not
+  after. A cache keyed on the facts the answer was built from, so editing one
+  of them throws the answer away. And a table saying what each provider costs
+  per answer that actually worked, which is the only honest way to compare a
+  cheap model against a reliable one.
 - **An assistant that cites and proposes.** Ask questions of your own data
   through Claude, any OpenAI-compatible endpoint, or a local Ollama. Answers
   cite items as chips; changes arrive as proposals you apply or skip. A privacy
@@ -90,6 +118,30 @@ the real parsers, not fixture data.
 ## What it looks like
 
 ![Today: agenda, focus list, reminders, pulse and recent activity, with person and topic filters above the board](docs/screenshots/today.png)
+
+**Boards.** Groups, typed columns and seven views over the same rows. Open a
+row for its columns, its conversation and everything that has changed on it.
+
+<p>
+  <img src="docs/screenshots/boards-table.png" width="49%" alt="A project board: groups, owner, status, timeline, priority and progress columns with per-group summaries" />
+  <img src="docs/screenshots/boards-item.png" width="49%" alt="One row open: every column, an update with an @mention, and the activity log" />
+</p>
+
+**Stash.** Save the article, not the link. It reads offline, it is searched by
+the words inside it, and a watched page shows you what moved since you read it.
+
+<p>
+  <img src="docs/screenshots/stash-search.png" width="49%" alt="Searching saved pages by a word that appears only in one article's body, with the match highlighted in the snippet" />
+  <img src="docs/screenshots/stash-changes.png" width="49%" alt="A changelog re-checked: two blocks added since it was saved, marked in green with a plus" />
+</p>
+
+**Studio.** Shoot it, shrink it, play it. The player lives in the shell, so the
+sound carries on while you work somewhere else.
+
+<p>
+  <img src="docs/screenshots/studio-camera.png" width="49%" alt="The camera mid-recording: preview, elapsed timer, photo and stop buttons, device and resolution pickers" />
+  <img src="docs/screenshots/studio-compress.png" width="49%" alt="A compressed video: the plan, then the result showing the file went from 439 KB to 51 KB" />
+</p>
 
 **Triage.** Everything that is wrong right now, most urgent first: overdue and
 blocked work, milestones that passed with tasks still open, stalled items,
@@ -133,13 +185,18 @@ document.
   <img src="docs/screenshots/inspector.png" width="49%" alt="Inspector panel for a calendar event" />
 </p>
 
-**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, boards go
-single-column, and the theme follows the OS or the toggle in Settings.
+**Phone and dark mode.** Same app. The rail becomes a bottom tab bar, the
+widget grid goes single-column, and the theme follows the OS or the toggle in
+Settings.
 
 <p>
   <img src="docs/screenshots/mobile.png" width="24%" alt="Today on a phone" />
   <img src="docs/screenshots/mobile-triage.png" width="24%" alt="Triage on a phone in dark mode" />
-  <img src="docs/screenshots/today-dark.png" width="50%" alt="Today in dark mode" />
+  <img src="docs/screenshots/boards-mobile.png" width="24%" alt="A sprint board on a phone" />
+</p>
+<p>
+  <img src="docs/screenshots/today-dark.png" width="49%" alt="Today in dark mode" />
+  <img src="docs/screenshots/boards-dark.png" width="49%" alt="A board in dark mode" />
 </p>
 
 ## The one idea
@@ -168,6 +225,312 @@ file ──▶ parser registry ──▶ entities ──▶ store ──▶ quer
                                              ├──▶ triage ──▶ worklist with actions
                                              └──▶ context builder ──▶ assistant ──▶ proposals
 ```
+
+## Boards
+
+A board is a shape: which columns exist, how rows are grouped, which views are
+saved on it, and which rules watch it. The rows are ordinary entities with a
+`meta.board` tag, which is the whole trick. A row you type into a board is a
+task, so it shows up in Today, in Triage, on the timeline, in the brain's
+Markdown files and in every export, and none of those had to learn what a
+board is.
+
+![The main table: groups, typed columns, per-group summaries and a row open in the item panel](docs/screenshots/boards-table.png)
+
+### Columns
+
+Twenty-two kinds. Six of them bind to a field the rest of the app already
+reads, which is why a board row behaves like a task without any syncing.
+
+| Kind | What it holds | Binds to |
+| --- | --- | --- |
+| Status | Your own coloured labels, each meaning open, in progress, done, blocked or cancelled | `status` |
+| People | Names, with initials avatars and suggestions from everything you have imported | `people` |
+| Date | One day | `due` |
+| Timeline | A start and an end | `at` / `end` |
+| Priority | Low to Critical | `priority` |
+| Tags | Free labels | `tags` |
+| Text, Long text, Email, Phone, Link | The plain ones | |
+| Number, Rating, Progress, Checkbox | The countable ones, with a unit | |
+| Dropdown | One or many labels | |
+| Time tracking | A timer you start and stop, per row | |
+| Dependency | Other rows on the board | |
+| Formula | Arithmetic over the other columns | |
+| Created, Last updated, Item ID | Read-only facts | |
+
+Formulas are parsed and walked, never `eval`-ed, so a board someone sends you
+cannot run code in your tab. `{Deal value} * {Probability %} / 100` is a
+weighted forecast; `IF({Current} >= {Target}, "hit", "short")` is a judgement;
+`DAYS({Start}, {End})` is a duration. Sixteen functions, the usual operators,
+and a column reference in braces.
+
+![A sales pipeline: deal value, probability, and a formula column carrying the weighted forecast, summed under the group](docs/screenshots/boards-formula.png)
+
+### Seven views over the same rows
+
+Every view reads one saved filter list, one sort and one group-by, so
+switching view never changes what you are looking at, only how.
+
+| View | What it is for |
+| --- | --- |
+| Table | Rows in groups, a summary line under each group and one under the board |
+| Kanban | One lane per label; dropping a card writes that label, rules and all |
+| Timeline | A Gantt chart with dependency elbows and a today line |
+| Calendar | A month at a time; dropping a card writes that day |
+| Chart | Count, sum or average, split by any column |
+| Workload | Who is carrying what, by week, against a capacity you set |
+| Form | A fillable form that adds a row, built from the same cell editors |
+
+<p align="center">
+  <img src="docs/screenshots/boards-kanban.png" width="49%" alt="Kanban lanes with cards carrying owner, dates and status" />
+  <img src="docs/screenshots/boards-timeline.png" width="49%" alt="Gantt view with a bar per row and a zoom control" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/boards-chart.png" width="49%" alt="Chart view: deal value summed by stage" />
+  <img src="docs/screenshots/boards-workload.png" width="49%" alt="Workload view: load per person per week against a capacity" />
+</p>
+
+### Rules
+
+A rule is a trigger, some conditions and a list of actions, and it is data the
+app interprets. Seven triggers (created, a status becomes something, a column
+changes, someone is assigned, an item moves group, a date arrives, an item
+goes overdue) and nine actions (set a column, move it, assign someone, notify,
+post an update, create a subitem, create an item on another board, push its
+dates, archive it). Date rules fire once a day per row, on the same minute
+tick the reminders use.
+
+Rules that trigger rules are allowed, three deep. Past that the chain stops,
+because "when Done, set Not started" should not lock the tab.
+
+![The automations panel: a live rule with its run count, and recipes to start from](docs/screenshots/boards-automations.png)
+
+### The rest of it
+
+Subitems, an updates feed where `@name` puts a notification in the bell, an
+activity log that records every cell that changed and what it changed from,
+bulk select with move, duplicate and delete, per-column summaries (sum,
+average, median, breakdown, overdue, tracked time), drag to reorder or
+regroup, board duplication with or without the rows, and CSV out.
+
+CSV and Excel come in as boards, not just as tasks: the header row becomes
+columns with the right kinds, a status-shaped column becomes labels with your
+own vocabulary, and a small repeating vocabulary becomes a dropdown.
+
+Nine templates cover the usual jobs, each one the smallest set of columns that
+makes its job work: project plan, sprint backlog, sales pipeline, bug tracker,
+content calendar, hiring pipeline, client work, goals and OKRs, and a plain
+task list.
+
+<p align="center">
+  <img src="docs/screenshots/boards-form.png" width="49%" alt="A form view collecting a new lead" />
+  <img src="docs/screenshots/boards-calendar.png" width="49%" alt="A content calendar with items on their publish dates" />
+</p>
+
+### What boards do not do
+
+No permissions, guests or per-user views: this half of the app is one person's
+browser, and everything in it stays there. No file uploads on a row, because
+localStorage is the wrong place for binaries. No documents. If you need people
+to share a board, that is what the platform tier below is for.
+
+## Stash
+
+A read-later that keeps the reading.
+
+### Why this is not a browser
+
+A page cannot embed most of the web. Anything with a login, and most of what
+is worth reading, sends `X-Frame-Options: DENY` or a `frame-ancestors` policy,
+and the browser renders a blank rectangle — the site telling your browser no,
+with no trick around it from inside a tab. Even where framing is allowed, the
+same-origin policy means the embedding page cannot read a word of what is in
+there, and `fetch` to another origin is refused by CORS. A browser built
+entirely in the browser tier is a bookmark list beside an empty box.
+
+So the platform tier fetches the page, once, and hands back Markdown. The app
+renders it, which means the app **owns** the text, which is what makes
+everything below possible. An iframe would give a rectangle nobody can touch.
+
+### What "better than Pocket" actually means
+
+Pocket kept a link, a title and a snippet on somebody else's server. It shut
+down in 2025 and exported its users a CSV of URLs with the articles gone.
+
+| | Pocket | Here |
+|---|---|---|
+| What is kept | A link | The article text |
+| Where | Their server | Your IndexedDB |
+| Offline | The app's cache | Always, it never needed the network to begin with |
+| Search | Title, tags, some excerpts | Every word of every article, BM25 ranked |
+| The page changes | You never find out | A diff against the version you read |
+| The page dies | So does your saved copy | You still have it |
+| Your own writing | Not a thing | An idea is a first-class item |
+| It shuts down | You get a CSV of links | The export carries the text |
+| The item itself | A dead end | An entity: triage it, board it, cite it |
+
+The last row is the one that only works here. A saved article is an ordinary
+entity of type `page`, so it turns up in the Library, on the Timeline, in the
+command bar and on a board without any of those learning what an article is.
+
+![The stash: saved pages and your own ideas in one list, unread marked in the gutter](docs/screenshots/stash-list.png)
+
+### Search
+
+A real inverted index with BM25 ranking, built in memory from the archive on
+load. Words in a title count triple. Rarer words score higher, and a short
+document that says all your terms beats a long one that buries them, which is
+what length normalisation is for. Quotes force an exact phrase:
+`"the last line of defence"` is not the same query as `last line defence`.
+
+The index is built over prose, not source. Nobody searches for `##`, and a
+result snippet showing heading markers mid-sentence reads as a bug.
+
+![Searching the words inside saved articles, not their titles](docs/screenshots/stash-search.png)
+
+### Watching
+
+Every save is a version. Re-fetching compares the new text against the one you
+read and reports what moved, and a page that has not changed does not grow a
+version — the fingerprint is checked first, so twelve hours of polling a static
+page costs nothing.
+
+The diff is over blocks, not lines. Prose rewraps, and a line diff of rewrapped
+prose reports that the whole article changed, which is true and useless.
+Comparison ignores whitespace, smart quotes and dash style, so a site that
+switched its typography has not "changed". Added and removed blocks carry a
+`+` or `−` as well as a colour, because roughly one man in twelve cannot tell
+those two colours apart.
+
+Something you had already read that changes underneath you goes back to unread.
+That is the entire point of watching it.
+
+![Two blocks added to a changelog since it was saved, each marked with a plus as well as a colour](docs/screenshots/stash-changes.png)
+
+### Reading
+
+Markdown rendered at a 66-character measure, 18px, 1.65 line height, with a
+progress bar and nothing else competing. Reading time uses 238 words per minute,
+which is the meta-analytic mean for silent reading of English non-fiction
+(Brysbaert, 2019) rather than a number that looked about right.
+
+Select a passage and it becomes a highlight. Highlights are anchored by their
+quoted text, not by an offset, because an offset does not survive the page
+being re-fetched — and the version you highlighted is still in the archive
+either way.
+
+![The reader: a 66-character measure, a progress bar, and a highlight kept below](docs/screenshots/stash-reader.png)
+
+### What the stash does not do
+
+No accounts, no sync, no sharing, no recommendations, no feed. No YouTube or
+video saving — that is the Studio. No JavaScript-rendered pages unless the
+platform tier has Firecrawl configured, because a static fetch gets a shell
+from a single-page app and saying so beats saving an empty article.
+
+> Brysbaert, M. (2019). How many words do we read per minute? A review and
+> meta-analysis of reading rate. *Journal of Memory and Language, 109*, 104047.
+> https://doi.org/10.1016/j.jml.2019.104047
+
+## Studio
+
+Media is the one half of this app that is about bytes rather than records, so
+it gets its own storage and its own rules. A recording, a photo and a saved
+YouTube link are all ordinary entities of type `media` — they appear in the
+Library, on the Timeline, in search and on a board — but the bytes live in
+IndexedDB and the entity only holds a pointer. Everything else in the app is a
+few hundred kilobytes of text in `localStorage`; a minute of 1080p video is
+twenty times that on its own, so the two never share a drawer.
+
+![The camera recording, with the elapsed timer and the device and resolution pickers](docs/screenshots/studio-camera.png)
+
+### Camera
+
+`getUserMedia` for the preview, a canvas for stills, `MediaRecorder` for
+clips. Pick a camera and a microphone, front or back, 1080p down to 480p,
+sound on or off; pause and resume mid-recording. Every capture is written to
+IndexedDB, gets a poster frame, and lands in the gallery and the Library.
+
+A front camera is previewed mirrored, because an un-mirrored preview of your
+own face is unsettling to look at. The saved photo is never mirrored — a
+mirrored photo puts the writing in the room backwards.
+
+Closing the view releases the camera. A lit indicator light on a view nobody
+is looking at is not acceptable.
+
+### Compression
+
+Two engines behind one interface.
+
+| | Built in | ffmpeg.wasm |
+|---|---|---|
+| Dependency | None | ~32MB from a CDN, once |
+| Offline | Yes | Only after the first run |
+| Speed | Real time — a ten-minute clip takes ten minutes | Much faster than the clip |
+| Writes | WebM (VP9 or VP8) | MP4 (H.264) or WebM (VP9) |
+| Default | Yes | Off until Settings → Media |
+
+The built-in path decodes the source into a `<video>`, draws each frame the
+decoder produces onto a canvas at the target size, captures that canvas as a
+`MediaStream`, and records the stream at a chosen bitrate. Audio is routed
+through a `MediaStreamDestination` so it is encoded without being played
+aloud. The real-time cost is not a bug to optimise away: a `<video>` decodes
+at the speed of the clip, and raising `playbackRate` would finish sooner and
+produce a sped-up video, because the canvas stream is captured against the
+wall clock.
+
+Presets name the **short** edge, so a portrait phone clip scales the way you
+expect instead of being squashed to letterbox height, and nothing is ever
+upscaled. Bitrate comes from bits-per-pixel-per-frame rather than a fixed
+number per preset, which is the only thing that survives a portrait source or
+a 60fps one. The plan — output size, bitrate, estimated bytes, estimated time
+— is shown before anything runs, because a person about to spend ten minutes
+re-encoding deserves to know that first. The estimate is labelled as one: a
+real encoder spends fewer bits on a static shot than on confetti.
+
+![The plan before an encode: output size, bitrate, estimated bytes and estimated time](docs/screenshots/studio-compress-plan.png)
+
+### The player
+
+One `<audio>` element, created in a module and never mounted into React.
+That is the whole trick behind music that keeps playing: a component that owns
+the element stops the sound the moment you change view, so the element lives
+outside the tree and React only reads its state. Queue, shuffle that pins the
+current track first, repeat off/all/one, seek, volume, and the OS media keys
+and lock screen through the Media Session API.
+
+### YouTube
+
+Paste a link — watch, share, Shorts, embed, music, playlist, or a bare
+eleven-character id, with `?t=` start times in any of the three formats
+Google uses. There is no search: that needs a Data API key, a Google Cloud
+project and a daily quota, and pasting a link is one keystroke more.
+
+This is the only surface in the browser app that talks to a server you did not
+choose, so it is off until you switch it on in Settings → Media, and the copy
+says plainly what changes when you do. Embeds use `youtube-nocookie.com`,
+which sets no tracking cookies for someone who merely opens the view. Google
+still sees which video you play and when.
+
+![The gallery with a storage meter, and the player bar still running at the bottom](docs/screenshots/studio-gallery.png)
+
+### Storage
+
+Media lives in IndexedDB with a visible meter: what these files cost, what the
+rest of the origin costs, and what is left. "Tidy up orphans" deletes bytes no
+record points at any more — closing a tab mid-recording leaves some. "Ask to
+keep it" requests `navigator.storage.persist()`, which stops the browser
+evicting the library under disk pressure.
+
+The workspace export does **not** carry the bytes. It keeps the records and
+their titles; a single video is a thousand times the size of everything else
+you have, and an export you cannot email is not an export.
+
+### What the Studio does not do
+
+No editing, no trimming, no filters, no green screen. No uploads, no sharing,
+no accounts. No YouTube search, no downloads from YouTube. Nothing here leaves
+the device except the YouTube embed you turned on yourself.
 
 ## What it reads
 
@@ -331,6 +694,121 @@ The buttons only render where the browser supports them.
 The conversation lives in the panel and is gone when it closes. Nothing the
 model says is stored unless you apply it.
 
+## The router
+
+A gateway in front of the models. Most of what a gateway does is plumbing and
+is done here in the obvious way; four things are done differently, and those
+are the reason it exists.
+
+### Twelve providers, three wire formats
+
+Anthropic, OpenAI, Groq, Cerebras, Mistral, DeepSeek, Together, OpenRouter,
+Azure, Ollama, LM Studio, and anything else that answers `/chat/completions`.
+
+That reads like twelve integrations. It is three. Almost everything on that
+list speaks the OpenAI wire format and differs by a base URL and a price list,
+so the catalogue is a table of base URLs and the wire layer has three cases in
+it. Saying so is more useful than implying each one was hard.
+
+![The chain: three providers in order, each showing what a typical question would cost](docs/screenshots/router-chain.png)
+
+### A 200 is not a success
+
+Every gateway falls back on an HTTP error. That misses the failures that cost
+you something: a stream cut off mid-sentence, an answer citing a task that
+does not exist, a proposal with a field the store would reject, a model that
+returned the empty string and a 200.
+
+This app can check, because it knows what the answer was supposed to be
+grounded in. Citations either resolve to real entities or they do not, and
+that is a fact rather than a heuristic. So a reply is graded against the
+workspace it claims to describe:
+
+| Grade | What it means | Falls through |
+|---|---|---|
+| `ok` | Answered, and everything it cited exists | No |
+| `empty` | 200, and nothing in the body | Yes |
+| `truncated` | Hit the token cap mid-thought | Yes |
+| `unresolved-citation` | Cited something that is not in your workspace | Yes |
+| `bad-action` | Claimed changes, none survived validation | Yes |
+| `refusal` | Declined, in under 320 characters | Yes, once |
+
+The last row is deliberate: one model declining might be that model, two
+independent models declining is a fact about the request, so the chain stops
+rather than touring the catalogue looking for a yes. Truncation is checked
+before citations, because a cut-off reply usually ends mid-citation and would
+otherwise be reported as the wrong failure.
+
+A graded failure counts against that provider's health exactly as a 503 would,
+and three failures in a row rest it for five minutes instead of retrying it
+into the ground on every request.
+
+### The ceiling is checked first
+
+Spend is reported after the fact everywhere else: you discover the bill by
+receiving it. The useful moment is before the request, because that is the
+only point at which anyone can still decide not to.
+
+So the estimate is computed up front and the ceiling **refuses**. A budget
+that only warns is a log line. The estimate uses the output cap rather than a
+guess at likely output, because a ceiling has to be checked against the most a
+call could cost or it is not a ceiling.
+
+There is a third outcome besides allow and refuse. A model the catalogue does
+not price cannot be checked, and waving it through silently would make the
+ceiling a decoration — so that is surfaced and you decide once.
+
+Refusing is also the *whole* response. It does not quietly drop to a cheaper
+model on your behalf, because that changes the answer without telling you.
+
+### A cache that expires when the facts do
+
+Semantic caching embeds the question and returns a near neighbour's answer.
+That needs an embedding model and a vector store — a service to deploy and a
+bill to pay in order to save money — and it has a failure mode nobody
+advertises. "What is our Q3 revenue" and "what is our Q4 revenue" are very
+close in embedding space and have different answers. A threshold loose enough
+to be useful is loose enough to return the wrong quarter, confidently.
+
+This caches on the question *and* on a fingerprint of the workspace context
+the answer was built from. Two things follow:
+
+- It never answers a different question. The key is lexical, so there is no
+  similarity threshold to tune and nothing to get wrong. Case, whitespace and
+  trailing punctuation are normalised; nothing else is, so "what is done" and
+  "what is not done" can never collapse into one key.
+- **It expires itself.** Change a due date the answer depended on and the
+  fingerprint changes, so the entry is gone. A gateway sitting in front of an
+  API has no idea the underlying facts moved. This one is inside the app that
+  moved them.
+
+### Cost per answer that worked
+
+The comparison table reports calls, success rate, latency, spend — and spend
+divided by *good answers*, which is the number that actually decides anything.
+A model at a third of the price that fails a third of the time is not cheaper,
+and no per-token price list will tell you that. Your own ledger will.
+
+Cache hits are recorded at zero with what they saved, so the cache's value
+shows up in the same units as the spend it avoided.
+
+![The comparison table: one model at 100% good, two at 0% marked in red, with cost per good answer](docs/screenshots/router-ledger.png)
+
+### Honest limits
+
+Prices are a table stamped with the date they were taken, and vendors change
+them. Tokens are estimated from character and word counts, not counted, because
+no tokeniser ships in 40KB — the estimate runs about 10% high, which is the
+right direction for something that gates spending. Both numbers are close
+enough to compare providers and not close enough to reconcile an invoice, and
+the app says so on the screen rather than only here.
+
+**Not built, on purpose:** OIDC directory sync, Prometheus scrape endpoints,
+distributed tracing, and hierarchical team or customer budgets. They need a
+server, an org chart and more than one user. This is one person's browser with
+their own keys in it, and four impressive-looking features that fall over the
+first time anyone leans on them would be worse than not having them.
+
 ## The brain
 
 The app keeps a brain about the person using it: a profile, the people they
@@ -380,6 +858,107 @@ the browser assistant's context carries the facts and accepted opinions unless
 you turn that off in Settings. The store keeps only what cannot be recomputed:
 your name, role and focus, your notes, which opinions you accepted or
 dismissed, and the usage counters. *Reset the brain* clears exactly that.
+
+## The agents
+
+Five of them, over a memory that has to earn its place. The whole thing runs
+with no API key and no network; a model, when you have one configured, writes
+the prose and nothing else.
+
+<p>
+  <img src="docs/screenshots/agents-answer.png" alt="An answer with every claim cited, the contradictions found, and what the Critic cut" width="100%">
+</p>
+
+| Agent | What it does | Ever a model? |
+|---|---|---|
+| **Librarian** | Finds passages across your records, your saved articles and the genome, one BM25 index over all three | Never |
+| **Analyst** | Contradictions, agreement, and words in your question that appear in nothing you saved | Never |
+| **Tutor** | Cuts spaced-repetition cards from your own sentences and schedules them with SM-2 | Never |
+| **Planner** | Turns a contradiction into a task and an agreement into a claim worth keeping. Proposes; never writes | Never |
+| **Critic** | Cuts every claim that cannot be traced to a passage that was actually retrieved | Never |
+
+Retrieval and verification are never a model's job, however good the model is.
+A retriever that invents a passage has not made a mistake — it has removed the
+only reason to trust anything downstream of it. So the model gets exactly one
+job, writing, and its output goes through the same Critic as everything else:
+if a sentence cites something that was not retrieved, it is cut before you see
+it, and if the whole draft fails, the assembled answer stands instead. Turning
+the model off changes how the answer reads, not what it says.
+
+**Contradictions are found by arithmetic, not by opinion.** Two passages about
+the same subject where one negates the other, or where both state a figure in
+the same unit and the figures differ. Polarity is judged on the sentence that
+is actually about the shared subject, because a forty-line meeting note
+contains the word "not" somewhere and judging the whole document by that says
+it denies everything in it. Everything subtler is left alone: a contradiction
+detector that cries wolf gets switched off in a week and then catches nothing.
+
+### The genome
+
+A claim is a Markdown file with front matter — a generation, the claim it
+descended from, the records it was drawn from, and a tally of how often it has
+been cited, confirmed and contradicted since.
+
+```md
+---
+id: gene_1xbdan21sjtahg
+generation: 3
+parents: [gene_9fz2k1, gene_44ba0x]
+sources: [risk_hs3t2v2zvjyx, task_imdss133ulpc]
+cited: 14
+confirmed: 9
+contradicted: 1
+retired: false
+---
+
+The rollback script is the riskiest part of the Atlas cutover.
+```
+
+<p>
+  <img src="docs/screenshots/agents-genome.png" alt="The genome: claims ranked by fitness, with their generation and evidence" width="100%">
+</p>
+
+That tally is the point. **Fitness is support × usefulness × recency:**
+
+- **Support** is confirmed against contradicted, Laplace-smoothed — a new claim
+  sits at 0.5 rather than at certainty, and one contradiction against nine
+  confirmations moves it to 0.77 rather than throwing it out. One person
+  disagreeing once is not a refutation.
+- **Usefulness** saturates. The difference between never cited and cited twice
+  matters; the difference between the fortieth and the forty-first does not.
+- **Recency** decays on a 90-day half-life.
+
+Below a floor a claim is **retired** — archived, out of retrieval, never
+deleted. The floor is set against the decay curve rather than picked: a claim
+nothing ever confirmed and nothing ever cited lasts about 95 days, and one
+confirmation buys it 132. A passing thought lasts a quarter; something you
+agreed with once lasts two.
+
+**Rewording does not edit a claim, it has a child.** The parent is recorded,
+the counters carry over at half, and the lineage stays in the file. Every AI
+memory feature can tell you what it currently thinks. This one can tell you how
+it changed its mind.
+
+Matching is on the claim text, not on similarity. A threshold loose enough to
+match a rewording is loose enough to merge two claims that disagree, and
+merging those is how a memory starts lying.
+
+A claim is an ordinary entity, the way a saved article is, so it turns up in
+the Library, on the Timeline, in the command bar and in the export without any
+of them learning what a claim is.
+
+### Study
+
+<p>
+  <img src="docs/screenshots/agents-study.png" alt="A cloze card cut from a saved passage" width="100%">
+</p>
+
+Cards are cut from your own sentences by deleting the load-bearing term — the
+figure, the name, the rare word — not written by a model. A cloze made from a
+sentence you saved has an answer that is certainly in your material; a question
+a model generated has an answer that might be. Scheduling is SM-2 (Wozniak &
+Gorzelanczyk, 1994), unmodified: the interesting work is choosing what to ask,
+and the interval arithmetic has been settled for thirty years.
 
 ## What needs attention
 
@@ -435,7 +1014,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `r` `l` `a` `d` `b` `s` | Today, Triage, Timeline, Analytics, Library, Brain, Settings |
+| `g` then `t` `w` `r` `l` `a` `k` `m` `d` `b` `g` `s` | Today, Boards, Triage, Timeline, Analytics, Stash, Studio, Library, Brain, Agents, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -443,34 +1022,47 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 ```
 src/
   core/       registry (the harness), store, query engine, time, format, ids
+  agents/     the five: librarian, analyst, tutor, planner, critic, and the pipeline
+  genome/     claims as Markdown files, and the selection that keeps them honest
   data/       entity schema, the sample project
   ingest/     parser registry entry point, shared text and table readers, zip, export detection
   engine/     metrics, reminders, insight rules, triage
+  work/       boards: column types, view queries, the rule engine, formulas, templates, CSV
+  media/      blob storage, the two encoders, camera and recorder, the player, YouTube links
+  stash/      the page archive, readability, the search index, the block diff
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
-  ui/         shell, board, command bar, inspector, assistant, views, widgets, charts
-  styles/     tokens, base, layout, components, viz
-tests/        97 node:test cases over parsing, querying, analytics, triage and the assistant protocol
+              router: provider catalogue, cost and budget, the plan, response grading, the grounded cache
+  ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
+  ui/work/    the seven board views, cell editors, the item panel, the rule builder
+  ui/media/   camera, compressor, gallery, YouTube, the shell player
+  ui/stash/   the saved list, the reader, highlights, the change view
+  styles/     tokens, base, layout, components, viz, media, stash
+tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the router, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 
 ## Deliberately not here
 
-No drag-and-drop grid library (buttons reorder widgets and work identically with a
-mouse, a thumb and a keyboard). No state library — one object, one
+No drag-and-drop library. Widgets and board rows reorder with buttons that work
+identically with a mouse, a thumb and a keyboard; dragging is the fast path on
+top, built on the browser's own drag events. No state library — one object, one
 `useSyncExternalStore`. No chart library. No router. No backend. No AI SDK: the
 three providers differ by a URL, a header and a line format, and a single
 line reader serves all of them. No model-driven writes: the assistant proposes,
 a person applies. No PDF reading:
 extracting text from PDFs without a dependency is unreliable, and shipping
 something that half-works would be worse than saying so. Add it as a parser
-plugin when you need it.
+plugin when you need it. No video editor: the Studio compresses and records,
+and a trim UI that cannot cut on a keyframe is a toy. No YouTube search, which
+would need a Google Cloud project and a daily quota to save you pasting a
+link.
 
 ## Platform tier: API, workspace and EKS
 
 The browser app needs nothing but a browser. For a team that wants shared
 state, scheduled processing, money tracking and an API that agents can call,
 the repository also carries a containerised platform: a FastAPI service, a
-Celery worker, a hash-chained AI audit ledger, a Next.js 14 workspace, and the
+Celery worker, a hash-chained AI audit ledger, a Next.js 16 workspace, and the
 Kubernetes manifests to run it on AWS EKS. The two tiers share the entity idea
 and the MCP server exposes both.
 
@@ -481,7 +1073,8 @@ and the MCP server exposes both.
 ```
 The-All-Dash/
 ├── src/                        Browser app (React + Vite): parsers, engines, widgets, assistant
-│   └── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
+│   ├── brain/                  learn.js (rules), markdown.js (files), sync.js (folder), bundle.js (zip)
+│   └── work/                   columns.js (22 kinds), query.js, automations.js, formula.js, templates.js, store.js
 ├── public/  tests/  docs/      PWA assets, node:test suite, screenshots, docs/openapi.json
 ├── backend/                    Platform API and worker (Python 3.12)
 │   ├── app/
@@ -499,7 +1092,7 @@ The-All-Dash/
 │   ├── scripts/seed.py         Sample workspace, idempotent
 │   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief
 │   └── Dockerfile              Multi-stage slim, uid 10001, tini, healthcheck
-├── frontend/                   Next.js 14 App Router + Tailwind (TypeScript strict)
+├── frontend/                   Next.js 16 App Router + Tailwind (TypeScript strict, React 19)
 │   ├── app/page.tsx            The three-column workspace (server component)
 │   ├── app/api/                Route handlers that carry the key so the browser never sees it
 │   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
@@ -582,7 +1175,7 @@ recomputes the whole chain and names the first bad row. The initial migration
 installs a trigger that rejects UPDATE and DELETE on the table, so even a
 database client cannot edit history without leaving the chain broken.
 
-**Frontend (Next.js 14).** Left: project pipelines as stage tracks with task
+**Frontend (Next.js 16).** Left: project pipelines as stage tracks with task
 progress, open P1s, invoiced and spent against budget. Centre: the checklist
 with P1/P2/P3 colour coding, optimistic toggles, an add box and a priority
 filter; today's finished items stay visible. Right: the audit stream with a
@@ -653,6 +1246,11 @@ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/late
 # 2. Namespace first, so the Secrets have somewhere to live
 kubectl apply -f k8s/base/namespace.yaml
 
+# 2b. NetworkPolicies are inert on a stock EKS cluster: turn enforcement on in the VPC CNI
+#     (or install Calico). Without this the default-deny policies do nothing.
+aws eks update-addon --cluster-name $CLUSTER --addon-name vpc-cni \
+  --configuration-values '{"enableNetworkPolicy":"true"}' --resolve-conflicts PRESERVE
+
 # 3. Bootstrap secrets (values from a password manager or AWS Secrets Manager; never from git)
 PG_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
 REDIS_PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-40)
@@ -676,7 +1274,7 @@ kubectl -n alldash create secret generic alldash-frontend \
   --from-literal=FRONTEND_AUTH_USER=drew --from-literal=FRONTEND_AUTH_PASSWORD="$WEB_PASS"   # the workspace login
 
 # 4. Storage class and snapshot class (cluster-scoped, applied with the base)
-# 5. Point the overlay at your registry and host
+# 5. Point the overlay at your registry, host and VPC CIDR (PUBLIC_HOST and VPC_CIDR in config-patch.yaml)
 cd k8s/overlays/prod
 kustomize edit set image \
   alldash-backend=$ECR/alldash-backend:$TAG \
@@ -712,7 +1310,7 @@ kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubec
 
 ### Security notes
 
-- **The workspace has a login.** `frontend/middleware.ts` enforces HTTP Basic
+- **The workspace has a login.** `frontend/proxy.ts` enforces HTTP Basic
   auth from the `alldash-frontend` Secret and refuses to serve in production
   until it is set (`FRONTEND_AUTH_DISABLED=true` opts out behind an
   authenticating proxy such as ALB OIDC or oauth2-proxy). Mutating calls to
@@ -734,6 +1332,9 @@ kubectl -n alldash create job --from=cronjob/postgres-snapshot snap-now && kubec
 - **Redis and Postgres both need a password**, from the `redis-credentials`
   and `postgres-credentials` Secrets, on top of the default-deny
   NetworkPolicies. Celery accepts JSON only.
+- **NetworkPolicies need an enforcer.** EKS ignores them until the VPC CNI's
+  network-policy feature (or Calico) is on; the playbook's step 2b turns it
+  on. The load balancer's CIDR is `VPC_CIDR` in the prod overlay.
 - **Pods** run as uid 10001 on a read-only filesystem with all capabilities
   dropped, no service-account token, restricted Pod Security, and CPU and
   memory limits; the workflow token is read-only.
@@ -849,6 +1450,22 @@ connectors and remote clients. Agents read briefs, triage and finances, add
 and close tasks, and record their own judgements in the audit ledger with a
 confidence score. See `mcp/README.md`.
 
+**The five agents are on it too.** `agents_ask` runs the Librarian, Analyst,
+Tutor, Planner and Critic over the exported workspace and hands back an answer
+where every claim carries the id of the record supporting it — anything that
+could not be traced has already been cut. The `genome_*` tools read and move
+the claims they have learned, `study_*` is the spaced-repetition queue, and
+`alldash://workspace/genome` serves the whole genome as the directory of
+Markdown files it is stored as.
+
+Three rules hold over MCP exactly as they do on screen. No model is called —
+the caller is already one, and putting two in series with nobody checking the
+first is how a citation stops meaning anything. `agents_ask` writes nothing,
+including the crediting the browser does automatically, so an agent cannot
+change which claims survive by asking about them often enough. And the Planner
+still only proposes: `agents_apply` is the writing half, and it is a separate
+call.
+
 ### Install the Claude plugin
 
 The repository is also a Claude Code plugin marketplace. Two commands install
@@ -861,12 +1478,19 @@ on the web:
 ```
 
 Then export your workspace from the app (Settings → *Your data* → Export) and
-save it as `~/.all-dash/workspace.json`, or point the server at a running
-platform:
+save it as `~/.all-dash/workspace.json`. To try it before you have used the
+app at all, seed the sample project instead — no browser needed:
+
+```bash
+npm run sample-workspace          # writes ~/.all-dash/workspace.json
+```
+
+Or point the server at a running platform:
 
 ```bash
 export ALLDASH_WORKSPACE_FILE=~/Downloads/all-dash-2026-09-08.json   # or the default path above
-export ALLDASH_API_URL=https://dash.yourdomain.com/api  ALLDASH_API_KEY=...   # optional
+export ALLDASH_API_URL=http://localhost:8000 ALLDASH_API_KEY=...   # optional: the API is not on the Ingress;
+                                                                      # on a cluster use kubectl port-forward svc/backend 8000, or the in-cluster URL from a pod
 ```
 
 Ask "what's late?", "review my day", or "add a task to send the deck by
@@ -886,10 +1510,17 @@ The build ships a web manifest, PNG icons for every launcher, home-screen
 shortcuts and a small service worker, so it installs to a phone's home screen
 or a desktop dock and opens offline. The worker caches the app shell only;
 there is no network traffic to cache, and your workspace never leaves the
-device.
+device — with one exception you have to switch on yourself: turning YouTube
+on in Settings → Media embeds a player from `youtube-nocookie.com`, and from
+then on Google sees which video you play and when. Nothing else about the
+workspace is sent with it, and the switch is off until you flip it.
 
-1. Serve the `dist/` folder over HTTPS (any static host: Netlify, Vercel,
-   GitHub Pages, S3 + CloudFront, or `npm run preview` on your LAN for a try).
+1. Serve the `dist/` folder over HTTPS from the root of a host (Netlify,
+   Vercel, S3 + CloudFront, a GitHub Pages *user* site, or `npm run preview`
+   on your LAN for a try). The manifest, service worker and assets use
+   root-relative paths, so a sub-path such as `github.io/The-All-Dash/`
+   needs `base` set in `vite.config.js` and the paths in
+   `public/manifest.webmanifest` and `public/sw.js` adjusted to match.
 2. **iPhone or iPad:** open it in Safari, tap Share, then *Add to Home Screen*.
 3. **Android:** open it in Chrome and tap *Install app* in the banner or the
    menu.

@@ -4,3 +4,9 @@ metadata:
   name: alldash-config
 data:
   ALLDASH_CORS_ORIGINS: https://alldash.example.com
+  # The one place the public host is named; replacements copy it into the
+  # Ingress rule and, on the Let's Encrypt path, its TLS hosts.
+  PUBLIC_HOST: alldash.example.com
+  # The VPC CIDR the load balancer's addresses fall in (eksctl default is
+  # 192.168.0.0/16). Copied into the NetworkPolicies that admit it.
+  VPC_CIDR: 10.0.0.0/8

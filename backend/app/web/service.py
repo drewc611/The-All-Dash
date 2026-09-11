@@ -24,7 +24,7 @@ from urllib.parse import urlsplit
 
 from .fetch import Fetched, Fetcher, FetchError
 from .firecrawl import Firecrawl
-from .guard import BlockedUrl, normalise, same_site
+from .guard import BlockedUrl, check_url, match_path, normalise, same_site
 from .html import parse_html
 from .llm import Llm
 from .llm import extract as llm_extract
@@ -96,6 +96,7 @@ class WebService:
         self.firecrawl = firecrawl
         self.llm = llm
         self.limits = limits or Limits()
+        self.budget_seconds = 60.0
 
     async def aclose(self) -> None:
         await self.fetcher.aclose()
@@ -127,7 +128,10 @@ class WebService:
             if not self.firecrawl:
                 raise NotAvailable("JavaScript rendering and screenshots need Firecrawl: set ALLDASH_FIRECRAWL_API_KEY")
             fc_formats = [f for f in ("markdown", "html", "links", "screenshot") if f in wants or f == "markdown"]
-            item = await self.firecrawl.scrape(normalise(url), formats=fc_formats, wait_ms=wait_ms)
+            # The same guard as the native path: a self-hosted Firecrawl inside
+            # the cluster must not be a way around it.
+            checked = await check_url(url, allow_private=self.fetcher.allow_private)
+            item = await self.firecrawl.scrape(checked.url, formats=fc_formats, wait_ms=wait_ms)
             parsed = parse_html(item["html"], item["url"]) if item.get("html") else None
             return Page(
                 url=normalise(url),
@@ -267,7 +271,7 @@ class WebService:
         exclude = exclude or []
 
         def wanted(candidate: str) -> bool:
-            path = urlsplit(candidate).path or "/"
+            path = match_path(candidate)
             if exclude and any(fnmatch.fnmatch(path, pat) for pat in exclude):
                 return False
             return not include or any(fnmatch.fnmatch(path, pat) for pat in include)
@@ -344,7 +348,12 @@ class WebService:
                     pages.append(page.as_dict())
 
         await asyncio.gather(*(one(u) for u in dict.fromkeys(urls)))
-        order = {u: i for i, u in enumerate(urls)}
+        order: dict[str, int] = {}
+        for i, u in enumerate(urls):
+            try:
+                order.setdefault(normalise(u), i)
+            except BlockedUrl:
+                continue
         pages.sort(key=lambda p: order.get(p["url"], len(order)))
         return {"pages": pages, "failures": failures}
 

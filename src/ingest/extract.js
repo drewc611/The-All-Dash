@@ -1,4 +1,4 @@
-import { parseLooseDate, iso } from '../core/time.js'
+import { parseLooseDate, iso, toDate } from '../core/time.js'
 
 /**
  * The line reader behind every text format.
@@ -49,6 +49,9 @@ export function extractFromText(text, source, refDate = new Date()) {
   const lines = String(text || '').split(/\r?\n/)
   const entities = []
   const meta = { people: [], project: null, date: null, title: null, headings: [] }
+  // "by Friday" in notes dated three weeks ago means that week's Friday: once
+  // the note names its date, relative dates resolve against it.
+  const dateRef = () => (meta.date ? toDate(meta.date) : refDate)
 
   let section = null
   let sectionKind = null
@@ -95,7 +98,7 @@ export function extractFromText(text, source, refDate = new Date()) {
     // Checkboxes are unambiguous - always a task.
     const box = line.match(CHECKBOX)
     if (box) {
-      entities.push(buildTask(box[2], { ...base, status: STATUS_FOR_BOX[box[1]] || 'open' }, refDate))
+      entities.push(buildTask(box[2], { ...base, status: STATUS_FOR_BOX[box[1]] || 'open' }, dateRef()))
       continue
     }
 
@@ -104,7 +107,7 @@ export function extractFromText(text, source, refDate = new Date()) {
     for (const marker of MARKERS) {
       const m = line.match(marker.re)
       if (!m) continue
-      entities.push(buildFromKind(marker.type, m[1], base, refDate))
+      entities.push(buildFromKind(marker.type, m[1], base, dateRef()))
       matched = true
       break
     }
@@ -117,7 +120,7 @@ export function extractFromText(text, source, refDate = new Date()) {
         const when = row[1] || row[4]
         const label = (row[2] || row[3] || '').trim()
         if (when && label) {
-          entities.push(buildFromKind('milestone', label, { ...base, due: parseLooseDate(when, refDate) }, refDate))
+          entities.push(buildFromKind('milestone', label, { ...base, due: parseLooseDate(when, dateRef()) }, dateRef()))
           continue
         }
       }
@@ -133,9 +136,9 @@ export function extractFromText(text, source, refDate = new Date()) {
     if (bullet) {
       const content = bullet[1].trim()
       if (sectionKind && sectionKind !== 'note') {
-        entities.push(buildFromKind(sectionKind, content, base, refDate))
+        entities.push(buildFromKind(sectionKind, content, base, dateRef()))
       } else if (looksLikeAction(content)) {
-        entities.push(buildTask(content, base, refDate))
+        entities.push(buildTask(content, base, dateRef()))
       } else {
         pendingBody.push(content)
       }

@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     burn_rate_window_days: int = Field(default=30, ge=7, le=365)
     log_level: str = "INFO"
     request_id_header: str = "x-request-id"
+    db_pool_size: int = Field(default=5, ge=1, le=100)
+    db_max_overflow: int = Field(default=10, ge=0, le=200)
     expose_docs: bool = Field(default=False, description="Serve /docs and /openapi.json in production too")
     max_body_bytes: int = Field(default=1_048_576, ge=16_384, description="Largest request body accepted")
 
@@ -43,6 +45,9 @@ class Settings(BaseSettings):
     web_per_host_interval: float = Field(default=0.5, ge=0, le=30)
     web_respect_robots: bool = True
     web_allow_private: bool = Field(default=False, description="Let the scraper reach private addresses (tests only)")
+    web_request_budget_seconds: float = Field(
+        default=60.0, ge=5, le=600, description="Wall-clock cap on one synchronous web request"
+    )
     firecrawl_api_key: str = ""
     firecrawl_url: str = "https://api.firecrawl.dev"
     llm_provider: Literal["", "anthropic", "openai", "ollama"] = ""

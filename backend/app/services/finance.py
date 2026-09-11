@@ -21,7 +21,9 @@ async def _sum_expenses(session: AsyncSession, start: date, end: date) -> int:
 
 async def burn_rate(session: AsyncSession, as_of: date, window_days: int = 30) -> BurnRate:
     """Average daily spend over the trailing window, against the window before it."""
-    start = as_of - timedelta(days=window_days)
+    # Both windows hold exactly window_days days: [start, as_of] inclusive and
+    # the window_days days before start.
+    start = as_of - timedelta(days=window_days - 1)
     current = await _sum_expenses(session, start, as_of + timedelta(days=1))
     previous = await _sum_expenses(session, start - timedelta(days=window_days), start)
     daily = round(current / window_days)

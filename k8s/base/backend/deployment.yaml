@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: backend
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
+  # No replicas here: the HPA owns the count, so an apply never scales it back.
   revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate

@@ -42,7 +42,9 @@ export function readConfig(env = process.env, exists = existsSync) {
     allowUnauthenticated: clean(env.MCP_ALLOW_UNAUTHENTICATED).toLowerCase() === 'true',
     host: clean(env.MCP_HOST),
     allowedHosts: list(env.MCP_ALLOWED_HOSTS),
-    publicUrl: clean(env.MCP_PUBLIC_URL) || '',
+    // Only the first of a comma-separated list, and only when set: without it
+    // citations use the alldash:// scheme rather than a URL that 404s.
+    publicUrl: clean(env.MCP_PUBLIC_URL).split(',')[0].trim(),
   }
 }
 
@@ -51,5 +53,5 @@ const list = (v) => clean(v).split(',').map((h) => h.trim().toLowerCase()).filte
 /** Env values written as "${VAR}" by a config file the host did not expand are not values. */
 const clean = (v) => {
   const s = String(v ?? '').trim()
-  return /^\$\{[A-Z0-9_]+\}$/i.test(s) ? '' : s
+  return /^\$\{[A-Z0-9_]+(:-[^}]*)?\}$/i.test(s) ? '' : s
 }

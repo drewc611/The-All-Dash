@@ -1,4 +1,4 @@
-import { dayKey, addDays, startOfDay, toDate } from './time.js'
+import { dayKey, addDays, startOfDay, toDate, MS } from './time.js'
 
 /**
  * A tiny query layer over the entity list. Chainable, lazy enough, and small
@@ -128,8 +128,24 @@ export const q = (entities) => new Query(Array.isArray(entities) ? entities : Ob
  * (zeros included) so charts do not lie about gaps.
  */
 export function daily(rows, { from, to, field = 'at', reduce = 'count', valueField = 'value' }) {
-  const start = startOfDay(from)
-  const end = startOfDay(to)
+  let start = startOfDay(from)
+  let end = startOfDay(to)
+  // A wide window ("All time") is bucketed only across the days that hold
+  // data, with a week of margin, so a range never means millions of buckets.
+  if ((end - start) / MS.day > 400) {
+    let lo = Infinity
+    let hi = -Infinity
+    for (const row of rows) {
+      if (!row[field]) continue
+      const t = toDate(row[field]).getTime()
+      if (!Number.isFinite(t) || t < start || t > end.getTime() + MS.day) continue
+      if (t < lo) lo = t
+      if (t > hi) hi = t
+    }
+    if (!Number.isFinite(lo)) return []
+    start = startOfDay(new Date(Math.max(start.getTime(), lo - 7 * MS.day)))
+    end = startOfDay(new Date(Math.min(end.getTime(), hi)))
+  }
   const buckets = new Map()
   for (let d = start; d <= end; d = addDays(d, 1)) buckets.set(dayKey(d), [])
   for (const row of rows) {

@@ -13,7 +13,7 @@
 .viz__axis line { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
 
 .viz__tick {
-  font-size: 10px;
+  font-size: var(--t-2xs);
   fill: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -32,8 +32,8 @@
   position: absolute;
   z-index: 5;
   min-width: 96px;
-  padding: var(--gap-2);
-  border-radius: var(--r-sm);
+  padding: var(--gap-2) var(--gap-3);
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface);
   box-shadow: var(--shadow-md);
@@ -44,7 +44,7 @@
 }
 
 .viz__tip-label { color: var(--ink-muted); }
-.viz__tip-value { font-size: var(--t-md); font-weight: 620; font-variant-numeric: tabular-nums; }
+.viz__tip-value { font-size: var(--t-md); font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
 
 .legend {
   display: flex;
@@ -55,7 +55,7 @@
 }
 
 .legend__item { display: inline-flex; align-items: center; gap: 5px; }
-.legend__swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.legend__swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 
 /* ------------------------------------------------------------- stat tile */
 
@@ -68,22 +68,22 @@
 
 .stat__label {
   font-size: var(--t-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: var(--w-bold);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-muted);
 }
 
 .stat__value {
   font-size: var(--t-2xl);
-  font-weight: 650;
-  letter-spacing: -0.025em;
+  font-weight: var(--w-bold);
+  letter-spacing: -0.03em;
   line-height: 1.15;
 }
 
 .stat__value--hero { font-size: var(--t-3xl); }
 .stat__foot { display: flex; align-items: center; gap: var(--gap-1); font-size: var(--t-xs); color: var(--ink-muted); }
-.stat__delta { font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat__delta { font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
 .stat__delta--good { color: var(--good); }
 .stat__delta--bad { color: var(--critical); }
 .stat__delta--neutral { color: var(--ink-muted); }
@@ -93,9 +93,10 @@
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   gap: 0;
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   overflow: hidden;
   border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-grid > * {
@@ -111,8 +112,8 @@
 
 .hbar__row { display: grid; grid-template-columns: minmax(72px, 30%) 1fr auto; align-items: center; gap: var(--gap-3); font-size: var(--t-sm); }
 .hbar__label { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hbar__track { height: 8px; border-radius: 4px; background: var(--surface-sunken); overflow: hidden; }
-.hbar__fill { height: 100%; border-radius: 4px; transition: width var(--base); }
+.hbar__track { height: 8px; border-radius: var(--r-full); background: var(--surface-sunken); overflow: hidden; }
+.hbar__fill { height: 100%; border-radius: var(--r-full); transition: width var(--base); }
 .hbar__value { font-variant-numeric: tabular-nums; color: var(--ink-2); min-width: 32px; text-align: right; }
 
 /* -------------------------------------------------------------- heatmap */
@@ -159,7 +160,7 @@
 .timeline__day:last-child { border-bottom: 0; }
 
 .timeline__date { font-size: var(--t-sm); color: var(--ink-muted); position: sticky; top: 0; }
-.timeline__date strong { display: block; font-size: var(--t-lg); color: var(--ink); font-weight: 620; }
+.timeline__date strong { display: block; font-size: var(--t-lg); color: var(--ink); font-weight: var(--w-bold); letter-spacing: -0.02em; }
 .timeline__date[data-today='true'] strong { color: var(--accent); }
 .timeline__items { display: flex; flex-direction: column; gap: var(--gap-2); min-width: 0; }
 
@@ -172,5 +173,5 @@
 .gantt { display: flex; flex-direction: column; gap: 6px; }
 .gantt__row { display: grid; grid-template-columns: minmax(90px, 26%) 1fr; gap: var(--gap-3); align-items: center; font-size: var(--t-sm); }
 .gantt__track { position: relative; height: 20px; background: var(--surface-sunken); border-radius: var(--r-sm); overflow: hidden; }
-.gantt__bar { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; min-width: 4px; }
+.gantt__bar { position: absolute; top: 3px; bottom: 3px; border-radius: var(--r-full); min-width: 5px; }
 .gantt__now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--critical); }

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import posixpath
 import socket
 from dataclasses import dataclass
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost", ".svc", ".cluster.local")
@@ -38,7 +39,11 @@ def normalise(url: str) -> str:
         raise BlockedUrl("Empty URL")
     if "://" not in raw:
         raw = f"https://{raw}"
-    parts = urlsplit(raw)
+    try:
+        parts = urlsplit(raw)
+        port = parts.port  # raises ValueError for "example.com:abc" or a port over 65535
+    except ValueError as exc:
+        raise BlockedUrl(f"Malformed URL: {raw[:120]}") from exc
     if parts.scheme.lower() not in ALLOWED_SCHEMES:
         raise BlockedUrl(f"Only http and https are fetched, not {parts.scheme or 'this'}")
     if not parts.hostname:
@@ -46,22 +51,29 @@ def normalise(url: str) -> str:
     if parts.username or parts.password:
         raise BlockedUrl("Credentials in URLs are not forwarded")
     host = parts.hostname.lower().rstrip(".")
-    netloc = host if parts.port is None else f"{host}:{parts.port}"
+    netloc = host if port is None else f"{host}:{port}"
     return urlunsplit((parts.scheme.lower(), netloc, parts.path or "/", parts.query, ""))
+
+
+def match_path(url: str) -> str:
+    """The path a robots rule or a crawl glob is matched against: decoded and
+    with dot-segments resolved, so /docs/../private and /%70rivate cannot slip
+    past a Disallow: /private/ rule."""
+    path = unquote(urlsplit(url).path or "/")
+    trailing = path.endswith("/") and path != "/"
+    normal = posixpath.normpath(path)
+    if not normal.startswith("/"):
+        normal = "/" + normal
+    return f"{normal}/" if trailing and normal != "/" else normal
 
 
 def _is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
         ip = ip.ipv4_mapped
-    return not (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
-        or (isinstance(ip, ipaddress.IPv6Address) and ip.is_site_local)
-    )
+    # is_global is the IANA special-purpose registry in one bit: it also
+    # excludes 100.64.0.0/10 (shared address space, used by EKS custom
+    # networking), which the private/loopback/link-local flags do not.
+    return bool(ip.is_global) and not ip.is_multicast
 
 
 def _host_blocked(host: str) -> bool:

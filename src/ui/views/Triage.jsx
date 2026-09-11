@@ -106,20 +106,22 @@ export function Row({ signal, onOpen, onAsk, onAct, compact = false }) {
   return (
     <div className="list__item triage-row">
       <span className={`dot dot--${tone(signal.severity)}`} style={{ marginTop: 6 }} />
-      <button type="button" className="list__main" onClick={() => target && onOpen?.(target)} style={{ textAlign: 'left' }}>
-        <span className="list__title">{signal.title}</span>
-        <span className="list__meta">
-          <span className={`chip chip--${signal.severity === 'info' ? 'accent' : signal.severity}`}>{signal.kind.replace('-', ' ')}</span>
-          <span>{signal.why}</span>
-        </span>
+      <div className="list__main">
+        <button type="button" className="list__open" onClick={() => target && onOpen?.(target)}>
+          <span className="list__title">{signal.title}</span>
+          <span className="list__meta">
+            <span className={`chip chip--${signal.severity === 'info' ? 'accent' : signal.severity}`}>{signal.kind.replace('-', ' ')}</span>
+            <span>{signal.why}</span>
+          </span>
+        </button>
         {!compact && signal.entities?.length > 1 && (
           <span className="row row--wrap" style={{ gap: 4, marginTop: 4 }}>
             {signal.entities.slice(0, 4).map((e) => (
-              <span key={e.id} className="chip truncate" style={{ maxWidth: 200 }} onClick={(ev) => { ev.stopPropagation(); onOpen?.(e) }}>{e.title}</span>
+              <button key={e.id} type="button" className="chip chip--button truncate" style={{ maxWidth: 200 }} onClick={() => onOpen?.(e)} title={e.title}>{e.title}</button>
             ))}
           </span>
         )}
-      </button>
+      </div>
       <span className="list__side triage-row__actions">
         {(compact ? signal.actions.slice(0, 1) : signal.actions).map((a) => (
           <button key={a.id} className="btn btn--sm" onClick={() => onAct(a.id, signal)}>{a.label}</button>

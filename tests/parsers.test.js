@@ -9,7 +9,7 @@ import { transcriptToTurns } from '../src/ingest/parsers/transcript.js'
 import { htmlToText } from '../src/ingest/parsers/text.js'
 import { parseSharedStrings, parseSheet, parseDateStyles, columnIndex, serialToDate } from '../src/ingest/parsers/xlsx.js'
 import { parseLooseDate, dayKey, rangeFor } from '../src/core/time.js'
-import { pickParser } from '../src/ingest/index.js'
+import { pickParser, ensureBinaryParsers } from '../src/ingest/index.js'
 
 const source = { docId: 'd1', name: 'test.md', kind: 'markdown' }
 
@@ -276,7 +276,11 @@ test('the document title is not a topic tag', () => {
   assert.deepEqual(risk.tags, ['risks'])
 })
 
-test('binary inputs only go to parsers that read binary', () => {
+test('binary inputs only go to parsers that read binary', async () => {
+  // The spreadsheet and Office readers are fetched when a binary file turns
+  // up rather than on every page load, so this is the state the app is in by
+  // the time it picks a parser for one.
+  await ensureBinaryParsers()
   const zip = { name: 'archive.zip', text: '', buffer: new ArrayBuffer(8), kind: 'zip' }
   assert.equal(pickParser(zip), undefined)
   const xlsx = { name: 'sheet.xlsx', text: '', buffer: new ArrayBuffer(8), kind: 'xlsx' }

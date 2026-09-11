@@ -152,8 +152,13 @@ export function EntityList({ entities, onOpen, empty, limit = 50 }) {
 const openOverlays = []
 
 /** Escape-to-close, focus-trapped overlay used by the inspector and pickers. */
-export function Overlay({ onClose, children, className = 'sheet', labelledBy }) {
+export function Overlay({ onClose, children, className = 'sheet', labelledBy, label }) {
   const ref = useRef(null)
+  // The latest close handler lives in a ref, so an inline arrow from the
+  // parent never re-runs the mount effect (which would steal focus and
+  // reorder the Escape stack on every re-render).
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
 
   useEffect(() => {
     const token = {}
@@ -162,7 +167,7 @@ export function Overlay({ onClose, children, className = 'sheet', labelledBy }) 
       if (e.key === 'Escape') {
         if (openOverlays.at(-1) !== token) return
         e.stopPropagation()
-        onClose()
+        closeRef.current?.()
       }
       if (e.key !== 'Tab' || !ref.current) return
       const focusable = ref.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
@@ -173,18 +178,22 @@ export function Overlay({ onClose, children, className = 'sheet', labelledBy }) 
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
     }
     document.addEventListener('keydown', onKey, true)
-    ref.current?.querySelector('input, button')?.focus()
+    // Focus once, on open: the first text field if there is one, otherwise
+    // the dialog itself. Never a button, which could be Delete.
+    const el = ref.current
+    const first = el?.querySelector('input:not([type="hidden"]):not([type="checkbox"]), textarea, select') || el
+    first?.focus?.()
     return () => {
       document.removeEventListener('keydown', onKey, true)
       const i = openOverlays.indexOf(token)
       if (i >= 0) openOverlays.splice(i, 1)
     }
-  }, [onClose])
+  }, [])
 
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <div className={className} ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className={className} ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={label} tabIndex={-1}>
         {children}
       </div>
     </>

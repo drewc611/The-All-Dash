@@ -35,7 +35,7 @@ import { iso } from '../core/time.js'
 /** @typedef {'open'|'doing'|'done'|'blocked'|'cancelled'} Status */
 
 export const ENTITY_TYPES = [
-  'task', 'event', 'note', 'metric', 'milestone', 'risk', 'decision', 'person', 'doc',
+  'task', 'event', 'note', 'metric', 'milestone', 'risk', 'decision', 'person', 'doc', 'media', 'page', 'gene',
 ]
 
 export const TYPE_LABEL = {
@@ -48,18 +48,25 @@ export const TYPE_LABEL = {
   decision: 'Decision',
   person: 'Person',
   doc: 'Document',
+  gene: 'Claim',
+  media: 'Media',
+  page: 'Saved page',
 }
 
 export const STATUSES = ['open', 'doing', 'done', 'blocked', 'cancelled']
 export const OPEN_STATUSES = ['open', 'doing', 'blocked']
 
 /** Fill in defaults and give the record a content-stable id. */
+// An imported id such as "__proto__" would set the prototype of the entity
+// map instead of adding a record; such ids get a fresh one.
+const UNSAFE_ID = /^(__proto__|constructor|prototype)$/
+
 export function makeEntity(input) {
   const now = iso(new Date())
   const type = ENTITY_TYPES.includes(input.type) ? input.type : 'note'
   const title = String(input.title ?? '').trim().slice(0, 400) || '(untitled)'
   const entity = {
-    id: input.id || hashId(type, type, title, input.at || input.due || '', input.series || '', input.source?.docId || ''),
+    id: input.id && !UNSAFE_ID.test(input.id) ? input.id : hashId(type, type, title, input.at || input.due || '', input.series || '', input.source?.docId || ''),
     type,
     title,
     body: input.body ? String(input.body).slice(0, 8000) : '',
@@ -113,7 +120,7 @@ function dedupe(list) {
 export function mergeEntity(existing, incoming) {
   if (!existing) return incoming
   const userTouched = existing.meta?.editedByUser
-  return {
+  const merged = {
     ...incoming,
     status: userTouched ? existing.status : incoming.status,
     priority: userTouched ? existing.priority : incoming.priority,
@@ -121,7 +128,14 @@ export function mergeEntity(existing, incoming) {
     createdAt: existing.createdAt,
     meta: { ...incoming.meta, ...(userTouched ? { editedByUser: true } : {}) },
   }
+  // updatedAt means "last real change". Re-importing the same content must
+  // not make an old task count as finished today or restart a blocked timer.
+  const same = CONTENT_KEYS.every((k) => JSON.stringify(existing[k] ?? null) === JSON.stringify(merged[k] ?? null))
+  merged.updatedAt = same ? existing.updatedAt : incoming.updatedAt
+  return merged
 }
+
+const CONTENT_KEYS = ['title', 'body', 'status', 'priority', 'due', 'at', 'end', 'value', 'people', 'tags']
 
 /** A document is a first-class entity too, so the inbox is just a query. */
 export function makeDoc({ id, name, kind, size, text, produced, version, flavor = null, url = null }) {

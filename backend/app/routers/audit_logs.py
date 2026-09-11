@@ -21,7 +21,7 @@ from ..security import Authed
 from ._common import Limit, Offset, get_or_404, paginate
 
 router = APIRouter(prefix="/ai-audit-logs", tags=["ai-audit-logs"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 @router.get("", response_model=Page[AuditLogOut], summary="Newest first")

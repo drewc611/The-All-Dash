@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * Every request passes through here, so this is where the workspace is
- * protected.
+ * Every request passes through here (the Next.js proxy, formerly
+ * middleware), so this is where the workspace is protected.
  *
  * 1. HTTP Basic authentication from FRONTEND_AUTH_USER / FRONTEND_AUTH_PASSWORD.
  *    In production the server refuses to serve at all until both are set
@@ -11,7 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  *    origin. Browsers say so with Sec-Fetch-Site or Origin; a request with
  *    neither is not a browser and is left to Basic auth.
  * 3. A Content-Security-Policy with a per-request nonce, which Next.js picks
- *    up for its own inline scripts.
+ *    up for its own inline scripts. Runs on the Node.js runtime.
  *
  * Health endpoints stay open for the kubelet's probes.
  */
@@ -44,7 +44,9 @@ async function same(a: string, b: string): Promise<boolean> {
 function credentials(header: string | null): { user: string; password: string } | null {
   if (!header || !header.startsWith('Basic ')) return null
   try {
-    const decoded = atob(header.slice(6).trim())
+    // atob yields a byte string; decode it as UTF-8 so a password with
+    // non-ASCII characters matches what the browser sent.
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(header.slice(6).trim()), (c) => c.charCodeAt(0)))
     const at = decoded.indexOf(':')
     if (at < 0) return null
     return { user: decoded.slice(0, at), password: decoded.slice(at + 1) }
@@ -79,7 +81,7 @@ function challenge(): NextResponse {
   })
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const path = request.nextUrl.pathname
 
   if (!HEALTH.has(path)) {

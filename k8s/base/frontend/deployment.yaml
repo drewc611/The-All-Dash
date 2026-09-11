@@ -58,7 +58,7 @@ spec:
                   name: alldash-api
                   key: BACKEND_API_KEY
             # The workspace is behind HTTP Basic auth; the server refuses to
-            # serve without these (see frontend/middleware.ts).
+            # serve without these (see frontend/proxy.ts).
             - name: FRONTEND_AUTH_USER
               valueFrom:
                 secretKeyRef:

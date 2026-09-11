@@ -17,6 +17,8 @@ import { seedWorkspace } from '../../data/seed.js'
 import { downloadText } from '../download.js'
 import { AssistantSettings } from './AssistantSettings.jsx'
 import { PlatformSettings } from './PlatformSettings.jsx'
+import { MediaSettings } from './MediaSettings.jsx'
+import { Router } from '../router/Router.jsx'
 
 export function Settings({ state, entities, range, onToast }) {
   return (
@@ -25,8 +27,10 @@ export function Settings({ state, entities, range, onToast }) {
         <div className="board__cell" data-size="md"><Appearance state={state} /></div>
         <div className="board__cell" data-size="md"><Reminders state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="xl"><AssistantSettings state={state} onToast={onToast} /></div>
+        <div className="board__cell" data-size="xl"><Router onToast={onToast} /></div>
         <div className="board__cell" data-size="xl"><MetricBuilder state={state} entities={entities} range={range} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><PlatformSettings state={state} onToast={onToast} /></div>
+        <div className="board__cell" data-size="md"><MediaSettings onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Data onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Harness /></div>
       </div>
@@ -250,8 +254,15 @@ function Data({ onToast }) {
     const file = files?.[0]
     if (!file) return
     try {
-      importWorkspace(await file.text())
-      onToast('Workspace restored.', 'good')
+      const { dropped } = importWorkspace(await file.text()) || {}
+      // A restore that quietly refuses part of the file, and says nothing,
+      // leaves the person with a platform tier that has just stopped working
+      // and no idea why.
+      if (dropped?.length) {
+        onToast(`Workspace restored. ${dropped.join(' and ')} did not come across — a file cannot set where your keys are sent. Re-enter ${dropped.length > 1 ? 'them' : 'it'} in Settings.`, 'warning')
+      } else {
+        onToast('Workspace restored.', 'good')
+      }
     } catch (error) {
       onToast(`Could not read that file: ${error.message}`, 'critical')
     }

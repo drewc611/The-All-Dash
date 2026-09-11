@@ -9,6 +9,7 @@ the audit ledger with the model, the sources and the prompt.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 from urllib.parse import urlsplit
 
@@ -50,17 +51,21 @@ from ..web.service import NotAvailable, WebService
 from ._common import Limit, Offset, get_or_404, paginate
 
 router = APIRouter(prefix="/web", tags=["web"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 Web = Annotated[WebService, Depends(get_web)]
 
 
 def _http(exc: Exception) -> HTTPException:
     if isinstance(exc, FetchError | BlockedUrl):
-        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if isinstance(exc, NotAvailable | LlmNotConfigured):
         return HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=str(exc))
     if isinstance(exc, FirecrawlError | LlmError):
         return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+    if isinstance(exc, TimeoutError):
+        return HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="The site did not answer within the request budget"
+        )
     raise exc
 
 
@@ -72,7 +77,8 @@ async def capabilities(web: Web, _: Authed) -> WebCapabilities:
 @router.post("/scrape", response_model=WebPage, summary="One URL to Markdown, HTML, text, links or a screenshot")
 async def scrape(body: WebScrapeIn, web: Web, _: Authed) -> WebPage:
     try:
-        page = await web.scrape(body.url, formats=tuple(body.formats), render=body.render, wait_ms=body.wait_ms)
+        async with _budget(web):
+            page = await web.scrape(body.url, formats=tuple(body.formats), render=body.render, wait_ms=body.wait_ms)
     except Exception as exc:  # noqa: BLE001 - mapped to a status below
         raise _http(exc) from exc
     return WebPage(**page.as_dict())
@@ -81,7 +87,8 @@ async def scrape(body: WebScrapeIn, web: Web, _: Authed) -> WebPage:
 @router.post("/map", response_model=WebMapOut, summary="Every URL a site publishes")
 async def map_site(body: WebMapIn, web: Web, _: Authed) -> WebMapOut:
     try:
-        return WebMapOut(**await web.map(body.url, limit=body.limit, search=body.search, sitemap=body.sitemap))
+        async with _budget(web):
+            return WebMapOut(**await web.map(body.url, limit=body.limit, search=body.search, sitemap=body.sitemap))
     except Exception as exc:  # noqa: BLE001
         raise _http(exc) from exc
 
@@ -97,11 +104,19 @@ async def search(body: WebSearchIn, web: Web, _: Authed) -> WebSearchOut:
 async def _enqueue(session: AsyncSession, kind: str, request: dict) -> WebJobAccepted:
     job = WebJob(kind=kind, status="queued", request=request)
     session.add(job)
-    await session.flush()
+    # Commit first: the worker may pick the message up before this request
+    # would otherwise have committed, and find no row.
+    await session.commit()
     from ..worker import run_web_job  # imported here so the API never needs a broker at import time
 
-    run_web_job.delay(job.id)
+    # Kombu's publish is blocking; keep it off the event loop.
+    await asyncio.to_thread(run_web_job.delay, job.id)
     return WebJobAccepted(id=job.id, kind=kind, status="queued")
+
+
+def _budget(web: WebService) -> asyncio.Timeout:
+    """One wall-clock cap on a synchronous web request, whatever the site does."""
+    return asyncio.timeout(web.budget_seconds)
 
 
 @router.post("/crawl", response_model=WebCrawlOut | WebJobAccepted, summary="Every page of a site, breadth first")
@@ -115,14 +130,15 @@ async def crawl(
     if run_async or body.limit > web.limits.sync_max_pages:
         return await _enqueue(session, "crawl", body.model_dump())
     try:
-        result = await web.crawl(
-            body.url,
-            limit=body.limit,
-            max_depth=body.max_depth,
-            include=body.include,
-            exclude=body.exclude,
-            formats=tuple(body.formats),
-        )
+        async with _budget(web):
+            result = await web.crawl(
+                body.url,
+                limit=body.limit,
+                max_depth=body.max_depth,
+                include=body.include,
+                exclude=body.exclude,
+                formats=tuple(body.formats),
+            )
     except Exception as exc:  # noqa: BLE001
         raise _http(exc) from exc
     return WebCrawlOut(**result)
@@ -139,7 +155,8 @@ async def batch(
     if run_async or len(body.urls) > web.limits.sync_max_pages:
         return await _enqueue(session, "batch", body.model_dump())
     try:
-        result = await web.batch(body.urls, formats=tuple(body.formats), render=body.render)
+        async with _budget(web):
+            result = await web.batch(body.urls, formats=tuple(body.formats), render=body.render)
     except Exception as exc:  # noqa: BLE001
         raise _http(exc) from exc
     return WebBatchOut(**result)

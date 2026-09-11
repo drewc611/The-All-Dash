@@ -2,8 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
@@ -102,8 +103,12 @@ test('config: with nothing set, the default export path is used only when it exi
   assert.equal(readConfig({ ...env, ALLDASH_WORKSPACE_FILE: '/x.json' }, () => true).workspaceFile, '/x.json')
 })
 
-test('refuses to start with no source configured', () => {
-  assert.throws(() => createServer({ workspaceFile: '', apiUrl: '', apiKey: '', publicUrl: '' }), /ALLDASH_WORKSPACE_FILE/)
+test('with no source configured it starts anyway, rather than dying', () => {
+  // It used to throw. The host then reported a closed connection and the
+  // sentence explaining the fix went to a log nobody reads, which is a
+  // connector that is simply broken as far as anyone can tell. See the two
+  // setup tests at the end of this file for what it does instead.
+  assert.doesNotThrow(() => createServer({ workspaceFile: '', apiUrl: '', apiKey: '', publicUrl: '' }))
 })
 
 test('workspace mode: overview, triage, status update, search and fetch use the app engines', async () => {
@@ -334,4 +339,318 @@ test('workspace ids that name Object.prototype members resolve to nothing', asyn
   const updated = await client.callTool({ name: 'workspace_update_task', arguments: { id: 'constructor', status: 'done' } })
   assert.equal(updated.isError, true)
   assert.match(updated.content[0].text, /No entity/)
+})
+
+test('adding the same task twice keeps both, and concurrent writes all land', async () => {
+  const { file } = await fixtureWorkspace()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '', apiKey: '', publicUrl: '' })
+  const first = parse(await client.callTool({ name: 'workspace_add_task', arguments: { title: 'Call Legal', due: '2026-10-01' } }))
+  const second = parse(await client.callTool({ name: 'workspace_add_task', arguments: { title: 'Call Legal', due: '2026-10-01' } }))
+  assert.notEqual(first.id, second.id)
+  await Promise.all([1, 2, 3, 4].map((n) => client.callTool({ name: 'workspace_add_task', arguments: { title: `Parallel ${n}` } })))
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  const titles = Object.values(state.entities).map((e) => e.title)
+  assert.equal(titles.filter((t) => t === 'Call Legal').length, 2)
+  for (const n of [1, 2, 3, 4]) assert.ok(titles.includes(`Parallel ${n}`), `Parallel ${n} was lost`)
+})
+
+test('config ignores unexpanded placeholders of both shapes and takes one public URL', () => {
+  const c = readConfig({ ALLDASH_WORKSPACE_FILE: '${ALLDASH_WORKSPACE_FILE:-}', ALLDASH_API_URL: '${ALLDASH_API_URL}', MCP_PUBLIC_URL: 'https://a.example, https://b.example' }, () => false)
+  assert.equal(c.workspaceFile, '')
+  assert.equal(c.apiUrl, '')
+  assert.equal(c.publicUrl, 'https://a.example')
+})
+
+test('crawl and batch refuse a fifth format before the platform would', async () => {
+  const stub = await stubPlatform()
+  const { client } = await connect({ workspaceFile: '', apiUrl: stub.url, apiKey: 'k', publicUrl: '' })
+  try {
+    const result = await client.callTool({ name: 'web_batch', arguments: { urls: ['https://example.com/'], formats: ['markdown', 'html', 'text', 'links', 'screenshot'] } })
+    assert.equal(result.isError, true)
+  } finally {
+    stub.server.close()
+  }
+})
+
+/* ------------------------------------------------------------------ agents */
+
+/** A workspace with a contradiction and two sources that agree, so the five
+    have something real to find rather than an empty room. */
+async function fixtureForAgents() {
+  const dir = await mkdtemp(join(tmpdir(), 'alldash-agents-'))
+  const rows = [
+    makeEntity({ type: 'risk', title: 'The rollback script has never been run against production data', tags: ['atlas'] }),
+    makeEntity({ type: 'note', title: 'The rollback script was run against production data last week', body: 'We did run the rollback script against production data last week and it finished in 40 minutes.', tags: ['atlas'] }),
+    makeEntity({ type: 'note', title: 'The cutover runbook is out of date', body: 'The cutover runbook is out of date and nobody has revised it since phase one.', tags: ['atlas'] }),
+    makeEntity({ type: 'decision', title: 'The cutover runbook is out of date', body: 'Marco confirmed the cutover runbook is out of date after the phase one retro.', tags: ['atlas'] }),
+  ]
+  const state = {
+    version: 1,
+    workspace: { name: 'Atlas' },
+    entities: Object.fromEntries(rows.map((r) => [r.id, r])),
+    docs: [], customMetrics: [], triage: {}, ui: { range: '30d' },
+  }
+  const file = join(dir, 'workspace.json')
+  await writeFile(file, JSON.stringify(state))
+  return { file, rows }
+}
+
+test('agents: the five run over the export and cite what they used', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const result = parse(await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script production data' } }))
+
+  assert.ok(result.answer.length > 0)
+  assert.ok(result.passages.length > 0)
+  // Every claim in the answer carries an id, and every id is a passage that
+  // came back. That is the Critic's rule, and it holds over MCP too.
+  const ids = [...result.answer.matchAll(/\[\[([a-z0-9_-]+)\]\]/gi)].map((m) => m[1])
+  assert.ok(ids.length > 0, result.answer)
+  const known = new Set(result.passages.map((p) => p.id))
+  for (const id of ids) assert.ok(known.has(id), `${id} was cited but not retrieved`)
+
+  assert.ok(result.contradictions.length >= 1, JSON.stringify(result.contradictions))
+  assert.ok(result.passages.every((p) => typeof p.why.relevance === 'number'))
+})
+
+test('agents: asking changes nothing, however often it is asked', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const before = await readFile(file, 'utf8')
+
+  await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script' } })
+  await client.callTool({ name: 'agents_ask', arguments: { question: 'cutover runbook' } })
+
+  // An agent exploring a workspace must not be able to change which claims
+  // survive simply by asking about them enough times.
+  assert.equal(await readFile(file, 'utf8'), before)
+})
+
+test('agents: a taught claim becomes a Markdown file in the workspace', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const learned = parse(await client.callTool({
+    name: 'genome_learn',
+    arguments: { claim: 'The cutover runbook is out of date', body: 'Two sources say so.', sources: ['a', 'b'] },
+  }))
+  assert.equal(learned.added.length, 1)
+  const id = learned.added[0].id
+
+  const listed = parse(await client.callTool({ name: 'genome_list', arguments: {} }))
+  assert.equal(listed.length, 1)
+  assert.equal(listed[0].generation, 1)
+  assert.ok(listed[0].fitness > 0)
+
+  const doc = parse(await client.callTool({ name: 'genome_file', arguments: { id } }))
+  assert.match(doc.path, /^genome\//)
+  assert.match(doc.markdown, /^---\n/)
+  assert.match(doc.markdown, /generation: 1/)
+
+  // And it is a real entity in the file, so the app sees it on restore.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  assert.equal(state.entities[id].type, 'gene')
+  assert.equal(state.entities[id].title, 'The cutover runbook is out of date')
+})
+
+test('agents: the same claim taught twice is confirmed, not duplicated', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  await client.callTool({ name: 'genome_learn', arguments: { claim: 'Latency is the problem', sources: ['a'] } })
+  const again = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'Latency is the problem', sources: ['b'] } }))
+
+  assert.equal(again.added.length, 0)
+  assert.equal(again.confirmed.length, 1)
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: {} })).length, 1)
+})
+
+test('agents: judging a claim moves its fitness', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const id = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'The replica lags under load' } })).added[0].id
+
+  const before = parse(await client.callTool({ name: 'genome_list', arguments: {} }))[0].fitness
+  const after = parse(await client.callTool({ name: 'genome_judge', arguments: { id, verdict: 'confirm' } }))
+  assert.ok(after.fitness > before, `${after.fitness} should beat ${before}`)
+
+  const against = parse(await client.callTool({ name: 'genome_judge', arguments: { id, verdict: 'contradict' } }))
+  assert.ok(against.fitness < after.fitness)
+
+  const missing = await client.callTool({ name: 'genome_judge', arguments: { id: 'nope', verdict: 'confirm' } })
+  assert.equal(missing.isError, true)
+})
+
+test('agents: selection retires a claim that has decayed, and never deletes it', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const id = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'Something said once long ago' } })).added[0].id
+
+  // Age it past the floor by hand: the schedule is the thing under test, not
+  // the clock.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  const old = new Date(Date.now() - 400 * 86400000).toISOString()
+  state.entities[id].body = state.entities[id].body.replace(/changed: .*/, `changed: ${old}`)
+  await writeFile(file, JSON.stringify(state))
+
+  const pruned = parse(await client.callTool({ name: 'genome_prune', arguments: {} }))
+  assert.equal(pruned.retired.length, 1)
+  assert.equal(pruned.retired[0].id, id)
+
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: {} })).length, 0)
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: { includeRetired: true } })).length, 1)
+  // Retired is out of retrieval, not gone.
+  assert.ok(JSON.parse(await readFile(file, 'utf8')).entities[id])
+})
+
+test('agents: applying a proposal writes the thing that was proposed', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const asked = parse(await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script production data' } }))
+  const proposal = asked.proposals.find((p) => p.kind === 'resolve')
+  assert.ok(proposal, JSON.stringify(asked.proposals))
+
+  const applied = parse(await client.callTool({
+    name: 'agents_apply',
+    arguments: { kind: proposal.kind, title: proposal.title, body: proposal.why },
+  }))
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  assert.equal(state.entities[applied.id].title, proposal.title)
+  assert.equal(state.entities[applied.id].type, 'task')
+})
+
+test('agents: the study queue withholds the answer until the card is graded', async () => {
+  const { file } = await fixtureForAgents()
+  // A card the browser would have written into the export.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  state.study = {
+    cards: {
+      card_1: {
+        id: 'card_1', question: 'The rollback script has ______ been run', answer: 'never',
+        source: 'x', kind: 'cloze', ease: 2.5, interval: 0, repetitions: 0, due: '', lapses: 0, lastGrade: null,
+      },
+    },
+  }
+  await writeFile(file, JSON.stringify(state))
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const queue = parse(await client.callTool({ name: 'study_queue', arguments: {} }))
+  assert.equal(queue.due, 1)
+  assert.equal(queue.queue[0].id, 'card_1')
+  assert.equal(Object.hasOwn(queue.queue[0], 'answer'), false, 'a queue that hands over the answer is not a test')
+
+  const graded = parse(await client.callTool({ name: 'study_grade', arguments: { id: 'card_1', score: 5 } }))
+  assert.equal(graded.answer, 'never')
+  assert.equal(graded.interval, 1)
+
+  const failed = parse(await client.callTool({ name: 'study_grade', arguments: { id: 'card_1', score: 1 } }))
+  assert.equal(failed.interval, 0)
+  assert.equal(failed.lapses, 1)
+})
+
+test('agents: the genome is served as a directory of Markdown files', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  await client.callTool({ name: 'genome_learn', arguments: { claim: 'The replica lags under load', topic: 'infra' } })
+
+  const read = await client.readResource({ uri: 'alldash://workspace/genome' })
+  assert.match(read.contents[0].text, /genome\/infra\//)
+  assert.match(read.contents[0].text, /The replica lags under load/)
+})
+
+test('agents: with no workspace file the agent tools are not offered at all', async () => {
+  const { client } = await connect({ workspaceFile: '', apiUrl: 'http://127.0.0.1:9/api', apiKey: 'k' })
+  const names = (await client.listTools()).tools.map((t) => t.name)
+  for (const name of ['agents_ask', 'genome_list', 'study_queue']) {
+    assert.equal(names.includes(name), false, `${name} needs a workspace`)
+  }
+})
+
+test('setup: with nothing configured the server still connects and says why', async () => {
+  // Exiting is what a server "should" do with nothing to serve, and it is the
+  // wrong thing: the host reports a closed connection and the sentence
+  // explaining the fix goes to a log nobody reads.
+  const { client } = await connect({ workspaceFile: '', apiUrl: '' })
+
+  const tools = (await client.listTools()).tools
+  assert.deepEqual(tools.map((t) => t.name), ['setup'])
+
+  const help = (await client.callTool({ name: 'setup', arguments: {} })).content[0].text
+  assert.match(help, /Settings → Your data → Export/)
+  assert.match(help, /ALLDASH_WORKSPACE_FILE/)
+  assert.match(help, /ALLDASH_API_URL/)
+})
+
+test('setup: once a workspace is configured the setup tool is gone', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const names = (await client.listTools()).tools.map((t) => t.name)
+  assert.equal(names.includes('setup'), false)
+  assert.ok(names.includes('agents_ask'))
+})
+
+/*
+ * The image must carry everything the server imports.
+ *
+ * This is not hypothetical: adding the five agents pulled in src/agents,
+ * src/genome and src/stash/search.js, the Dockerfile copied none of them, and
+ * the container started and died instantly in CI with the useful error inside
+ * a container that --rm had already removed. A list of COPY lines maintained
+ * by hand is a list that goes stale the next time somebody imports something.
+ */
+
+
+const ROOT = new URL('../../', import.meta.url).pathname
+
+/** Every file under src/ that the server can actually reach. */
+function importGraph(entry) {
+  const need = new Set()
+  const seen = new Set()
+  const walk = (file) => {
+    if (seen.has(file)) return
+    seen.add(file)
+    let source
+    try { source = readFileSync(file, 'utf8') } catch { return }
+    for (const m of source.matchAll(/(?:from|import)\s+'(\.[^']+)'/g)) {
+      const target = resolve(dirname(file), m[1])
+      const rel = relative(ROOT, target)
+      if (rel.startsWith('src/')) need.add(rel)
+      walk(target)
+    }
+  }
+  walk(entry)
+  return need
+}
+
+/** What the Dockerfile copies, expanded to files. */
+function copiedByImage() {
+  const dockerfile = readFileSync(join(ROOT, 'mcp/Dockerfile'), 'utf8')
+  const covered = []
+  for (const line of dockerfile.split('\n')) {
+    const m = /^COPY\s+--chown=\S+\s+(\S+)\s+\S+$/.exec(line.trim())
+    if (!m || !m[1].startsWith('src/')) continue
+    covered.push(m[1])
+  }
+  return covered
+}
+
+test('the Docker image carries every source the server imports', () => {
+  const needed = importGraph(join(ROOT, 'mcp/src/server.js'))
+  const copied = copiedByImage()
+  assert.ok(needed.size > 0, 'the import walker found nothing, which means it is broken')
+
+  const missing = [...needed].filter((file) => !copied.some((c) => file === c || file.startsWith(`${c}/`)))
+  assert.deepEqual(missing, [], `mcp/Dockerfile does not COPY: ${missing.join(', ')}`)
+})
+
+test('the image does not copy source trees the server never imports', () => {
+  // The other half: a COPY line for something nothing imports is dead weight
+  // in the image and a claim about the code that is not true.
+  const needed = importGraph(join(ROOT, 'mcp/src/server.js'))
+  for (const copied of copiedByImage()) {
+    const used = [...needed].some((file) => file === copied || file.startsWith(`${copied}/`))
+    assert.ok(used, `mcp/Dockerfile copies ${copied}, which nothing imports`)
+  }
 })

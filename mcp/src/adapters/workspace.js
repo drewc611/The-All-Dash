@@ -1,5 +1,7 @@
 import { readFile, writeFile, rename } from 'node:fs/promises'
 
+import { uid } from '../../../src/core/id.js'
+
 import { q } from '../../../src/core/query.js'
 import { rangeFor, iso } from '../../../src/core/time.js'
 import { makeEntity, ENTITY_TYPES } from '../../../src/data/schema.js'
@@ -18,6 +20,19 @@ import '../../../src/engine/metrics.js'
  * the Triage view. Writes append or patch entities in the file; the user
  * re-imports it (Settings → Your data → Restore) to see them in the app.
  */
+/**
+ * Writes to one file are serialised: two tool calls arriving together (or
+ * two requests in HTTP mode) would otherwise read-modify-write the same
+ * export and the last one would silently win.
+ */
+const queues = new Map()
+export function withFileLock(file, fn) {
+  const previous = queues.get(file) || Promise.resolve()
+  const run = previous.then(fn, fn)
+  queues.set(file, run.catch(() => {}))
+  return run
+}
+
 export class WorkspaceAdapter {
   constructor(file) {
     this.file = file
@@ -123,9 +138,16 @@ export class WorkspaceAdapter {
     return Object.hasOwn(state.entities, id) ? state.entities[id] : null
   }
 
-  async addTask({ title, due, people = [], tags = [], priority = 0, body = '' }) {
+  addTask(args) {
+    return withFileLock(this.file, () => this._addTask(args))
+  }
+
+  async _addTask({ title, due, people = [], tags = [], priority = 0, body = '' }) {
     const state = await this.load(true)
+    // A fresh id: the content hash makeEntity would derive collides with an
+    // existing task of the same title and due date and would overwrite it.
     const entity = makeEntity({
+      id: uid('task'),
       type: 'task',
       title,
       body,
@@ -142,7 +164,11 @@ export class WorkspaceAdapter {
     return entity
   }
 
-  async updateTask(id, patch) {
+  updateTask(id, patch) {
+    return withFileLock(this.file, () => this._updateTask(id, patch))
+  }
+
+  async _updateTask(id, patch) {
     const state = await this.load(true)
     const current = Object.hasOwn(state.entities, id) ? state.entities[id] : null
     if (!current) throw new Error(`No entity ${id}`)

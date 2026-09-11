@@ -1,4 +1,5 @@
-# Replace alldash.example.com with the real host in both rules and tls.
+# The rule host. The TLS host (Let's Encrypt path) and the public host used
+# elsewhere come from PUBLIC_HOST in config-patch.yaml through `replacements`.
 - op: replace
   path: /spec/rules/0/host
   value: alldash.example.com

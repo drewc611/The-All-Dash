@@ -4,6 +4,9 @@ import { seedWorkspace } from '../data/seed.js'
 import { buildReport } from '../engine/report.js'
 import { rangeFor, dayKey } from '../core/time.js'
 import { downloadText } from './download.js'
+import { strip } from '../ingest/extract.js'
+import { boardsOf, createBoard, createItem } from '../work/store.js'
+import { TEMPLATES } from '../work/templates.js'
 
 /** Built-in commands. Plugins add their own with AllDash.defineCommand. */
 
@@ -17,6 +20,7 @@ const go = (view, name, keywords) =>
   })
 
 go('today', 'Today', ['home', 'dashboard', 'agenda'])
+go('work', 'Boards', ['board', 'kanban', 'table', 'monday', 'project'])
 go('triage', 'Triage', ['problems', 'urgent', 'late', 'overdue', 'blocked', 'pulse'])
 go('timeline', 'Timeline', ['calendar', 'schedule', 'week'])
 go('analytics', 'Analytics', ['metrics', 'charts', 'numbers'])
@@ -72,7 +76,7 @@ defineCommand({
   keywords: ['todo', 'capture'],
   run: () => {
     const title = prompt('New task')
-    if (title?.trim()) addEntity({ type: 'task', title: title.trim(), source: { kind: 'manual', name: 'Command bar' } })
+    if (title?.trim()) addEntity({ type: 'task', status: 'open', ...strip(title.trim()), source: { kind: 'manual', name: 'Command bar' } })
   },
 })
 
@@ -141,5 +145,53 @@ defineCommand({
     const view = window.location.hash.replace('#', '') || 'today'
     resetBoard(view)
     navigate(view)
+  },
+})
+
+// ------------------------------------------------------------------ boards
+
+defineCommand({
+  id: 'new-board',
+  name: 'New board',
+  hint: 'An empty board with owner, status, date and priority columns',
+  group: 'Boards',
+  keywords: ['board', 'monday', 'table', 'kanban', 'project'],
+  run: ({ navigate }) => {
+    createBoard({ name: 'New board' })
+    navigate('work')
+  },
+})
+
+for (const template of TEMPLATES) {
+  defineCommand({
+    id: `board-template-${template.id}`,
+    name: `New board: ${template.name}`,
+    hint: template.blurb,
+    group: 'Boards',
+    keywords: ['board', 'template', template.id],
+    run: ({ navigate }) => {
+      createBoard(template.build())
+      navigate('work')
+    },
+  })
+}
+
+defineCommand({
+  id: 'add-board-item',
+  name: 'Add an item to a board',
+  hint: 'Lands in the first group of the first board',
+  group: 'Boards',
+  keywords: ['row', 'item', 'task', 'board'],
+  run: ({ navigate }) => {
+    const state = getState()
+    const board = boardsOf(state)[0]
+    if (!board) {
+      createBoard({ name: 'New board' })
+      navigate('work')
+      return
+    }
+    const title = window.prompt(`New ${board.itemNoun.toLowerCase()} on "${board.name}"`)
+    if (title?.trim()) createItem(board.id, board.groups[0]?.id, { title: title.trim() })
+    navigate('work')
   },
 })

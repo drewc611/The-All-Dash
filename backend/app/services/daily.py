@@ -15,18 +15,23 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import audit
+from ..clock import day_bounds, today_local
 from ..models import AuditLog, DailyBrief, Expense, Invoice, Task
 from ..schemas import DailyBriefOut, DailyBriefPayload, InvoiceOut, TaskOut
 from . import finance
 
 
 def _day_bounds(day: date) -> tuple[datetime, datetime]:
-    start = datetime(day.year, day.month, day.day, tzinfo=UTC)
-    return start, start + timedelta(days=1)
+    return day_bounds(day)
 
 
 async def mark_overdue(session: AsyncSession, as_of: date, actor: str = "system") -> list[Invoice]:
-    """Sent invoices past their due date become overdue. Each one is a logged decision."""
+    """Sent invoices past their due date become overdue. Each one is a logged decision.
+
+    A future as_of (a brief built ahead of time) must not declare invoices
+    overdue before their day has come, so the clock stops at today.
+    """
+    as_of = min(as_of, today_local())
     rows = (
         (await session.execute(select(Invoice).where(Invoice.status == "sent", Invoice.due_on < as_of)))
         .scalars()

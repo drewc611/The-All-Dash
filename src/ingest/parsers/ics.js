@@ -1,6 +1,6 @@
 import { defineParser } from '../../core/registry.js'
 import { extractFromText, titleCase } from '../extract.js'
-import { iso, addDays } from '../../core/time.js'
+import { iso, addDays, zonedToDate } from '../../core/time.js'
 
 /**
  * iCalendar feeds and .ics exports. Recurring events are expanded for a year
@@ -23,11 +23,13 @@ export function parseIcsDate(value, params = {}) {
   const m = raw.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/)
   if (!m) return null
   const [, y, mo, d, h = '0', mi = '0', s = '0', z] = m
-  const allDay = !m[4]
+  const allDay = !m[4] || params.VALUE === 'DATE'
+  // Z is UTC; a TZID names the zone the wall-clock belongs to; a floating
+  // time (neither) and an all-day date are read in the browser's own zone.
   const date = z
     ? new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s))
-    : new Date(+y, +mo - 1, +d, +h, +mi, +s)
-  return Number.isNaN(Number(date)) ? null : { iso: iso(date), date, allDay: allDay || params.VALUE === 'DATE' }
+    : (!allDay && params.TZID && zonedToDate([+y, +mo - 1, +d, +h, +mi, +s], params.TZID)) || new Date(+y, +mo - 1, +d, +h, +mi, +s)
+  return Number.isNaN(Number(date)) ? null : { iso: iso(date), date, allDay }
 }
 
 export function parseIcs(text) {

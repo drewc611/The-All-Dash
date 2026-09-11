@@ -1,5 +1,5 @@
 import { getKey } from '../ai/keys.js'
-import { assertKeyTransport } from '../ai/providers.js'
+import { assertKeyTransport } from '../ai/transport.js'
 import { getState } from '../core/store.js'
 
 /**

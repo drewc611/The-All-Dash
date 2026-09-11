@@ -43,12 +43,14 @@ def build_web_service(
             base_url=(settings.llm_base_url or DEFAULT_BASE[settings.llm_provider]).rstrip("/"),
         )
         llm = Llm(config, transport=llm_transport)
-    return WebService(
+    service = WebService(
         fetcher,
         firecrawl=firecrawl,
         llm=llm,
         limits=Limits(max_pages=settings.web_max_pages, sync_max_pages=settings.web_sync_max_pages),
     )
+    service.budget_seconds = settings.web_request_budget_seconds
+    return service
 
 
 def get_web(request: Request) -> WebService:

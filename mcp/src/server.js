@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import http from 'node:http'
 import { timingSafeEqual } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -9,6 +11,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { DEFAULT_WORKSPACE, readConfig } from './config.js'
 import { PlatformAdapter } from './adapters/platform.js'
 import { WorkspaceAdapter } from './adapters/workspace.js'
+import { AgentsAdapter } from './adapters/agents.js'
 import { registerAll } from './tools.js'
 
 /**
@@ -35,24 +38,50 @@ export const hostName = (header) => String(header || '').trim().toLowerCase().re
 
 export function createServer(config = readConfig()) {
   const workspace = config.workspaceFile ? new WorkspaceAdapter(config.workspaceFile) : null
+  // The five agents read and write the same export file, through the same lock.
+  const agents = workspace ? new AgentsAdapter(workspace) : null
   const platform = config.apiUrl ? new PlatformAdapter(config.apiUrl, config.apiKey) : null
+  // Nothing configured is not a crash.
+  //
+  // Exiting here is what a server "should" do with nothing to serve, and it
+  // is the wrong thing: the host reports a closed connection, the sentence
+  // explaining how to fix it goes to a log nobody reads, and the person is
+  // left with a connector that is simply broken. Connecting and saying so
+  // puts the answer where they are actually looking.
   if (!workspace && !platform) {
-    throw new Error(
-      `Nothing to serve. Export your workspace from the app (Settings → Your data → Export) and save it as ${DEFAULT_WORKSPACE}, ` +
-        'or set ALLDASH_WORKSPACE_FILE to the export, and/or ALLDASH_API_URL plus ALLDASH_API_KEY for the platform API.'
+    const server = new McpServer({ name: 'all-dash', version: '0.1.0' }, { instructions: SETUP })
+    server.registerTool(
+      'setup',
+      {
+        title: 'The All Dash is not configured yet',
+        description: `Nothing is connected. ${SETUP} Call this to get the steps again.`,
+        inputSchema: {},
+      },
+      async () => ({ content: [{ type: 'text', text: SETUP }] })
     )
+    return server
   }
+
   const server = new McpServer(
     { name: 'all-dash', version: '0.1.0' },
     { instructions: instructions(workspace, platform) }
   )
-  registerAll(server, { workspace, platform, publicUrl: config.publicUrl })
+  registerAll(server, { workspace, platform, agents, publicUrl: config.publicUrl })
   return server
 }
+
+const SETUP = [
+  'The All Dash has no workspace and no platform API configured, so there is nothing to read yet.',
+  `To connect the workspace: in the app, Settings → Your data → Export, and save the file as ${DEFAULT_WORKSPACE}`,
+  '(or set ALLDASH_WORKSPACE_FILE to wherever you saved it).',
+  'To connect the platform API instead or as well: set ALLDASH_API_URL and ALLDASH_API_KEY.',
+  'Then restart this MCP server.',
+].join(' ')
 
 function instructions(workspace, platform) {
   const parts = ['The All Dash: a project and personal command center.']
   if (workspace) parts.push('workspace_* tools read the user\'s exported workspace with the app\'s own triage, insight and status-update engines, and can add or update tasks in the file.')
+  if (workspace) parts.push('agents_ask runs the app\'s five agents - Librarian, Analyst, Tutor, Planner, Critic - over that workspace. Every claim it returns carries the id of the record supporting it, and anything that could not be traced has already been cut. Prefer it over answering from the raw records yourself when the question needs several of them at once. genome_* tools read and move the claims it has learned; study_* tools are the spaced-repetition queue.')
   if (platform) parts.push('platform_* tools read projects, tasks, invoices, expenses, the daily brief and the audit ledger from the platform API, and can create or toggle tasks, run the daily engine and append decisions to the ledger.')
   parts.push('search and fetch span both. Money is integer cents. Record any judgement made for the user with platform_log_decision when the platform is available.')
   return parts.join(' ')
@@ -129,7 +158,17 @@ export function startHttp(config = readConfig()) {
   return httpServer
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href
+/** True when this file is the entry point, through a bin symlink or a path with odd characters too. */
+function isEntryPoint() {
+  if (!process.argv[1]) return false
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
+  } catch {
+    return false
+  }
+}
+
+const invokedDirectly = isEntryPoint()
 if (invokedDirectly) {
   const config = readConfig()
   if (config.transport === 'http') startHttp(config)

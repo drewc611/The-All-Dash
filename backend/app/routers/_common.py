@@ -9,6 +9,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import Base
+from ..models import Project
 
 T = TypeVar("T", bound=Base)
 
@@ -27,6 +28,12 @@ async def paginate(session: AsyncSession, stmt: Select[tuple[T]], limit: int, of
     total = int((await session.execute(select(func.count()).select_from(stmt.order_by(None).subquery()))).scalar_one())
     rows = (await session.execute(stmt.limit(limit).offset(offset))).scalars().all()
     return list(rows), total
+
+
+async def check_project(session: AsyncSession, project_id: str | None) -> None:
+    """422 for a project that does not exist; Postgres would otherwise refuse the row with a 500."""
+    if project_id is not None and await session.get(Project, project_id) is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Project {project_id} not found")
 
 
 def apply_patch(row: Base, patch: dict[str, object]) -> None:

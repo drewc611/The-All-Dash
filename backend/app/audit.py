@@ -7,8 +7,9 @@ result is a chain: alter or remove any row and verification stops matching
 from that point on.
 
 Appends are serialised with a Postgres transaction-scoped advisory lock so two
-workers cannot both claim the same `seq` and `prev_hash`. On SQLite (tests)
-the single connection provides the same guarantee.
+workers cannot both claim the same `seq` and `prev_hash`. On SQLite (tests and
+laptops) there is no such lock: two truly concurrent appends can collide and one
+fails on the unique `seq`, which is acceptable for a single-user dev database.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import AuditLog, new_id, utcnow
@@ -93,12 +94,18 @@ class Verification:
 
 async def verify(session: AsyncSession) -> Verification:
     """Walk the whole chain and recompute every hash."""
-    rows = (await session.execute(select(AuditLog).order_by(AuditLog.seq.asc()))).scalars().all()
     prev = GENESIS_HASH
     expected_seq = 1
-    for row in rows:
+    checked = 0
+    head: str | None = None
+    # Streamed in pages so a long ledger never has to fit in memory at once.
+    result = await session.stream(select(AuditLog).order_by(AuditLog.seq.asc()).execution_options(yield_per=500))
+    async for row in result.scalars():
+        checked += 1
+        head = row.hash
         if row.seq != expected_seq or row.prev_hash != prev or compute_hash(prev, row.payload()) != row.hash:
-            return Verification(ok=False, checked=len(rows), first_bad_seq=row.seq, head_hash=rows[-1].hash)
+            total = int((await session.execute(select(func.count()).select_from(AuditLog))).scalar_one())
+            return Verification(ok=False, checked=total, first_bad_seq=row.seq, head_hash=head)
         prev = row.hash
         expected_seq += 1
-    return Verification(ok=True, checked=len(rows), first_bad_seq=None, head_hash=rows[-1].hash if rows else None)
+    return Verification(ok=True, checked=checked, first_bad_seq=None, head_hash=head)

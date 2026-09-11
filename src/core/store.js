@@ -3,6 +3,10 @@ import { makeEntity, mergeEntity } from '../data/schema.js'
 import { uid } from './id.js'
 import { iso } from './time.js'
 import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
+import { normaliseWork } from '../work/schema.js'
+import { normaliseRouter } from '../ai/router-schema.js'
+import { normaliseSettings } from './settings-schema.js'
+import { normaliseStudy, emptyStudy } from '../agents/study-schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -57,6 +61,9 @@ const initialState = () => ({
     // The platform tier this app may talk to (Settings → Platform). Its key
     // lives with the assistant keys, never here.
     platform: { url: '' },
+    // Media. Both of these are off until asked for: one reaches a Google
+    // server, the other downloads 32MB from a CDN.
+    media: { youtube: false, ffmpeg: false },
     // The assistant's key is never in here; see src/ai/keys.js.
     assistant: {
       provider: 'anthropic',
@@ -70,6 +77,9 @@ const initialState = () => ({
   },
   triage: {},
   brain: emptyBrainState(),
+  study: emptyStudy(),
+  work: normaliseWork(null),
+  router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
 })
 
@@ -86,8 +96,11 @@ function load() {
       ...base,
       ...parsed,
       version: SCHEMA_VERSION,
-      settings: { ...base.settings, ...(parsed.settings || {}), assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
+      settings: { ...base.settings, ...(parsed.settings || {}), media: { ...base.settings.media, ...(parsed.settings?.media || {}) }, assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
       brain: normaliseBrainState(parsed.brain),
+      study: normaliseStudy(parsed.study),
+      work: normaliseWork(parsed.work),
+      router: normaliseRouter(parsed.router),
     }
   } catch {
     return initialState()
@@ -126,6 +139,12 @@ function set(updater) {
   persist()
   listeners.forEach((fn) => fn())
 }
+
+/**
+ * The one write primitive, exported so a feature slice can live in its own
+ * module (see src/work/store.js) without state being spread across files.
+ */
+export const mutate = (updater) => set(updater)
 
 const subscribe = (fn) => {
   listeners.add(fn)
@@ -295,6 +314,12 @@ export function updateAssistantSettings(patch) {
   set((s) => ({ ...s, settings: { ...s.settings, assistant: { ...(s.settings.assistant || {}), ...patch } } }))
 }
 
+/** Media flags merge rather than replace, so turning YouTube on cannot take
+    the ffmpeg setting down with it. */
+export function updateMediaSettings(patch) {
+  set((s) => ({ ...s, settings: { ...s.settings, media: { ...(s.settings.media || {}), ...patch } } }))
+}
+
 /** Silence one triage signal until a date. The signal itself is never stored. */
 export function muteSignal(id, untilIso) {
   set((s) => ({ ...s, triage: { ...(s.triage || {}), [id]: { until: untilIso } } }))
@@ -410,9 +435,11 @@ export function forgetOpinion(id) {
     delete accepted[id]
     delete dismissed[id]
     let settings = s.settings
+    let ui = s.ui
     if (effect?.kind === 'start-view') settings = { ...settings, startView: 'today' }
     if (effect?.kind === 'lead-time') settings = { ...settings, reminderLeadMinutes: 15 }
-    return { ...s, settings, brain: { ...b, accepted, dismissed } }
+    if (effect?.kind === 'range') ui = { ...ui, range: '30d' }
+    return { ...s, settings, ui, brain: { ...b, accepted, dismissed } }
   })
 }
 
@@ -434,6 +461,9 @@ export function exportWorkspace() {
 export function importWorkspace(json, { merge = false } = {}) {
   const incoming = typeof json === 'string' ? JSON.parse(json) : json
   if (!incoming || typeof incoming !== 'object') throw new Error('Not a workspace file')
+  // What the restore refused to take from the file, so the caller can say so
+  // rather than leaving the person with a platform tier that quietly stopped.
+  let dropped = []
   // Every entity goes back through the schema, so a hand-edited or older
   // export cannot put a record without people/tags arrays into the store.
   const entities = {}
@@ -447,6 +477,8 @@ export function importWorkspace(json, { merge = false } = {}) {
   set((s) => {
     if (!merge) {
       const base = initialState()
+      const restored = normaliseSettings(incoming.settings, base.settings, { trusted: false })
+      dropped = restored.dropped
       return {
         ...base,
         ...incoming,
@@ -455,24 +487,36 @@ export function importWorkspace(json, { merge = false } = {}) {
         docs,
         customMetrics,
         boards: incoming.boards && typeof incoming.boards === 'object' ? { ...base.boards, ...incoming.boards } : base.boards,
-        settings: {
-          ...base.settings,
-          ...(incoming.settings || {}),
-          assistant: { ...base.settings.assistant, ...(incoming.settings?.assistant || {}) },
-        },
+        // A restored file does not get to say where a key is sent, or to
+        // consent to anything on the person's behalf. See settings-schema.js.
+        settings: restored.settings,
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         brain: normaliseBrainState(incoming.brain),
+        study: normaliseStudy(incoming.study),
+        work: normaliseWork(incoming.work),
+        // A restored file is untrusted: it may not carry an endpoint that a
+        // provider key would then be sent to.
+        router: normaliseRouter(incoming.router, { trusted: false }),
         ui: { ...base.ui, ...(incoming.ui || {}) },
         reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
       }
     }
+    const incomingWork = normaliseWork(incoming.work)
+    const known = new Set(s.work.boards.map((b) => b.id))
     return {
       ...s,
       entities: { ...s.entities, ...entities },
       docs: [...docs, ...s.docs].slice(0, 200),
       customMetrics: [...s.customMetrics, ...customMetrics],
+      work: {
+        ...s.work,
+        boards: [...s.work.boards, ...incomingWork.boards.filter((b) => !known.has(b.id))],
+        updates: { ...incomingWork.updates, ...s.work.updates },
+        activity: { ...incomingWork.activity, ...s.work.activity },
+      },
     }
   })
+  return { dropped }
 }
 
 export function clearWorkspace() {

@@ -116,7 +116,8 @@ services:
       context: ./frontend
     environment:
       BACKEND_URL: http://backend:8000
-      BACKEND_API_KEY: ${ALLDASH_API_KEYS:-dev-key-change-me}
+      # One key, not the comma-separated list the API accepts.
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-${ALLDASH_API_KEYS:-dev-key-change-me}}
       # The workspace login. The image runs in production mode, which
       # refuses to serve without a user and password.
       FRONTEND_AUTH_USER: ${FRONTEND_AUTH_USER:-admin}

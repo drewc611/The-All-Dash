@@ -5,7 +5,7 @@ import { parseReply, plainText, visiblePortion, validateAction, lineReader, delt
 import { terms, relevance, retrieve, describe, buildContext, SYSTEM_PROMPT } from '../src/ai/context.js'
 import { resolve, PROVIDERS, assertKeyTransport } from '../src/ai/providers.js'
 import { makeEntity } from '../src/data/schema.js'
-import { addDays, iso, rangeFor } from '../src/core/time.js'
+import { addDays, iso, rangeFor, parseLooseDate } from '../src/core/time.js'
 
 const at = (offset) => iso(addDays(new Date(), offset))
 const map = (rows) => Object.fromEntries(rows.map((r) => [r.id, r]))
@@ -55,7 +55,7 @@ test('parseReply lifts a fenced actions block out of the prose and validates eac
   assert.equal(reply.actions.length, 3)
   assert.deepEqual(reply.actions[0], { op: 'update', id: task.id, patch: { status: 'done' }, note: '' })
   assert.equal(reply.actions[1].op, 'create')
-  assert.equal(reply.actions[1].entity.due, new Date('2026-10-01').toISOString())
+  assert.equal(reply.actions[1].entity.due, parseLooseDate('2026-10-01'))
   assert.deepEqual(reply.actions[1].entity.people, ['Sam'])
   assert.equal(reply.actions[2].view, 'triage')
 })

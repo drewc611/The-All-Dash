@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clock import today_local
 from ..config import Settings, get_settings
 from ..db import get_session
 from ..schemas import BurnRate, FinanceSummary
@@ -13,7 +14,7 @@ from ..security import Authed
 from ..services import finance
 
 router = APIRouter(prefix="/finance", tags=["finance"])
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 @router.get("/summary", response_model=FinanceSummary, summary="The margin ribbon")
@@ -24,7 +25,7 @@ async def get_summary(
     as_of: date | None = None,
     window_days: Annotated[int | None, Query(ge=7, le=365)] = None,
 ) -> FinanceSummary:
-    return await finance.summary(session, as_of or date.today(), window_days or settings.burn_rate_window_days)
+    return await finance.summary(session, as_of or today_local(), window_days or settings.burn_rate_window_days)
 
 
 @router.get("/burn-rate", response_model=BurnRate)
@@ -35,4 +36,4 @@ async def get_burn_rate(
     as_of: date | None = None,
     window_days: Annotated[int | None, Query(ge=7, le=365)] = None,
 ) -> BurnRate:
-    return await finance.burn_rate(session, as_of or date.today(), window_days or settings.burn_rate_window_days)
+    return await finance.burn_rate(session, as_of or today_local(), window_days or settings.burn_rate_window_days)

@@ -28,6 +28,19 @@ const offline = () =>
     headers: { 'Content-Type': 'text/plain' },
   })
 
+/**
+ * Hashed bundles pile up across deploys; once a fresh shell has arrived,
+ * drop every cached /assets/ file it no longer references.
+ */
+async function prune(cache, response) {
+  const html = await response.text()
+  const referenced = new Set([...html.matchAll(/\/assets\/[^"' )]+/g)].map((m) => m[0]))
+  for (const key of await cache.keys()) {
+    const path = new URL(key.url).pathname
+    if (path.startsWith('/assets/') && !referenced.has(path)) await cache.delete(key)
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
@@ -45,7 +58,9 @@ self.addEventListener('fetch', (event) => {
       // falling back to the cached page, then the cached shell; hashed assets
       // prefer the cache because their content never changes.
       if (request.mode === 'navigate') {
-        return (await network) || cached || (await cache.match('/index.html')) || offline()
+        const fresh = await network
+        if (fresh) prune(cache, fresh.clone()).catch(() => {})
+        return fresh || cached || (await cache.match('/index.html')) || offline()
       }
       return cached || (await network) || offline()
     })

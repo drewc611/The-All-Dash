@@ -1,0 +1,284 @@
+/*
+ * The stash.
+ *
+ * Two densities on one screen: the list is a tool, so it is compact; the
+ * reader is a page, so it gets a 66-character measure, generous leading and
+ * nothing else competing for attention. That contrast is the design.
+ */
+
+.stash__notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-1);
+  padding: var(--gap-3) var(--gap-4);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: var(--t-sm);
+}
+
+.stash__notice .muted { line-height: 1.5; max-width: 78ch; }
+
+.stash__save { display: flex; gap: var(--gap-2); flex-wrap: wrap; align-items: center; }
+.stash__url { flex: 1; min-width: 260px; }
+.stash__search { flex: 1; min-width: 240px; }
+.stash__filters { align-items: center; }
+
+/* ------------------------------------------------------------------- list */
+
+.stash__list { display: flex; flex-direction: column; }
+
+.srow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-2);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--fast);
+
+  /* An archive of a few hundred pages is a few hundred rows, and laying all
+     of them out to show the eight on screen is most of the cost of opening
+     the view. This skips layout and paint for the rows nobody is looking at.
+     The intrinsic size is a real measured row, so the scrollbar is the right
+     length before anything off-screen has been laid out, and Ctrl+F still
+     finds text in a skipped row - which is why this rather than windowing. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 74px;
+}
+
+.srow:hover { background: var(--surface-hover); }
+.srow:last-child { border-bottom: 0; }
+
+/* Unread is the default state of a read-later list, so it is marked quietly
+   rather than shouted: a bar in the gutter, the same language the rail uses. */
+.srow.is-unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.srow__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--gap-3) var(--gap-2) var(--gap-3) var(--gap-3);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.srow__title { font-size: var(--t-md); font-weight: var(--w-medium); color: var(--ink); }
+.srow.is-unread .srow__title { font-weight: var(--w-bold); }
+
+.srow__excerpt,
+.srow__snippet {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.srow__snippet mark {
+  background: var(--warning-soft);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.srow__meta { display: flex; align-items: center; gap: 4px; font-size: var(--t-xs); color: var(--ink-muted); }
+
+.srow__tools { display: flex; gap: 2px; padding: var(--gap-3) var(--gap-3) 0 0; opacity: 0; transition: opacity var(--fast); }
+.srow:hover .srow__tools, .srow:focus-within .srow__tools { opacity: 1; }
+.srow__tools .btn[aria-pressed='true'] { color: var(--warning); }
+
+@media (hover: none) { .srow__tools { opacity: 1; } }
+
+/* ---------------------------------------------------------------- compose */
+
+.stash__compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--gap-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.stash__composetitle { font-size: var(--t-lg); font-weight: var(--w-bold); }
+
+/* ----------------------------------------------------------------- reader */
+
+.reader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+/* How far through you are. The only chrome that moves while you read. */
+.reader__progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--surface-sunken);
+  z-index: 1;
+}
+
+.reader__progress::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--read, 0%);
+  background: var(--accent);
+  transition: width 90ms linear;
+}
+
+.reader__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+
+.reader__who { flex: 1; min-width: 0; font-size: var(--t-sm); color: var(--ink-2); }
+.reader__tools { display: flex; align-items: center; gap: var(--gap-1); flex-wrap: wrap; justify-content: flex-end; }
+.reader__tools .btn[aria-pressed='true'] { color: var(--warning); background: var(--warning-soft); }
+
+.reader__scroll { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+
+/* 66 characters. Longer than this and the eye loses the start of the next
+   line, which is the single most common thing wrong with a reading view. */
+.reader__article {
+  max-width: 66ch;
+  margin: 0 auto;
+  padding: var(--gap-7) var(--gap-5) var(--gap-8);
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.reader__title { font-size: var(--t-3xl); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.12; margin: 0 0 var(--gap-3); }
+.reader__byline { margin: 0 0 var(--gap-6); font-size: var(--t-sm); color: var(--ink-muted); }
+
+.reader__article p { margin: 0 0 1.1em; }
+.reader__article h2 { font-size: var(--t-xl); font-weight: var(--w-bold); letter-spacing: -0.02em; margin: 1.8em 0 0.55em; }
+.reader__article h3 { font-size: var(--t-lg); font-weight: var(--w-bold); margin: 1.6em 0 0.5em; }
+.reader__article h4 { font-size: var(--t-md); font-weight: var(--w-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 1.6em 0 0.5em; }
+.reader__article ul, .reader__article ol { margin: 0 0 1.1em; padding-left: 1.4em; }
+.reader__article li { margin-bottom: 0.4em; }
+.reader__article a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.reader__article hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+
+.reader__article blockquote {
+  margin: 0 0 1.1em;
+  padding-left: var(--gap-4);
+  border-left: 3px solid var(--line-strong);
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.reader__article pre {
+  margin: 0 0 1.1em;
+  padding: var(--gap-3);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  overflow-x: auto;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.reader__article code { font-family: var(--mono); font-size: 0.88em; }
+.reader__article :not(pre) > code { padding: 1px 5px; border-radius: 4px; background: var(--surface-sunken); }
+
+/* -------------------------------------------------------------- the diff */
+
+.reader__changes {
+  margin: 0 0 var(--gap-6);
+  padding: var(--gap-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  font-size: var(--t-md);
+}
+
+.reader__changes h2 { margin: 0 0 var(--gap-3); font-size: var(--t-md); font-weight: var(--w-bold); }
+
+.reader__row {
+  margin: 0 0 var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  border-radius: var(--r-sm);
+  border-left: 3px solid transparent;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* Added and removed carry a symbol as well as a colour, because about one man
+   in twelve cannot tell the two colours apart. */
+.reader__row--added { background: var(--good-soft); border-left-color: var(--good); }
+.reader__row--added::before { content: '+ '; font-weight: var(--w-bold); color: var(--good); }
+.reader__row--removed { background: var(--critical-soft); border-left-color: var(--critical); color: var(--ink-2); text-decoration: line-through; }
+.reader__row--removed::before { content: '− '; font-weight: var(--w-bold); color: var(--critical); text-decoration: none; }
+.reader__row--same { color: var(--ink-muted); font-size: var(--t-xs); }
+.reader__gap { margin: 0 0 var(--gap-2); text-align: center; color: var(--ink-muted); letter-spacing: 0.3em; }
+
+/* ------------------------------------------------------------- highlights */
+
+.reader__highlights { margin-top: var(--gap-7); padding-top: var(--gap-5); border-top: 1px solid var(--line); }
+.reader__highlights h2 { margin: 0 0 var(--gap-3); font-size: var(--t-md); font-weight: var(--w-bold); }
+
+.quote { position: relative; margin: 0 0 var(--gap-3); padding: var(--gap-3) var(--gap-4); border-radius: var(--r-md); background: var(--warning-soft); }
+.quote blockquote { margin: 0; padding: 0; border: 0; font-style: normal; font-size: var(--t-md); line-height: 1.55; color: var(--ink); }
+.quote figcaption { margin-top: var(--gap-2); font-size: var(--t-sm); color: var(--ink-2); }
+.quote .btn { position: absolute; top: 4px; right: 4px; opacity: 0; }
+.quote:hover .btn, .quote:focus-within .btn { opacity: 1; }
+
+.reader__selection {
+  position: fixed;
+  left: 50%;
+  bottom: var(--gap-5);
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  max-width: min(560px, calc(100vw - var(--gap-5) * 2));
+  padding: var(--gap-2) var(--gap-2) var(--gap-2) var(--gap-4);
+  border-radius: var(--r-full);
+  background: var(--action);
+  color: var(--action-ink);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--t-sm);
+}
+
+.reader__selection .btn--primary { background: var(--action-ink); color: var(--action); border-color: transparent; }
+
+@media (max-width: 720px) {
+  .reader__article { padding: var(--gap-5) var(--gap-4) var(--gap-8); font-size: 17px; }
+  .reader__title { font-size: var(--t-2xl); }
+  .reader__tools .btn--sm { font-size: var(--t-xs); }
+}

@@ -6,6 +6,7 @@ import { relative } from '../../core/time.js'
 import { EntityList, Empty } from '../components.jsx'
 import { FilePicker } from '../Intake.jsx'
 import { IconTrash, IconUpload, IconDoc, IconSearch, IconLink } from '../icons.jsx'
+import { safeUrl } from '../../core/url.js'
 
 /**
  * Everything that has been read, and everything it produced. This is the
@@ -84,7 +85,7 @@ export function Library({ entityList, docs, onOpen, onFiles }) {
                     </span>
                   </button>
                   {isWebUrl(doc.meta?.url) && (
-                    <a className="btn btn--icon btn--sm" href={doc.meta.url} target="_blank" rel="noopener noreferrer" title={`Open ${doc.meta.url}`} aria-label={`Open ${doc.meta.url}`}><IconLink width={13} height={13} /></a>
+                    <a className="btn btn--icon btn--sm" href={safeUrl(doc.meta.url)} target="_blank" rel="noopener noreferrer" title={`Open ${doc.meta.url}`} aria-label={`Open ${doc.meta.url}`}><IconLink width={13} height={13} /></a>
                   )}
                   <button
                     className="btn btn--icon btn--danger btn--sm"

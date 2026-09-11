@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useStore, updateUi, recordUsage, getState } from './core/store.js'
 import { onRegistryChange } from './core/registry.js'
 import { q } from './core/query.js'
@@ -10,31 +10,74 @@ import { Board, BoardControls } from './ui/Board.jsx'
 import { CommandBar } from './ui/CommandBar.jsx'
 import { Inspector } from './ui/Inspector.jsx'
 import { DropHint, Toasts, PasteSheet, UrlSheet, FilePicker, useIntake } from './ui/Intake.jsx'
-import { Timeline } from './ui/views/Timeline.jsx'
-import { Library } from './ui/views/Library.jsx'
-import { Settings } from './ui/views/Settings.jsx'
-import { Triage } from './ui/views/Triage.jsx'
-import { Brain } from './ui/views/Brain.jsx'
+import { MiniPlayer } from './ui/media/MiniPlayer.jsx'
+import { runTimedAutomations } from './work/store.js'
 import { useBrainSync } from './ui/brainSync.js'
-import { Assistant } from './ui/Assistant.jsx'
 import { buildTriage } from './engine/triage.js'
 import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
-  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain,
+  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
+  IconDoc, IconLink, IconPlay, IconVideo, IconInbox,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
 import './ui/commands.js'
 
+/*
+ * Everything past Today is fetched when it is first opened.
+ *
+ * The whole app in one file was 643KB, which meant the first visit downloaded
+ * a video compressor, a camera, a YouTube embed, seven board views and a model
+ * router in order to render a list of today's tasks. None of that is wanted
+ * until someone opens the view that uses it.
+ *
+ * The offline promise survives this: once the shell is up and idle, the rest
+ * is fetched in the background and the service worker caches each piece, so
+ * the second visit has everything whether or not there is a network. `prefetch`
+ * is what does that - see the effect below.
+ */
+const load = {
+  triage: () => import('./ui/views/Triage.jsx'),
+  timeline: () => import('./ui/views/Timeline.jsx'),
+  library: () => import('./ui/views/Library.jsx'),
+  work: () => import('./ui/views/Work.jsx'),
+  studio: () => import('./ui/views/Studio.jsx'),
+  stash: () => import('./ui/stash/Stash.jsx'),
+  brain: () => import('./ui/views/Brain.jsx'),
+  agents: () => import('./ui/views/Agents.jsx'),
+  settings: () => import('./ui/views/Settings.jsx'),
+  assistant: () => import('./ui/Assistant.jsx'),
+}
+
+const Triage = lazy(() => load.triage().then((m) => ({ default: m.Triage })))
+const Timeline = lazy(() => load.timeline().then((m) => ({ default: m.Timeline })))
+const Library = lazy(() => load.library().then((m) => ({ default: m.Library })))
+const Work = lazy(() => load.work().then((m) => ({ default: m.Work })))
+const Studio = lazy(() => load.studio().then((m) => ({ default: m.Studio })))
+const Stash = lazy(() => load.stash().then((m) => ({ default: m.Stash })))
+const Brain = lazy(() => load.brain().then((m) => ({ default: m.Brain })))
+const Agents = lazy(() => load.agents().then((m) => ({ default: m.Agents })))
+const Settings = lazy(() => load.settings().then((m) => ({ default: m.Settings })))
+const Assistant = lazy(() => load.assistant().then((m) => ({ default: m.Assistant })))
+
+/** Placeholder while a view arrives. Deliberately not a spinner: on a warm
+    cache the wait is a few milliseconds and a spinner would only ever be seen
+    as a flash. */
+const Loading = () => <div className="view-loading" aria-live="polite">Loading…</div>
+
 const VIEWS = [
   { id: 'today', label: 'Today', Icon: IconToday, board: true },
+  { id: 'work', label: 'Boards', Icon: IconGrid },
   { id: 'triage', label: 'Triage', Icon: IconPulse, filters: true },
   { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
+  { id: 'stash', label: 'Stash', Icon: IconInbox },
+  { id: 'studio', label: 'Studio', Icon: IconVideo },
   { id: 'library', label: 'Library', Icon: IconLibrary },
   { id: 'brain', label: 'Brain', Icon: IconBrain },
+  { id: 'agents', label: 'Agents', Icon: IconSpark },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ]
 
@@ -49,6 +92,7 @@ const readHash = () => {
 export default function App() {
   const state = useStore()
   const [view, setView] = useState(readHash)
+  const scroller = useRef(null)
   const [editing, setEditing] = useState(false)
   const [palette, setPalette] = useState(false)
   const [pasting, setPasting] = useState(false)
@@ -83,6 +127,12 @@ export default function App() {
     recordUsage('session')
     recordUsage('view', readHash())
     const beat = setInterval(() => { if (document.visibilityState === 'visible') recordUsage('active') }, 30 * 60 * 1000)
+    // Pull the rest of the app down once the shell is idle, so the service
+    // worker has every chunk cached before anyone opens a view offline. One
+    // at a time: this is background work and must not compete with whatever
+    // the person is actually doing.
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200))
+    idle(() => { Object.values(load).reduce((chain, next) => chain.then(next).catch(() => {}), Promise.resolve()) })
     return () => clearInterval(beat)
   }, [])
   useBrainSync(state)
@@ -118,7 +168,7 @@ export default function App() {
       if (event.key === '/') { event.preventDefault(); setPalette(true) }
       if (event.key === 'g') window.__allDashGoto = true
       else if (window.__allDashGoto) {
-        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings' }[event.key]
+        const target = { t: 'today', r: 'triage', l: 'timeline', a: 'analytics', d: 'library', b: 'brain', s: 'settings', w: 'work', m: 'studio', k: 'stash', g: 'agents' }[event.key]
         if (target) navigate(target)
         window.__allDashGoto = false
       }
@@ -144,7 +194,7 @@ export default function App() {
   // Reminders tick on a minute, plus whenever the tab comes back into focus.
   const [, setTick] = useState(0)
   useEffect(() => {
-    const bump = () => setTick((n) => n + 1)
+    const bump = () => { setTick((n) => n + 1); runTimedAutomations() }
     const timer = setInterval(bump, 60000)
     document.addEventListener('visibilitychange', bump)
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', bump) }
@@ -175,9 +225,14 @@ export default function App() {
     [state.entities, range, state.customMetrics, state.triage, state.brain]
   )
 
+  const unreadWork = (state.work?.notifications || []).filter((n) => !n.read).length
   const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
   const empty = allEntities.length === 0
+
+  /* A new view starts at the top. Without this, arriving at Today from a
+     scrolled Analytics leaves the first card halfway up the screen. */
+  useEffect(() => { scroller.current?.scrollTo({ top: 0, behavior: 'instant' }) }, [view, empty])
 
   const related = inspecting
     ? q(allEntities).where((e) => e.source?.docId === inspecting.source?.docId && e.id !== inspecting.id).take(8)
@@ -202,7 +257,8 @@ export default function App() {
               <Icon />
               <span>{label}</span>
               {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
-              {id === 'triage' && urgent > 0 && <span className="rail__count" style={{ color: 'var(--critical)', fontWeight: 600 }}>{urgent}</span>}
+              {id === 'work' && unreadWork > 0 && <span className="rail__count">{unreadWork}</span>}
+              {id === 'triage' && urgent > 0 && <span className="rail__count rail__count--urgent">{urgent}</span>}
             </button>
           ))}
         </div>
@@ -235,7 +291,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__title">
             <h1>{active.label}</h1>
-            {active.board && <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{range.label}</span>}
+            {active.board && <span className="topbar__sub">{range.label}</span>}
           </div>
 
           <div className="topbar__actions">
@@ -255,8 +311,11 @@ export default function App() {
 
         {(active.board || active.filters) && !empty && <FilterBar entityList={allEntities} ui={state.ui} />}
 
-        <div className="scroller">
-          {empty && view !== 'settings' ? (
+        <div className="scroller" ref={scroller}>
+          <Suspense fallback={<Loading />}>
+          {/* Boards and Settings work on an empty workspace; every other
+              view needs something to read first. */}
+          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' && view !== 'agents' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
@@ -266,20 +325,31 @@ export default function App() {
             <Timeline entityList={entityList} onOpen={setInspecting} />
           ) : view === 'library' ? (
             <Library entityList={allEntities} docs={state.docs} onOpen={setInspecting} onFiles={accept} />
+          ) : view === 'work' ? (
+            <Work state={state} onToast={toast} onOpenEntity={setInspecting} />
+          ) : view === 'studio' ? (
+            <Studio entities={allEntities} onToast={toast} onOpen={setInspecting} />
+          ) : view === 'stash' ? (
+            <Stash entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : view === 'brain' ? (
             <Brain state={state} onOpen={setInspecting} onToast={toast} />
+          ) : view === 'agents' ? (
+            <Agents state={state} entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}
+          </Suspense>
         </div>
       </div>
 
       {dragging && <DropHint />}
+      <MiniPlayer />
       <Toasts toasts={toasts} />
       {palette && (
         <CommandBar entities={state.entities} onClose={() => setPalette(false)} onOpen={setInspecting} navigate={navigate} />
       )}
       {asking && (
+        <Suspense fallback={null}>
         <Assistant
           prefill={asking}
           entities={state.entities}
@@ -290,6 +360,7 @@ export default function App() {
           onClose={() => setAsking(null)}
           onToast={toast}
         />
+        </Suspense>
       )}
       {pasting && <PasteSheet onClose={() => setPasting(false)} onDone={(message, tone) => toast(message, tone || 'good')} />}
       {importingUrl !== null && <UrlSheet prefill={importingUrl} navigate={navigate} onClose={() => setImportingUrl(null)} onDone={(message, tone) => toast(message, tone || 'good')} />}
@@ -314,28 +385,44 @@ export default function App() {
 
 function FirstRun({ onSeed, onFiles, onPaste, onUrl }) {
   return (
-    <div className="card" style={{ maxWidth: 620, margin: '8vh auto' }}>
-      <div className="card__body" style={{ padding: 'var(--gap-6)' }}>
-        <div className="stack">
-          <h2 style={{ fontSize: 'var(--t-2xl)', letterSpacing: '-0.02em' }}>Give it something to read.</h2>
-          <p className="secondary" style={{ margin: 0 }}>
-            Drop meeting notes, a calendar export, a transcript or a spreadsheet anywhere on this page.
-            It gets parsed into tasks, events, decisions, risks and metrics, and the dashboard builds itself
-            from what it finds. Nothing leaves your browser.
-          </p>
-          <div className="row row--wrap" style={{ marginTop: 'var(--gap-2)' }}>
-            <FilePicker onFiles={onFiles} className="btn btn--primary"><IconUpload width={13} height={13} /> Choose files</FilePicker>
-            <button className="btn" onClick={onPaste}>Paste notes</button>
-            <button className="btn" onClick={onUrl}>Import a web page</button>
-            <button className="btn" onClick={onSeed}>Load a sample project</button>
-          </div>
-          <div className="divider" style={{ margin: 'var(--gap-3) 0' }} />
-          <div className="row row--wrap" style={{ gap: 'var(--gap-1)' }}>
-            {['.md', '.txt', '.docx', '.pptx', '.xlsx', '.csv', '.json', '.ics', '.vtt', '.html'].map((ext) => (
-              <span key={ext} className="chip mono">{ext}</span>
-            ))}
-          </div>
-        </div>
+    <div className="firstrun">
+      <span className="firstrun__mark">AD</span>
+      <h2 className="firstrun__head">Give it something to read.</h2>
+      <p className="firstrun__lede">
+        Drop meeting notes, a calendar export, a transcript or a spreadsheet anywhere on this page.
+        It gets parsed into tasks, events, decisions, risks and metrics, and the dashboard builds
+        itself from what it finds. Nothing leaves your browser.
+      </p>
+
+      {/* Four ways in, each with the case for taking it - four identical
+          buttons would leave the choice to guesswork. */}
+      <div className="firstrun__ways">
+        <FilePicker onFiles={onFiles} className="way">
+          <IconUpload className="way__icon" />
+          <strong>Choose files</strong>
+          <span>Notes, decks, sheets, calendars, transcripts.</span>
+        </FilePicker>
+        <button className="way" onClick={onPaste}>
+          <IconDoc className="way__icon" />
+          <strong>Paste notes</strong>
+          <span>Straight from a doc or a chat window.</span>
+        </button>
+        <button className="way" onClick={onUrl}>
+          <IconLink className="way__icon" />
+          <strong>Import a web page</strong>
+          <span>A wiki page, a changelog, a status post.</span>
+        </button>
+        <button className="way" onClick={onSeed}>
+          <IconPlay className="way__icon" />
+          <strong>Load a sample project</strong>
+          <span>See the whole thing working in one click.</span>
+        </button>
+      </div>
+
+      <div className="firstrun__exts">
+        {['.md', '.txt', '.docx', '.pptx', '.xlsx', '.csv', '.json', '.ics', '.vtt', '.html'].map((ext) => (
+          <span key={ext} className="chip mono">{ext}</span>
+        ))}
       </div>
     </div>
   )

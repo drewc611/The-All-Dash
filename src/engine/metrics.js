@@ -1,6 +1,6 @@
 import { defineMetric, getMetric, listMetrics } from '../core/registry.js'
 import { q, daily, trend, momentum, forecast } from '../core/query.js'
-import { addDays } from '../core/time.js'
+import { addDays, startOfDay, endOfDay } from '../core/time.js'
 import { OPEN_STATUSES } from '../data/schema.js'
 
 /**
@@ -46,7 +46,8 @@ defineMetric({
   unit: 'h',
   goal: 'down',
   compute: (entities, range) => {
-    const rows = q(entities).type('event').between(range.from, range.to, 'at').all()
+    // All-day entries (holidays, out-of-office) are not meeting hours.
+    const rows = q(entities).type('event').between(range.from, range.to, 'at').where((e) => !e.meta?.allDay).all()
     const hours = rows.map((e) => ({
       ...e,
       value: e.end ? Math.max(0, (new Date(e.end) - new Date(e.at)) / 3600000) : 0.5,
@@ -122,12 +123,14 @@ export function compileCustom(config) {
       // whatever order the rows were imported in.
       const scoped = rows.between(range.from, range.to, field).sort(field).all()
       const points = daily(scoped, { from: range.from, to: range.to, field, reduce: config.reduce || 'count' })
+      const nums = scoped.map((r) => Number(r.value) || 0)
       const total =
         config.reduce === 'count' ? scoped.length
-          : config.reduce === 'avg' ? avg(scoped.map((r) => Number(r.value) || 0))
+          : config.reduce === 'avg' ? avg(nums)
             : config.reduce === 'last' ? (scoped.at(-1)?.value ?? 0)
-              : config.reduce === 'max' ? Math.max(0, ...scoped.map((r) => Number(r.value) || 0))
-                : scoped.reduce((a, r) => a + (Number(r.value) || 0), 0)
+              : config.reduce === 'max' ? (nums.length ? nums.reduce((a, b) => (b > a ? b : a), -Infinity) : 0)
+                : config.reduce === 'min' ? (nums.length ? nums.reduce((a, b) => (b < a ? b : a), Infinity) : 0)
+                  : nums.reduce((a, b) => a + b, 0)
       return { value: round(total), series: points }
     },
   }
@@ -166,9 +169,13 @@ export function evaluate(metric, entities, range, { compare = true } = {}) {
   let previous = null
   let change = null
   if (compare && range?.from && range?.to && range.days && range.days < 3000) {
-    const span = range.days
-    // The previous window ends the instant before this one starts.
-    const prevRange = { from: addDays(range.from, -span), to: new Date(new Date(range.from).getTime() - 1), label: 'previous', days: span }
+    // The previous window is exactly as long as this one has been so far
+    // ("this week" on a Monday compares one day with one day, not with seven)
+    // and ends the instant before this one starts.
+    const fromMs = startOfDay(range.from).getTime()
+    const endMs = endOfDay(Math.min(new Date(range.to).getTime(), Date.now())).getTime()
+    const span = Math.max(1, Math.round((endMs - fromMs) / (24 * 3600000)))
+    const prevRange = { from: addDays(new Date(fromMs), -span), to: new Date(fromMs - 1), label: 'previous', days: span }
     const prev = spec.compute(list, prevRange) || { value: 0, series: [] }
     const prevHadData = (prev.series || []).some((p) => Number(p.value)) || (Number.isFinite(prev.value) && prev.value !== 0)
     if (prevHadData) {
