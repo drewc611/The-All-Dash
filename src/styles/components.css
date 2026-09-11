@@ -861,3 +861,11 @@
   .firstrun__lede { font-size: var(--t-md); }
   .firstrun__ways { grid-template-columns: minmax(0, 1fr); margin-top: var(--gap-5); }
 }
+
+/* Shown while a view's code arrives. On a warm cache that is a few
+   milliseconds, so this is deliberately quiet rather than a spinner. */
+.view-loading {
+  padding: var(--pad-6) var(--pad-4);
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}

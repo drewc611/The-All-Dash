@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readText, setState, toggleStar, toggleWatch, addHighlight, removeHighlight, recheck } from '../../stash/store.js'
+import { Overlay } from '../components.jsx'
 import { stashKind } from '../../stash/schema.js'
 import { safeUrl } from '../../stash/readable.js'
 import { changesOnly, describeChange } from '../../stash/diff.js'
@@ -190,7 +191,7 @@ export function Reader({ entity, onClose, onToast, onForget }) {
   )
 
   return (
-    <div className="reader" role="dialog" aria-modal="true" aria-label={entity.title}>
+    <Overlay className="reader" onClose={onClose} label={entity.title}>
       <div className="reader__progress" style={{ '--read': `${Math.round(progress * 100)}%` }} />
 
       <header className="reader__bar">
@@ -280,6 +281,6 @@ export function Reader({ entity, onClose, onToast, onForget }) {
           ><IconCheck width={12} height={12} /> Highlight</button>
         </div>
       )}
-    </div>
+    </Overlay>
   )
 }

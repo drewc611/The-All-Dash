@@ -4,15 +4,29 @@ import { makeDoc } from '../data/schema.js'
 import { hashId, hashBytes } from '../core/id.js'
 import { detectFlavor } from './detect.js'
 
+// The text parsers register themselves on import and are small enough that
+// having them present costs nothing.
 import './parsers/text.js'
 import './parsers/csv.js'
 import './parsers/json.js'
 import './parsers/ics.js'
 import './parsers/transcript.js'
-import './parsers/xlsx.js'
-import './parsers/office.js'
 
 const BINARY_EXTENSIONS = /\.(xlsx|xlsm|docx|pptx|zip)$/i
+
+/*
+ * The two binary readers are not.
+ *
+ * A zip decoder and a spreadsheet reader are thirty kilobytes that every
+ * first visit was downloading before it could paint, on behalf of a file
+ * nobody had dropped yet. They register themselves when a binary file turns
+ * up, which is the only moment they can be used.
+ */
+let binaryParsers = null
+export const ensureBinaryParsers = () => {
+  if (!binaryParsers) binaryParsers = Promise.all([import('./parsers/xlsx.js'), import('./parsers/office.js')])
+  return binaryParsers
+}
 
 /**
  * Highest-priority parser whose match() accepts the input. A binary file only
@@ -38,6 +52,7 @@ export function pickParser(input) {
 export async function ingestFile(file, { url = null } = {}) {
   const name = file.name || 'Untitled'
   const binary = BINARY_EXTENSIONS.test(name)
+  if (binary) await ensureBinaryParsers()
   const buffer = binary ? await file.arrayBuffer() : null
   const text = binary ? '' : await file.text()
   // A document's identity is its name: importing "Weekly sync.md" again means

@@ -1,4 +1,10 @@
 import { lineReader, deltaFromLine, stopFromLine } from './protocol.js'
+// A key travels only over TLS or to this machine. The rule lives in its own
+// module so the platform client can reach it without pulling this file - and
+// with it three chat protocols - into every first paint.
+import { assertKeyTransport } from './transport.js'
+
+export { assertKeyTransport }
 
 /**
  * Three ways to reach a model, one function to call.
@@ -111,27 +117,6 @@ export async function listModels({ provider, baseUrl, apiKey }) {
   } catch {
     return []
   }
-}
-
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
-
-/**
- * A key travels only over TLS or to this machine. A base URL someone typed
- * as http://api.example.com would otherwise send the key in clear text to
- * every hop between here and there.
- */
-export function assertKeyTransport(baseUrl, apiKey) {
-  if (!apiKey) return
-  let url
-  try {
-    url = new URL(baseUrl)
-  } catch {
-    throw new Error(`"${baseUrl}" is not a valid URL.`)
-  }
-  if (url.protocol === 'https:') return
-  const host = url.hostname.toLowerCase()
-  if (LOOPBACK.has(host) || host.endsWith('.localhost')) return
-  throw new Error(`Refusing to send your API key to ${url.host} over plain HTTP. Use an https:// endpoint, or one on this machine (localhost).`)
 }
 
 function request({ provider, baseUrl, model, apiKey, system, messages, maxTokens }) {

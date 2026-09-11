@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useStore, updateUi, recordUsage, getState } from './core/store.js'
 import { onRegistryChange } from './core/registry.js'
 import { q } from './core/query.js'
@@ -10,18 +10,9 @@ import { Board, BoardControls } from './ui/Board.jsx'
 import { CommandBar } from './ui/CommandBar.jsx'
 import { Inspector } from './ui/Inspector.jsx'
 import { DropHint, Toasts, PasteSheet, UrlSheet, FilePicker, useIntake } from './ui/Intake.jsx'
-import { Timeline } from './ui/views/Timeline.jsx'
-import { Library } from './ui/views/Library.jsx'
-import { Settings } from './ui/views/Settings.jsx'
-import { Triage } from './ui/views/Triage.jsx'
-import { Brain } from './ui/views/Brain.jsx'
-import { Work } from './ui/views/Work.jsx'
-import { Studio } from './ui/views/Studio.jsx'
-import { Stash } from './ui/stash/Stash.jsx'
 import { MiniPlayer } from './ui/media/MiniPlayer.jsx'
 import { runTimedAutomations } from './work/store.js'
 import { useBrainSync } from './ui/brainSync.js'
-import { Assistant } from './ui/Assistant.jsx'
 import { buildTriage } from './engine/triage.js'
 import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
@@ -33,6 +24,46 @@ import {
 
 import './ui/widgets/index.js'
 import './ui/commands.js'
+
+/*
+ * Everything past Today is fetched when it is first opened.
+ *
+ * The whole app in one file was 643KB, which meant the first visit downloaded
+ * a video compressor, a camera, a YouTube embed, seven board views and a model
+ * router in order to render a list of today's tasks. None of that is wanted
+ * until someone opens the view that uses it.
+ *
+ * The offline promise survives this: once the shell is up and idle, the rest
+ * is fetched in the background and the service worker caches each piece, so
+ * the second visit has everything whether or not there is a network. `prefetch`
+ * is what does that - see the effect below.
+ */
+const load = {
+  triage: () => import('./ui/views/Triage.jsx'),
+  timeline: () => import('./ui/views/Timeline.jsx'),
+  library: () => import('./ui/views/Library.jsx'),
+  work: () => import('./ui/views/Work.jsx'),
+  studio: () => import('./ui/views/Studio.jsx'),
+  stash: () => import('./ui/stash/Stash.jsx'),
+  brain: () => import('./ui/views/Brain.jsx'),
+  settings: () => import('./ui/views/Settings.jsx'),
+  assistant: () => import('./ui/Assistant.jsx'),
+}
+
+const Triage = lazy(() => load.triage().then((m) => ({ default: m.Triage })))
+const Timeline = lazy(() => load.timeline().then((m) => ({ default: m.Timeline })))
+const Library = lazy(() => load.library().then((m) => ({ default: m.Library })))
+const Work = lazy(() => load.work().then((m) => ({ default: m.Work })))
+const Studio = lazy(() => load.studio().then((m) => ({ default: m.Studio })))
+const Stash = lazy(() => load.stash().then((m) => ({ default: m.Stash })))
+const Brain = lazy(() => load.brain().then((m) => ({ default: m.Brain })))
+const Settings = lazy(() => load.settings().then((m) => ({ default: m.Settings })))
+const Assistant = lazy(() => load.assistant().then((m) => ({ default: m.Assistant })))
+
+/** Placeholder while a view arrives. Deliberately not a spinner: on a warm
+    cache the wait is a few milliseconds and a spinner would only ever be seen
+    as a flash. */
+const Loading = () => <div className="view-loading" aria-live="polite">Loading…</div>
 
 const VIEWS = [
   { id: 'today', label: 'Today', Icon: IconToday, board: true },
@@ -93,6 +124,12 @@ export default function App() {
     recordUsage('session')
     recordUsage('view', readHash())
     const beat = setInterval(() => { if (document.visibilityState === 'visible') recordUsage('active') }, 30 * 60 * 1000)
+    // Pull the rest of the app down once the shell is idle, so the service
+    // worker has every chunk cached before anyone opens a view offline. One
+    // at a time: this is background work and must not compete with whatever
+    // the person is actually doing.
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200))
+    idle(() => { Object.values(load).reduce((chain, next) => chain.then(next).catch(() => {}), Promise.resolve()) })
     return () => clearInterval(beat)
   }, [])
   useBrainSync(state)
@@ -272,6 +309,7 @@ export default function App() {
         {(active.board || active.filters) && !empty && <FilterBar entityList={allEntities} ui={state.ui} />}
 
         <div className="scroller" ref={scroller}>
+          <Suspense fallback={<Loading />}>
           {/* Boards and Settings work on an empty workspace; every other
               view needs something to read first. */}
           {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' ? (
@@ -295,6 +333,7 @@ export default function App() {
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}
+          </Suspense>
         </div>
       </div>
 
@@ -305,6 +344,7 @@ export default function App() {
         <CommandBar entities={state.entities} onClose={() => setPalette(false)} onOpen={setInspecting} navigate={navigate} />
       )}
       {asking && (
+        <Suspense fallback={null}>
         <Assistant
           prefill={asking}
           entities={state.entities}
@@ -315,6 +355,7 @@ export default function App() {
           onClose={() => setAsking(null)}
           onToast={toast}
         />
+        </Suspense>
       )}
       {pasting && <PasteSheet onClose={() => setPasting(false)} onDone={(message, tone) => toast(message, tone || 'good')} />}
       {importingUrl !== null && <UrlSheet prefill={importingUrl} navigate={navigate} onClose={() => setImportingUrl(null)} onDone={(message, tone) => toast(message, tone || 'good')} />}

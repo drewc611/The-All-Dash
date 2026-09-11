@@ -5,7 +5,7 @@ import {
   stripMarkdown, wordCount, readingMinutes, excerpt, titleFrom, siteName,
   canonicalUrl, outline, readablePage, WORDS_PER_MINUTE, safeUrl,
 } from '../src/stash/readable.js'
-import { tokenise, buildIndex, parseQuery, search, snippet } from '../src/stash/search.js'
+import { tokenise, buildIndex, parseQuery, search, snippet, emptyIndex, syncIndex, indexDoc, dropDocs } from '../src/stash/search.js'
 import { blocks, normalise, diffBlocks, changesOnly, describeChange, fingerprint } from '../src/stash/diff.js'
 import { stashEntity, addVersion, liveSnapshotIds, makeHighlight, dueForCheck, hoursSince, isUnread, stashKind } from '../src/stash/schema.js'
 
@@ -412,4 +412,121 @@ test('the re-check batch is capped, because it hits someone else server', () => 
     id: `p${i}`, title: `p${i}`, url: `https://example.com/${i}`, watching: true,
   }))
   assert.equal(dueForCheck(many).length, 5)
+})
+
+/*
+ * The incremental index.
+ *
+ * Rebuilding from scratch is a third of a second per thousand articles, and
+ * the view used to pay it every time it mounted. These say the cheap path
+ * gives the same answers as the expensive one.
+ */
+
+const doc = (id, title, text, rev = '1') => ({ id, title, text, rev })
+
+const ranking = (index, query) => search(index, query).map((hit) => hit.id)
+
+test('syncing an empty index is the same as building one', () => {
+  const docs = [
+    doc('a', 'Rollback script', 'the deploy failed and the rollback script saved us'),
+    doc('b', 'Pricing', 'revenue per seat and the churn we saw in march'),
+    doc('c', 'Postgres', 'a vacuum ran long and the replica fell behind'),
+  ]
+  const fresh = buildIndex(docs)
+  const { index, added, removed, refreshed } = syncIndex(emptyIndex(), docs)
+
+  assert.deepEqual({ added, removed, refreshed }, { added: 3, removed: 0, refreshed: 0 })
+  assert.equal(index.count, fresh.count)
+  assert.equal(index.averageLength, fresh.averageLength)
+  assert.deepEqual(ranking(index, 'rollback'), ranking(fresh, 'rollback'))
+  assert.deepEqual(ranking(index, 'the churn'), ranking(fresh, 'the churn'))
+})
+
+test('a document nobody touched is not read again', () => {
+  const docs = [doc('a', 'Rollback script', 'the rollback script saved us'), doc('b', 'Pricing', 'revenue per seat')]
+  const { index } = syncIndex(emptyIndex(), docs)
+
+  // Same revisions, and the text swapped for something that would rank
+  // differently if it were read. It must not be read.
+  const lies = [doc('a', 'Rollback script', 'kubernetes kubernetes kubernetes'), doc('b', 'Pricing', 'revenue per seat')]
+  const second = syncIndex(index, lies)
+
+  assert.deepEqual({ added: second.added, removed: second.removed, refreshed: second.refreshed }, { added: 0, removed: 0, refreshed: 0 })
+  assert.deepEqual(ranking(second.index, 'kubernetes'), [])
+  assert.deepEqual(ranking(second.index, 'rollback'), ['a'])
+})
+
+test('a new revision replaces the old words rather than adding to them', () => {
+  const { index } = syncIndex(emptyIndex(), [doc('a', 'Draft', 'the first attempt mentioned redis')])
+  const after = syncIndex(index, [doc('a', 'Draft', 'the second attempt mentioned postgres', '2')])
+
+  assert.equal(after.refreshed, 1)
+  assert.deepEqual(ranking(after.index, 'postgres'), ['a'])
+  // The word that was only in the old version is gone, not merely outranked.
+  assert.deepEqual(ranking(after.index, 'redis'), [])
+  assert.equal(after.index.count, 1)
+})
+
+test('forgetting a page removes it from the vocabulary and the averages', () => {
+  const docs = [
+    doc('a', 'Rollback', 'the rollback script saved us from a bad deploy that broke checkout for an hour on friday'),
+    doc('b', 'Churn', 'revenue per seat'),
+  ]
+  const { index } = syncIndex(emptyIndex(), docs)
+  const before = index.averageLength
+
+  const after = syncIndex(index, [docs[1]])
+  assert.equal(after.removed, 1)
+  assert.equal(after.index.count, 1)
+  assert.deepEqual(ranking(after.index, 'rollback'), [])
+  assert.notEqual(after.index.averageLength, before)
+  assert.equal(after.index.averageLength, buildIndex([docs[1]]).averageLength)
+  assert.equal(after.index.postings.has('rollback'), false)
+})
+
+test('add, drop and change at once matches a rebuild exactly', () => {
+  const first = [
+    doc('a', 'Rollback', 'the rollback script saved us'),
+    doc('b', 'Churn', 'revenue per seat and churn'),
+    doc('c', 'Postgres', 'the vacuum ran long'),
+  ]
+  const { index } = syncIndex(emptyIndex(), first)
+
+  const second = [
+    doc('b', 'Churn', 'revenue per seat and churn'),
+    doc('c', 'Postgres', 'the vacuum ran long and the replica fell behind', '2'),
+    doc('d', 'Latency', 'p99 latency doubled after the deploy'),
+  ]
+  const { index: synced, added, removed, refreshed } = syncIndex(index, second)
+  const rebuilt = buildIndex(second)
+
+  assert.deepEqual({ added, removed, refreshed }, { added: 1, removed: 1, refreshed: 1 })
+  assert.equal(synced.count, rebuilt.count)
+  assert.equal(synced.averageLength, rebuilt.averageLength)
+  for (const query of ['rollback', 'replica', 'latency', 'deploy', 'churn', '"vacuum ran long"']) {
+    assert.deepEqual(ranking(synced, query), ranking(rebuilt, query), query)
+  }
+  assert.deepEqual([...synced.postings.keys()].sort(), [...rebuilt.postings.keys()].sort())
+})
+
+test('dropping every document leaves an index that answers nothing', () => {
+  const docs = [doc('a', 'One', 'the first page'), doc('b', 'Two', 'the second page')]
+  const { index } = syncIndex(emptyIndex(), docs)
+  dropDocs(index, ['a', 'b'])
+
+  assert.equal(index.count, 0)
+  assert.equal(index.averageLength, 0)
+  assert.equal(index.postings.size, 0)
+  assert.deepEqual(search(index, 'page'), [])
+})
+
+test('indexDoc replacing in place does not double-count the length', () => {
+  const index = emptyIndex()
+  indexDoc(index, doc('a', 'Title', 'one two three four five'))
+  const once = index.lengths.get('a')
+  indexDoc(index, doc('a', 'Title', 'one two three four five', '2'))
+
+  assert.equal(index.lengths.get('a'), once)
+  assert.equal(index.total, once)
+  assert.equal(index.count, 1)
 })

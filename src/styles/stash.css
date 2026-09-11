@@ -36,6 +36,15 @@
   gap: var(--gap-2);
   border-bottom: 1px solid var(--line);
   transition: background var(--fast);
+
+  /* An archive of a few hundred pages is a few hundred rows, and laying all
+     of them out to show the eight on screen is most of the cost of opening
+     the view. This skips layout and paint for the rows nobody is looking at.
+     The intrinsic size is a real measured row, so the scrollbar is the right
+     length before anything off-screen has been laid out, and Ctrl+F still
+     finds text in a skipped row - which is why this rather than windowing. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 74px;
 }
 
 .srow:hover { background: var(--surface-hover); }

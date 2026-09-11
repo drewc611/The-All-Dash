@@ -152,7 +152,7 @@ export function EntityList({ entities, onOpen, empty, limit = 50 }) {
 const openOverlays = []
 
 /** Escape-to-close, focus-trapped overlay used by the inspector and pickers. */
-export function Overlay({ onClose, children, className = 'sheet', labelledBy }) {
+export function Overlay({ onClose, children, className = 'sheet', labelledBy, label }) {
   const ref = useRef(null)
   // The latest close handler lives in a ref, so an inline arrow from the
   // parent never re-runs the mount effect (which would steal focus and
@@ -193,7 +193,7 @@ export function Overlay({ onClose, children, className = 'sheet', labelledBy }) 
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <div className={className} ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}>
+      <div className={className} ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={label} tabIndex={-1}>
         {children}
       </div>
     </>

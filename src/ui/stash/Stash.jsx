@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { platformConfig } from '../../platform/client.js'
 import { corpus, usage, available } from '../../stash/archive.js'
-import { buildIndex, search as runSearch, snippet } from '../../stash/search.js'
+import { emptyIndex, planSync, applySync, search as runSearch, snippet } from '../../stash/search.js'
 import { stripMarkdown } from '../../stash/readable.js'
 import { stashKind, stashState, dueForCheck, KIND_LABEL } from '../../stash/schema.js'
 import { savePage, saveIdea, forget, setState, toggleStar, recheck } from '../../stash/store.js'
@@ -37,10 +37,17 @@ const matches = (entity, filter) => {
  * page can be compared against the version you read, and why none of it stops
  * working when the site does.
  */
+// The index outlives the view. It used to be component state, so leaving for
+// Today and coming back read every snapshot out of IndexedDB and tokenised
+// every article again - half a second of a frozen tab to arrive at exactly
+// the index that had just been thrown away.
+let cachedIndex = null
+let syncToken = 0
+
 export function Stash({ entities, onToast, onOpen }) {
   const [filter, setFilter] = useState('inbox')
   const [query, setQuery] = useState('')
-  const [index, setIndex] = useState(null)
+  const [stamp, setStamp] = useState(0)
   const [indexing, setIndexing] = useState(false)
   const [reading, setReading] = useState(null)
   const [meter, setMeter] = useState(null)
@@ -60,36 +67,71 @@ export function Stash({ entities, onToast, onOpen }) {
 
   // The index is built from the archive, not from the store: the store holds
   // excerpts, and searching excerpts is what Pocket did.
-  const rebuild = useCallback(async () => {
-    if (!available() || !items.length) return setIndex(buildIndex([]))
-    setIndexing(true)
+  //
+  // A page's words change only when a new snapshot is taken, so the snapshot
+  // id and the record's own timestamp are what decides whether it is worth
+  // reading again. Highlighting a passage refreshes one document; the other
+  // nine hundred are left alone.
+  const sync = useCallback(async () => {
+    if (!available()) { cachedIndex = emptyIndex(); return setStamp((n) => n + 1) }
+    const mine = ++syncToken
+    const base = cachedIndex || emptyIndex()
+    const wanted = items.map((e) => ({
+      id: e.id,
+      title: e.title,
+      snapshotId: e.meta?.snapshotId || '',
+      rev: `${e.meta?.snapshotId || ''}:${e.updatedAt || ''}`,
+      body: e.body || '',
+    }))
+    const stale = wanted.filter((d) => base.revs.get(d.id) !== d.rev)
+    // Nothing new to read: the archive only gets touched for pages that moved.
+    if (stale.length) setIndexing(true)
     try {
-      const ids = items.map((e) => e.meta?.snapshotId).filter(Boolean)
-      const texts = await corpus(ids)
+      const texts = stale.length ? await corpus(stale.map((d) => d.snapshotId).filter(Boolean)) : []
+      if (mine !== syncToken) return undefined
       const bySnapshot = new Map(texts.map((t) => [t.id, t]))
-      // Indexed as prose, not as source: nobody searches for "##", and a
-      // snippet that shows heading markers mid-sentence reads as a bug.
-      setIndex(buildIndex(items.map((e) => ({
-        id: e.id,
-        title: e.title,
-        text: stripMarkdown(bySnapshot.get(e.meta?.snapshotId)?.text || e.body || ''),
-      }))))
+      const docs = wanted.map((d) => {
+        const known = base.docs.get(d.id)
+        if (known && base.revs.get(d.id) === d.rev) return known
+        // Indexed as prose, not as source: nobody searches for "##", and a
+        // snippet that shows heading markers mid-sentence reads as a bug.
+        return { id: d.id, title: d.title, rev: d.rev, text: stripMarkdown(bySnapshot.get(d.snapshotId)?.text || d.body) }
+      })
+      // Sliced, so a first run over a large archive stays a list you can
+      // scroll while it fills in rather than a frozen tab.
+      //
+      // Reported in tenths. A counter that moves on every 8ms slice re-renders
+      // the list a hundred times a second, which costs far more than the
+      // indexing it is reporting on.
+      let shown = -1
+      cachedIndex = await applySync(base, planSync(base, docs), {
+        onProgress: (done, total) => {
+          const step = Math.floor((done / total) * 10)
+          if (step === shown || mine !== syncToken) return
+          shown = step
+          setIndexing(`${step * 10}%`)
+        },
+      })
+      if (mine !== syncToken) return undefined
     } catch {
-      setIndex(buildIndex([]))
+      cachedIndex = base
     } finally {
-      setIndexing(false)
+      if (mine === syncToken) setIndexing(false)
     }
+    return setStamp((n) => n + 1)
   }, [items])
 
-  useEffect(() => { rebuild() }, [rebuild])
+  useEffect(() => { sync() }, [sync])
   useEffect(() => { if (available()) usage().then(setMeter).catch(() => setMeter(null)) }, [items.length])
 
   const results = useMemo(() => {
-    if (!query.trim() || !index) return null
+    const index = cachedIndex
+    if (!query.trim() || !index?.count) return null
     const hits = runSearch(index, query, { limit: 60 })
     const byId = new Map(items.map((e) => [e.id, e]))
     return hits.map((hit) => ({ entity: byId.get(hit.id), doc: hit.doc })).filter((r) => r.entity)
-  }, [query, index, items])
+    // stamp is what says the index moved; it has no other reader.
+  }, [query, items, stamp])
 
   async function onSave(event) {
     event?.preventDefault()
@@ -193,7 +235,8 @@ export function Stash({ entities, onToast, onOpen }) {
         />
         {meter && (
           <span className="muted">
-            {formatBytes(meter.bytes)} archived{indexing ? ' · indexing…' : ''}
+            {formatBytes(meter.bytes)} archived
+            {indexing ? ` · indexing${typeof indexing === 'string' ? ` ${indexing}` : '…'}` : ''}
           </span>
         )}
       </div>
@@ -202,7 +245,7 @@ export function Stash({ entities, onToast, onOpen }) {
         results.length ? (
           <div className="stash__list">
             {results.map(({ entity, doc }) => (
-              <Row key={entity.id} entity={entity} query={query} text={doc?.text} onRead={() => setReading(entity)} onOpen={onOpen} />
+              <Row key={entity.id} entity={entity} query={query} text={doc?.text} onRead={setReading} onOpen={onOpen} />
             ))}
           </div>
         ) : (
@@ -211,7 +254,7 @@ export function Stash({ entities, onToast, onOpen }) {
       ) : visible.length ? (
         <div className="stash__list">
           {visible.map((entity) => (
-            <Row key={entity.id} entity={entity} onRead={() => setReading(entity)} onOpen={onOpen} />
+            <Row key={entity.id} entity={entity} onRead={setReading} onOpen={onOpen} />
           ))}
         </div>
       ) : (
@@ -242,7 +285,14 @@ export function Stash({ entities, onToast, onOpen }) {
   )
 }
 
-function Row({ entity, query, text, onRead, onOpen }) {
+/*
+ * Memoised, and it has to be: an archive of a thousand pages is a thousand of
+ * these, and without this every keystroke in the search box and every tick of
+ * the indexing counter re-renders all of them. The callbacks are passed as
+ * the setters themselves rather than as arrows closing over the row, because
+ * a new arrow per row per render defeats the memo entirely.
+ */
+const Row = memo(function Row({ entity, query, text, onRead, onOpen }) {
   const meta = entity.meta || {}
   const kind = stashKind(entity)
   const state = stashState(entity)
@@ -250,7 +300,7 @@ function Row({ entity, query, text, onRead, onOpen }) {
 
   return (
     <article className={`srow${state === 'inbox' ? ' is-unread' : ''}`}>
-      <button type="button" className="srow__main" onClick={onRead}>
+      <button type="button" className="srow__main" onClick={() => onRead(entity)}>
         <span className="srow__title">{entity.title}</span>
 
         {found ? (
@@ -275,7 +325,7 @@ function Row({ entity, query, text, onRead, onOpen }) {
       </div>
     </article>
   )
-}
+})
 
 /** The matched words, wrapped so they can be highlighted. */
 function mark({ text, marks }) {
