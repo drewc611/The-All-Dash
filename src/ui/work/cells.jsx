@@ -4,6 +4,7 @@ import { setCell, toggleTimer } from '../../work/store.js'
 import { formatDate } from '../../core/time.js'
 import { format } from '../../core/format.js'
 import { IconCheck, IconClock, IconClose, IconLink, IconPlus, IconStop } from '../icons.jsx'
+import { safeUrl } from '../../core/url.js'
 
 /**
  * One cell, read and written.
@@ -294,15 +295,25 @@ function TimeCell({ value, onToggle, readOnly }) {
   )
 }
 
+/* coerce() already refuses anything but http(s), but a workspace restored
+   from a file writes meta.columns directly, so the render checks as well. */
+function LinkOut({ url, label }) {
+  const href = safeUrl(url)
+  if (!href) return <span className="muted truncate" title={`Blocked link: ${url}`}>{label}</span>
+  return (
+    <a href={href} target="_blank" rel="noreferrer noopener" className="truncate">
+      <IconLink width={10} height={10} /> {label}
+    </a>
+  )
+}
+
 function LinkCell({ value, onChange, readOnly }) {
   const [editing, setEditing] = useState(false)
   if (!editing) {
     return (
       <span className="cell cell--link">
         {value ? (
-          <a href={value.url} target="_blank" rel="noreferrer noopener" className="truncate">
-            <IconLink width={10} height={10} /> {value.label || hostOf(value.url)}
-          </a>
+          <LinkOut url={value.url} label={value.label || hostOf(value.url)} />
         ) : <span className="muted">—</span>}
         {!readOnly && <button type="button" className="cell__add" onClick={() => setEditing(true)} aria-label="Edit the link">✎</button>}
       </span>

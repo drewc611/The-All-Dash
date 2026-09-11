@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   stripMarkdown, wordCount, readingMinutes, excerpt, titleFrom, siteName,
-  canonicalUrl, outline, readablePage, WORDS_PER_MINUTE,
+  canonicalUrl, outline, readablePage, WORDS_PER_MINUTE, safeUrl,
 } from '../src/stash/readable.js'
 import { tokenise, buildIndex, parseQuery, search, snippet } from '../src/stash/search.js'
 import { blocks, normalise, diffBlocks, changesOnly, describeChange, fingerprint } from '../src/stash/diff.js'
@@ -110,6 +110,40 @@ test('a fetched page becomes everything the list row needs', () => {
   assert.ok(page.words > 50)
   assert.equal(page.minutes, readingMinutes(page.words))
   assert.equal(page.outline.length, 3)
+})
+
+test('a link from a saved page cannot carry a script scheme', () => {
+  // Every URL in a saved article came off somebody else's website. React
+  // renders href verbatim, so this is the boundary that has to hold.
+  for (const hostile of [
+    'javascript:alert(1)',
+    'JaVaScRiPt:alert(1)',
+    '  javascript:alert(1)  ',
+    'java\tscript:alert(1)',
+    'java\nscript:alert(1)',
+    'java\u0000script:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    'blob:https://example.com/abc',
+  ]) {
+    assert.equal(safeUrl(hostile), null, JSON.stringify(hostile))
+    // Still refused when there is a base URL to resolve against.
+    assert.equal(safeUrl(hostile, 'https://example.com/post'), null, `${JSON.stringify(hostile)} with base`)
+  }
+})
+
+test('ordinary links survive, and relative ones are resolved', () => {
+  assert.equal(safeUrl('https://example.com/a'), 'https://example.com/a')
+  assert.equal(safeUrl('http://example.com/a'), 'http://example.com/a')
+  assert.match(safeUrl('mailto:someone@example.com'), /^mailto:/)
+  assert.equal(safeUrl('/other', 'https://example.com/post'), 'https://example.com/other')
+  assert.equal(safeUrl('next.html', 'https://example.com/dir/post'), 'https://example.com/dir/next.html')
+  // Relative with no base cannot be resolved, so it is not a link.
+  assert.equal(safeUrl('/other'), null)
+  assert.equal(safeUrl(''), null)
+  assert.equal(safeUrl(null), null)
+  assert.equal(safeUrl(undefined), null)
 })
 
 /* ------------------------------------------------------------------ search */

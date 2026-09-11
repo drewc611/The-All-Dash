@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readText, setState, toggleStar, toggleWatch, addHighlight, removeHighlight, recheck } from '../../stash/store.js'
 import { stashKind } from '../../stash/schema.js'
+import { safeUrl } from '../../stash/readable.js'
 import { changesOnly, describeChange } from '../../stash/diff.js'
 import { platformConfig } from '../../platform/client.js'
 import {
@@ -10,7 +11,7 @@ import {
 /** Markdown to elements. Not a full renderer: headings, paragraphs, lists,
     quotes, code and rules are what an article is made of, and anything else
     falls through as text rather than as raw syntax. */
-function render(markdown, outlineIds, { dropTitle = '' } = {}) {
+function render(markdown, outlineIds, { dropTitle = '', base = '' } = {}) {
   const out = []
   const lines = String(markdown || '').replace(/\r\n?/g, '\n').split('\n')
   let paragraph = []
@@ -21,13 +22,13 @@ function render(markdown, outlineIds, { dropTitle = '' } = {}) {
 
   const flushParagraph = () => {
     if (!paragraph.length) return
-    out.push(<p key={`p${key++}`}>{inline(paragraph.join(' '))}</p>)
+    out.push(<p key={`p${key++}`}>{inline(paragraph.join(' '), base)}</p>)
     paragraph = []
   }
   const flushList = () => {
     if (!list) return
     const Tag = list.ordered ? 'ol' : 'ul'
-    out.push(<Tag key={`l${key++}`}>{list.items.map((item, i) => <li key={i}>{inline(item)}</li>)}</Tag>)
+    out.push(<Tag key={`l${key++}`}>{list.items.map((item, i) => <li key={i}>{inline(item, base)}</li>)}</Tag>)
     list = null
   }
   const flush = () => { flushParagraph(); flushList() }
@@ -48,13 +49,13 @@ function render(markdown, outlineIds, { dropTitle = '' } = {}) {
       if (dropTitle && !out.length && h[2].trim().toLowerCase() === dropTitle) { heading += 1; continue }
       const level = Math.min(6, h[1].length)
       const Tag = `h${Math.min(4, level + 1)}`
-      out.push(<Tag key={`h${key++}`} id={outlineIds[heading++]}>{inline(h[2])}</Tag>)
+      out.push(<Tag key={`h${key++}`} id={outlineIds[heading++]}>{inline(h[2], base)}</Tag>)
       continue
     }
     if (/^\s{0,3}([-*_]\s*){3,}$/.test(line)) { flush(); out.push(<hr key={`r${key++}`} />); continue }
 
     const quote = line.match(/^\s{0,3}>\s?(.*)$/)
-    if (quote) { flush(); out.push(<blockquote key={`q${key++}`}>{inline(quote[1])}</blockquote>); continue }
+    if (quote) { flush(); out.push(<blockquote key={`q${key++}`}>{inline(quote[1], base)}</blockquote>); continue }
 
     const bullet = line.match(/^\s{0,3}([-*+]|\d+\.)\s+(.*)$/)
     if (bullet) {
@@ -75,7 +76,7 @@ function render(markdown, outlineIds, { dropTitle = '' } = {}) {
 }
 
 /** Links, emphasis and code inside a line. */
-function inline(text) {
+function inline(text, base = '') {
   const parts = []
   const pattern = /(!?\[([^\]]*)\]\(([^)\s]+)[^)]*\))|(\*\*|__)(.+?)\4|(\*|_)(.+?)\6|`([^`]+)`/g
   let last = 0
@@ -87,9 +88,15 @@ function inline(text) {
       // An image inside a paragraph is decoration in a reader; the alt text
       // is the part that carries meaning.
       if (match[1].startsWith('!')) parts.push(match[2] || '')
-      else parts.push(
-        <a key={key++} href={match[3]} target="_blank" rel="noreferrer noopener">{match[2] || match[3]}</a>,
-      )
+      else {
+        // Untrusted: this URL came off the page that was saved. A scheme
+        // other than http/https/mailto renders as text, never as a link.
+        const href = safeUrl(match[3], base)
+        const label = match[2] || match[3]
+        parts.push(href
+          ? <a key={key++} href={href} target="_blank" rel="noreferrer noopener">{label}</a>
+          : <span key={key++} title={`Blocked link: ${match[3]}`}>{label}</span>)
+      }
     } else if (match[5]) parts.push(<strong key={key++}>{match[5]}</strong>)
     else if (match[7]) parts.push(<em key={key++}>{match[7]}</em>)
     else if (match[8]) parts.push(<code key={key++}>{match[8]}</code>)
@@ -175,8 +182,11 @@ export function Reader({ entity, onClose, onToast, onForget }) {
   }
 
   const content = useMemo(
-    () => render(markdown, outlineIds, { dropTitle: String(entity.title || '').trim().toLowerCase() }),
-    [markdown, outlineIds, entity.title],
+    () => render(markdown, outlineIds, {
+      dropTitle: String(entity.title || '').trim().toLowerCase(),
+      base: meta.url || '',
+    }),
+    [markdown, outlineIds, entity.title, meta.url],
   )
 
   return (
@@ -206,7 +216,7 @@ export function Reader({ entity, onClose, onToast, onForget }) {
             <IconArchive width={12} height={12} /> {meta.state === 'archived' ? 'Unarchive' : 'Archive'}
           </button>
           {meta.url && (
-            <a className="btn btn--icon btn--ghost" href={meta.url} target="_blank" rel="noreferrer noopener" aria-label="Open the original"><IconLink /></a>
+            <a className="btn btn--icon btn--ghost" href={safeUrl(meta.url) || '#'} target="_blank" rel="noreferrer noopener" aria-label="Open the original"><IconLink /></a>
           )}
           <button type="button" className="btn btn--icon btn--ghost" aria-label="Delete" onClick={() => onForget?.(entity)}><IconTrash /></button>
         </div>
@@ -219,7 +229,7 @@ export function Reader({ entity, onClose, onToast, onForget }) {
             <p className="reader__byline">
               {meta.byline}
               {meta.byline && meta.url ? ' · ' : ''}
-              {meta.url && <a href={meta.url} target="_blank" rel="noreferrer noopener">{meta.site}</a>}
+              {safeUrl(meta.url) && <a href={safeUrl(meta.url)} target="_blank" rel="noreferrer noopener">{meta.site}</a>}
             </p>
           )}
 

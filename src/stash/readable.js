@@ -18,6 +18,9 @@
  */
 export const WORDS_PER_MINUTE = 238
 
+// The href guard lives in core so the board and the library share it.
+export { safeUrl } from '../core/url.js'
+
 /** Markdown syntax is not prose and should not be counted as it. */
 export function stripMarkdown(markdown) {
   return String(markdown ?? '')
