@@ -59,6 +59,12 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   search, JavaScript rendering and screenshots use Firecrawl when you add a
   key; extract and agent use a model you configure on the backend and record
   what they did in the audit ledger. Agents get the same seven tools over MCP.
+- **A stash that outlives what you saved.** Paste a link and the whole article
+  is kept, not the URL: it reads offline, it is searched by the words inside it
+  rather than its headline, and a page you are watching shows you what changed
+  since you read it. Highlights, and your own ideas, sit in the same list.
+  Pocket shut in 2025 and handed people a CSV of links with the articles gone;
+  this archive is a file on your disk and an export that carries the text.
 - **A Studio: camera, player, compression, YouTube.** Shoot a clip or a photo
   from the webcam and it lands in the Library beside the notes from the same
   meeting. Shrink a video without uploading it anywhere — the built-in encoder
@@ -111,6 +117,14 @@ row for its columns, its conversation and everything that has changed on it.
 <p>
   <img src="docs/screenshots/boards-table.png" width="49%" alt="A project board: groups, owner, status, timeline, priority and progress columns with per-group summaries" />
   <img src="docs/screenshots/boards-item.png" width="49%" alt="One row open: every column, an update with an @mention, and the activity log" />
+</p>
+
+**Stash.** Save the article, not the link. It reads offline, it is searched by
+the words inside it, and a watched page shows you what moved since you read it.
+
+<p>
+  <img src="docs/screenshots/stash-search.png" width="49%" alt="Searching saved pages by a word that appears only in one article's body, with the match highlighted in the snippet" />
+  <img src="docs/screenshots/stash-changes.png" width="49%" alt="A changelog re-checked: two blocks added since it was saved, marked in green with a plus" />
 </p>
 
 **Studio.** Shoot it, shrink it, play it. The player lives in the shell, so the
@@ -311,6 +325,104 @@ No permissions, guests or per-user views: this half of the app is one person's
 browser, and everything in it stays there. No file uploads on a row, because
 localStorage is the wrong place for binaries. No documents. If you need people
 to share a board, that is what the platform tier below is for.
+
+## Stash
+
+A read-later that keeps the reading.
+
+### Why this is not a browser
+
+A page cannot embed most of the web. Anything with a login, and most of what
+is worth reading, sends `X-Frame-Options: DENY` or a `frame-ancestors` policy,
+and the browser renders a blank rectangle — the site telling your browser no,
+with no trick around it from inside a tab. Even where framing is allowed, the
+same-origin policy means the embedding page cannot read a word of what is in
+there, and `fetch` to another origin is refused by CORS. A browser built
+entirely in the browser tier is a bookmark list beside an empty box.
+
+So the platform tier fetches the page, once, and hands back Markdown. The app
+renders it, which means the app **owns** the text, which is what makes
+everything below possible. An iframe would give a rectangle nobody can touch.
+
+### What "better than Pocket" actually means
+
+Pocket kept a link, a title and a snippet on somebody else's server. It shut
+down in 2025 and exported its users a CSV of URLs with the articles gone.
+
+| | Pocket | Here |
+|---|---|---|
+| What is kept | A link | The article text |
+| Where | Their server | Your IndexedDB |
+| Offline | The app's cache | Always, it never needed the network to begin with |
+| Search | Title, tags, some excerpts | Every word of every article, BM25 ranked |
+| The page changes | You never find out | A diff against the version you read |
+| The page dies | So does your saved copy | You still have it |
+| Your own writing | Not a thing | An idea is a first-class item |
+| It shuts down | You get a CSV of links | The export carries the text |
+| The item itself | A dead end | An entity: triage it, board it, cite it |
+
+The last row is the one that only works here. A saved article is an ordinary
+entity of type `page`, so it turns up in the Library, on the Timeline, in the
+command bar and on a board without any of those learning what an article is.
+
+![The stash: saved pages and your own ideas in one list, unread marked in the gutter](docs/screenshots/stash-list.png)
+
+### Search
+
+A real inverted index with BM25 ranking, built in memory from the archive on
+load. Words in a title count triple. Rarer words score higher, and a short
+document that says all your terms beats a long one that buries them, which is
+what length normalisation is for. Quotes force an exact phrase:
+`"the last line of defence"` is not the same query as `last line defence`.
+
+The index is built over prose, not source. Nobody searches for `##`, and a
+result snippet showing heading markers mid-sentence reads as a bug.
+
+![Searching the words inside saved articles, not their titles](docs/screenshots/stash-search.png)
+
+### Watching
+
+Every save is a version. Re-fetching compares the new text against the one you
+read and reports what moved, and a page that has not changed does not grow a
+version — the fingerprint is checked first, so twelve hours of polling a static
+page costs nothing.
+
+The diff is over blocks, not lines. Prose rewraps, and a line diff of rewrapped
+prose reports that the whole article changed, which is true and useless.
+Comparison ignores whitespace, smart quotes and dash style, so a site that
+switched its typography has not "changed". Added and removed blocks carry a
+`+` or `−` as well as a colour, because roughly one man in twelve cannot tell
+those two colours apart.
+
+Something you had already read that changes underneath you goes back to unread.
+That is the entire point of watching it.
+
+![Two blocks added to a changelog since it was saved, each marked with a plus as well as a colour](docs/screenshots/stash-changes.png)
+
+### Reading
+
+Markdown rendered at a 66-character measure, 18px, 1.65 line height, with a
+progress bar and nothing else competing. Reading time uses 238 words per minute,
+which is the meta-analytic mean for silent reading of English non-fiction
+(Brysbaert, 2019) rather than a number that looked about right.
+
+Select a passage and it becomes a highlight. Highlights are anchored by their
+quoted text, not by an offset, because an offset does not survive the page
+being re-fetched — and the version you highlighted is still in the archive
+either way.
+
+![The reader: a 66-character measure, a progress bar, and a highlight kept below](docs/screenshots/stash-reader.png)
+
+### What the stash does not do
+
+No accounts, no sync, no sharing, no recommendations, no feed. No YouTube or
+video saving — that is the Studio. No JavaScript-rendered pages unless the
+platform tier has Firecrawl configured, because a static fetch gets a shell
+from a single-page app and saying so beats saving an empty article.
+
+> Brysbaert, M. (2019). How many words do we read per minute? A review and
+> meta-analysis of reading rate. *Journal of Memory and Language, 109*, 104047.
+> https://doi.org/10.1016/j.jml.2019.104047
 
 ## Studio
 
@@ -678,7 +790,7 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 |---|---|
 | `⌘K` / `Ctrl K` or `/` | Command bar — searches every entity and every command at once |
 | `⌘J` / `Ctrl J` | Assistant |
-| `g` then `t` `w` `r` `l` `a` `m` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Studio, Library, Brain, Settings |
+| `g` then `t` `w` `r` `l` `a` `k` `m` `d` `b` `s` | Today, Boards, Triage, Timeline, Analytics, Stash, Studio, Library, Brain, Settings |
 | `Esc` | Close whatever is open |
 
 ## Layout
@@ -691,12 +803,14 @@ src/
   engine/     metrics, reminders, insight rules, triage
   work/       boards: column types, view queries, the rule engine, formulas, templates, CSV
   media/      blob storage, the two encoders, camera and recorder, the player, YouTube links
+  stash/      the page archive, readability, the search index, the block diff
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
   ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
   ui/work/    the seven board views, cell editors, the item panel, the rule builder
   ui/media/   camera, compressor, gallery, YouTube, the shell player
-  styles/     tokens, base, layout, components, viz, media
-tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the brain and the assistant protocol
+  ui/stash/   the saved list, the reader, highlights, the change view
+  styles/     tokens, base, layout, components, viz, media, stash
+tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 

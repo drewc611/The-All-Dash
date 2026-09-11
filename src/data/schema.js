@@ -35,7 +35,7 @@ import { iso } from '../core/time.js'
 /** @typedef {'open'|'doing'|'done'|'blocked'|'cancelled'} Status */
 
 export const ENTITY_TYPES = [
-  'task', 'event', 'note', 'metric', 'milestone', 'risk', 'decision', 'person', 'doc', 'media',
+  'task', 'event', 'note', 'metric', 'milestone', 'risk', 'decision', 'person', 'doc', 'media', 'page',
 ]
 
 export const TYPE_LABEL = {
@@ -49,6 +49,7 @@ export const TYPE_LABEL = {
   person: 'Person',
   doc: 'Document',
   media: 'Media',
+  page: 'Saved page',
 }
 
 export const STATUSES = ['open', 'doing', 'done', 'blocked', 'cancelled']
