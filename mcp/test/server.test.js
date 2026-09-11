@@ -2,8 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
@@ -588,4 +589,68 @@ test('setup: once a workspace is configured the setup tool is gone', async () =>
   const names = (await client.listTools()).tools.map((t) => t.name)
   assert.equal(names.includes('setup'), false)
   assert.ok(names.includes('agents_ask'))
+})
+
+/*
+ * The image must carry everything the server imports.
+ *
+ * This is not hypothetical: adding the five agents pulled in src/agents,
+ * src/genome and src/stash/search.js, the Dockerfile copied none of them, and
+ * the container started and died instantly in CI with the useful error inside
+ * a container that --rm had already removed. A list of COPY lines maintained
+ * by hand is a list that goes stale the next time somebody imports something.
+ */
+
+
+const ROOT = new URL('../../', import.meta.url).pathname
+
+/** Every file under src/ that the server can actually reach. */
+function importGraph(entry) {
+  const need = new Set()
+  const seen = new Set()
+  const walk = (file) => {
+    if (seen.has(file)) return
+    seen.add(file)
+    let source
+    try { source = readFileSync(file, 'utf8') } catch { return }
+    for (const m of source.matchAll(/(?:from|import)\s+'(\.[^']+)'/g)) {
+      const target = resolve(dirname(file), m[1])
+      const rel = relative(ROOT, target)
+      if (rel.startsWith('src/')) need.add(rel)
+      walk(target)
+    }
+  }
+  walk(entry)
+  return need
+}
+
+/** What the Dockerfile copies, expanded to files. */
+function copiedByImage() {
+  const dockerfile = readFileSync(join(ROOT, 'mcp/Dockerfile'), 'utf8')
+  const covered = []
+  for (const line of dockerfile.split('\n')) {
+    const m = /^COPY\s+--chown=\S+\s+(\S+)\s+\S+$/.exec(line.trim())
+    if (!m || !m[1].startsWith('src/')) continue
+    covered.push(m[1])
+  }
+  return covered
+}
+
+test('the Docker image carries every source the server imports', () => {
+  const needed = importGraph(join(ROOT, 'mcp/src/server.js'))
+  const copied = copiedByImage()
+  assert.ok(needed.size > 0, 'the import walker found nothing, which means it is broken')
+
+  const missing = [...needed].filter((file) => !copied.some((c) => file === c || file.startsWith(`${c}/`)))
+  assert.deepEqual(missing, [], `mcp/Dockerfile does not COPY: ${missing.join(', ')}`)
+})
+
+test('the image does not copy source trees the server never imports', () => {
+  // The other half: a COPY line for something nothing imports is dead weight
+  // in the image and a claim about the code that is not true.
+  const needed = importGraph(join(ROOT, 'mcp/src/server.js'))
+  for (const copied of copiedByImage()) {
+    const used = [...needed].some((file) => file === copied || file.startsWith(`${copied}/`))
+    assert.ok(used, `mcp/Dockerfile copies ${copied}, which nothing imports`)
+  }
 })

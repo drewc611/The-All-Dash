@@ -24,6 +24,14 @@ COPY --chown=mcp:mcp src/core ./src/core
 COPY --chown=mcp:mcp src/data/schema.js ./src/data/schema.js
 COPY --chown=mcp:mcp src/engine ./src/engine
 COPY --chown=mcp:mcp src/brain ./src/brain
+# The five agents and the genome they retrieve over. src/stash/search.js is
+# the BM25 index the Librarian uses - the same one the stash searches with.
+# Anything the server imports and the image does not carry is a container that
+# starts and dies instantly, so mcp/test asserts this list against the real
+# import graph rather than trusting it to stay right.
+COPY --chown=mcp:mcp src/agents ./src/agents
+COPY --chown=mcp:mcp src/genome ./src/genome
+COPY --chown=mcp:mcp src/stash/search.js ./src/stash/search.js
 USER mcp:mcp
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
