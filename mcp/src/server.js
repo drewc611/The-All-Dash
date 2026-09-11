@@ -11,6 +11,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { DEFAULT_WORKSPACE, readConfig } from './config.js'
 import { PlatformAdapter } from './adapters/platform.js'
 import { WorkspaceAdapter } from './adapters/workspace.js'
+import { AgentsAdapter } from './adapters/agents.js'
 import { registerAll } from './tools.js'
 
 /**
@@ -37,6 +38,8 @@ export const hostName = (header) => String(header || '').trim().toLowerCase().re
 
 export function createServer(config = readConfig()) {
   const workspace = config.workspaceFile ? new WorkspaceAdapter(config.workspaceFile) : null
+  // The five agents read and write the same export file, through the same lock.
+  const agents = workspace ? new AgentsAdapter(workspace) : null
   const platform = config.apiUrl ? new PlatformAdapter(config.apiUrl, config.apiKey) : null
   if (!workspace && !platform) {
     throw new Error(
@@ -48,13 +51,14 @@ export function createServer(config = readConfig()) {
     { name: 'all-dash', version: '0.1.0' },
     { instructions: instructions(workspace, platform) }
   )
-  registerAll(server, { workspace, platform, publicUrl: config.publicUrl })
+  registerAll(server, { workspace, platform, agents, publicUrl: config.publicUrl })
   return server
 }
 
 function instructions(workspace, platform) {
   const parts = ['The All Dash: a project and personal command center.']
   if (workspace) parts.push('workspace_* tools read the user\'s exported workspace with the app\'s own triage, insight and status-update engines, and can add or update tasks in the file.')
+  if (workspace) parts.push('agents_ask runs the app\'s five agents - Librarian, Analyst, Tutor, Planner, Critic - over that workspace. Every claim it returns carries the id of the record supporting it, and anything that could not be traced has already been cut. Prefer it over answering from the raw records yourself when the question needs several of them at once. genome_* tools read and move the claims it has learned; study_* tools are the spaced-repetition queue.')
   if (platform) parts.push('platform_* tools read projects, tasks, invoices, expenses, the daily brief and the audit ledger from the platform API, and can create or toggle tasks, run the daily engine and append decisions to the ledger.')
   parts.push('search and fetch span both. Money is integer cents. Record any judgement made for the user with platform_log_decision when the platform is available.')
   return parts.join(' ')

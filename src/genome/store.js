@@ -15,55 +15,15 @@
  */
 
 import { getState, mutate, addEntity, updateEntity, removeEntity } from '../core/store.js'
-import { makeEntity } from '../data/schema.js'
 import { iso } from '../core/time.js'
-import { serialiseGene, parseGene, genePath } from './gene.js'
-import { absorb, cull, cite, confirm, contradict, mutate as evolveGene, fitness } from './evolve.js'
+import { serialiseGene, genePath } from './gene.js'
+import { isGene, toGene, toEntity, genesIn } from './entity.js'
+import { absorb, cull, cite, confirm, contradict, mutate as evolveGene } from './evolve.js'
 
-export const isGene = (entity) => entity?.type === 'gene'
+export { isGene, toGene, toEntity }
 
 /** Every gene in the workspace, as genes rather than as entities. */
-export function genes(state = getState()) {
-  return Object.values(state.entities || {}).filter(isGene).map(toGene)
-}
-
-/** The entity back into the gene it carries. */
-export const toGene = (entity) => ({
-  ...parseGene(entity.body || ''),
-  // The entity id is authoritative: it is what citations resolve against.
-  id: entity.id,
-})
-
-/** The gene as the entity that holds it. */
-export function toEntity(gene, existing = null) {
-  const file = serialiseGene(gene)
-  return makeEntity({
-    ...(existing || {}),
-    id: gene.id,
-    type: 'gene',
-    title: gene.claim,
-    body: file,
-    at: gene.changed || gene.born,
-    tags: [...new Set(['gene', ...(gene.tags || [])])],
-    people: existing?.people || [],
-    meta: {
-      kind: 'gene',
-      path: genePath(gene),
-      topic: gene.topic,
-      generation: gene.generation,
-      parents: gene.parents,
-      sources: gene.sources,
-      cited: gene.cited,
-      confirmed: gene.confirmed,
-      contradicted: gene.contradicted,
-      retired: gene.retired,
-      fitness: Number(fitness(gene).toFixed(4)),
-      born: gene.born,
-    },
-    source: existing?.source || { docId: 'genome', name: 'The genome', kind: 'agents', url: '', line: null },
-    confidence: 1,
-  })
-}
+export const genes = (state = getState()) => genesIn(state)
 
 const write = (gene) => {
   const existing = getState().entities[gene.id]

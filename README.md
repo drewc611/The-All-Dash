@@ -1450,6 +1450,22 @@ connectors and remote clients. Agents read briefs, triage and finances, add
 and close tasks, and record their own judgements in the audit ledger with a
 confidence score. See `mcp/README.md`.
 
+**The five agents are on it too.** `agents_ask` runs the Librarian, Analyst,
+Tutor, Planner and Critic over the exported workspace and hands back an answer
+where every claim carries the id of the record supporting it — anything that
+could not be traced has already been cut. The `genome_*` tools read and move
+the claims they have learned, `study_*` is the spaced-repetition queue, and
+`alldash://workspace/genome` serves the whole genome as the directory of
+Markdown files it is stored as.
+
+Three rules hold over MCP exactly as they do on screen. No model is called —
+the caller is already one, and putting two in series with nobody checking the
+first is how a citation stops meaning anything. `agents_ask` writes nothing,
+including the crediting the browser does automatically, so an agent cannot
+change which claims survive by asking about them often enough. And the Planner
+still only proposes: `agents_apply` is the writing half, and it is a separate
+call.
+
 ### Install the Claude plugin
 
 The repository is also a Claude Code plugin marketplace. Two commands install

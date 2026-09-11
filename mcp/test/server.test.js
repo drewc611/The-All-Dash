@@ -366,3 +366,199 @@ test('crawl and batch refuse a fifth format before the platform would', async ()
     stub.server.close()
   }
 })
+
+/* ------------------------------------------------------------------ agents */
+
+/** A workspace with a contradiction and two sources that agree, so the five
+    have something real to find rather than an empty room. */
+async function fixtureForAgents() {
+  const dir = await mkdtemp(join(tmpdir(), 'alldash-agents-'))
+  const rows = [
+    makeEntity({ type: 'risk', title: 'The rollback script has never been run against production data', tags: ['atlas'] }),
+    makeEntity({ type: 'note', title: 'The rollback script was run against production data last week', body: 'We did run the rollback script against production data last week and it finished in 40 minutes.', tags: ['atlas'] }),
+    makeEntity({ type: 'note', title: 'The cutover runbook is out of date', body: 'The cutover runbook is out of date and nobody has revised it since phase one.', tags: ['atlas'] }),
+    makeEntity({ type: 'decision', title: 'The cutover runbook is out of date', body: 'Marco confirmed the cutover runbook is out of date after the phase one retro.', tags: ['atlas'] }),
+  ]
+  const state = {
+    version: 1,
+    workspace: { name: 'Atlas' },
+    entities: Object.fromEntries(rows.map((r) => [r.id, r])),
+    docs: [], customMetrics: [], triage: {}, ui: { range: '30d' },
+  }
+  const file = join(dir, 'workspace.json')
+  await writeFile(file, JSON.stringify(state))
+  return { file, rows }
+}
+
+test('agents: the five run over the export and cite what they used', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const result = parse(await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script production data' } }))
+
+  assert.ok(result.answer.length > 0)
+  assert.ok(result.passages.length > 0)
+  // Every claim in the answer carries an id, and every id is a passage that
+  // came back. That is the Critic's rule, and it holds over MCP too.
+  const ids = [...result.answer.matchAll(/\[\[([a-z0-9_-]+)\]\]/gi)].map((m) => m[1])
+  assert.ok(ids.length > 0, result.answer)
+  const known = new Set(result.passages.map((p) => p.id))
+  for (const id of ids) assert.ok(known.has(id), `${id} was cited but not retrieved`)
+
+  assert.ok(result.contradictions.length >= 1, JSON.stringify(result.contradictions))
+  assert.ok(result.passages.every((p) => typeof p.why.relevance === 'number'))
+})
+
+test('agents: asking changes nothing, however often it is asked', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const before = await readFile(file, 'utf8')
+
+  await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script' } })
+  await client.callTool({ name: 'agents_ask', arguments: { question: 'cutover runbook' } })
+
+  // An agent exploring a workspace must not be able to change which claims
+  // survive simply by asking about them enough times.
+  assert.equal(await readFile(file, 'utf8'), before)
+})
+
+test('agents: a taught claim becomes a Markdown file in the workspace', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const learned = parse(await client.callTool({
+    name: 'genome_learn',
+    arguments: { claim: 'The cutover runbook is out of date', body: 'Two sources say so.', sources: ['a', 'b'] },
+  }))
+  assert.equal(learned.added.length, 1)
+  const id = learned.added[0].id
+
+  const listed = parse(await client.callTool({ name: 'genome_list', arguments: {} }))
+  assert.equal(listed.length, 1)
+  assert.equal(listed[0].generation, 1)
+  assert.ok(listed[0].fitness > 0)
+
+  const doc = parse(await client.callTool({ name: 'genome_file', arguments: { id } }))
+  assert.match(doc.path, /^genome\//)
+  assert.match(doc.markdown, /^---\n/)
+  assert.match(doc.markdown, /generation: 1/)
+
+  // And it is a real entity in the file, so the app sees it on restore.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  assert.equal(state.entities[id].type, 'gene')
+  assert.equal(state.entities[id].title, 'The cutover runbook is out of date')
+})
+
+test('agents: the same claim taught twice is confirmed, not duplicated', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  await client.callTool({ name: 'genome_learn', arguments: { claim: 'Latency is the problem', sources: ['a'] } })
+  const again = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'Latency is the problem', sources: ['b'] } }))
+
+  assert.equal(again.added.length, 0)
+  assert.equal(again.confirmed.length, 1)
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: {} })).length, 1)
+})
+
+test('agents: judging a claim moves its fitness', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const id = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'The replica lags under load' } })).added[0].id
+
+  const before = parse(await client.callTool({ name: 'genome_list', arguments: {} }))[0].fitness
+  const after = parse(await client.callTool({ name: 'genome_judge', arguments: { id, verdict: 'confirm' } }))
+  assert.ok(after.fitness > before, `${after.fitness} should beat ${before}`)
+
+  const against = parse(await client.callTool({ name: 'genome_judge', arguments: { id, verdict: 'contradict' } }))
+  assert.ok(against.fitness < after.fitness)
+
+  const missing = await client.callTool({ name: 'genome_judge', arguments: { id: 'nope', verdict: 'confirm' } })
+  assert.equal(missing.isError, true)
+})
+
+test('agents: selection retires a claim that has decayed, and never deletes it', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  const id = parse(await client.callTool({ name: 'genome_learn', arguments: { claim: 'Something said once long ago' } })).added[0].id
+
+  // Age it past the floor by hand: the schedule is the thing under test, not
+  // the clock.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  const old = new Date(Date.now() - 400 * 86400000).toISOString()
+  state.entities[id].body = state.entities[id].body.replace(/changed: .*/, `changed: ${old}`)
+  await writeFile(file, JSON.stringify(state))
+
+  const pruned = parse(await client.callTool({ name: 'genome_prune', arguments: {} }))
+  assert.equal(pruned.retired.length, 1)
+  assert.equal(pruned.retired[0].id, id)
+
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: {} })).length, 0)
+  assert.equal(parse(await client.callTool({ name: 'genome_list', arguments: { includeRetired: true } })).length, 1)
+  // Retired is out of retrieval, not gone.
+  assert.ok(JSON.parse(await readFile(file, 'utf8')).entities[id])
+})
+
+test('agents: applying a proposal writes the thing that was proposed', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const asked = parse(await client.callTool({ name: 'agents_ask', arguments: { question: 'rollback script production data' } }))
+  const proposal = asked.proposals.find((p) => p.kind === 'resolve')
+  assert.ok(proposal, JSON.stringify(asked.proposals))
+
+  const applied = parse(await client.callTool({
+    name: 'agents_apply',
+    arguments: { kind: proposal.kind, title: proposal.title, body: proposal.why },
+  }))
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  assert.equal(state.entities[applied.id].title, proposal.title)
+  assert.equal(state.entities[applied.id].type, 'task')
+})
+
+test('agents: the study queue withholds the answer until the card is graded', async () => {
+  const { file } = await fixtureForAgents()
+  // A card the browser would have written into the export.
+  const state = JSON.parse(await readFile(file, 'utf8'))
+  state.study = {
+    cards: {
+      card_1: {
+        id: 'card_1', question: 'The rollback script has ______ been run', answer: 'never',
+        source: 'x', kind: 'cloze', ease: 2.5, interval: 0, repetitions: 0, due: '', lapses: 0, lastGrade: null,
+      },
+    },
+  }
+  await writeFile(file, JSON.stringify(state))
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+
+  const queue = parse(await client.callTool({ name: 'study_queue', arguments: {} }))
+  assert.equal(queue.due, 1)
+  assert.equal(queue.queue[0].id, 'card_1')
+  assert.equal(Object.hasOwn(queue.queue[0], 'answer'), false, 'a queue that hands over the answer is not a test')
+
+  const graded = parse(await client.callTool({ name: 'study_grade', arguments: { id: 'card_1', score: 5 } }))
+  assert.equal(graded.answer, 'never')
+  assert.equal(graded.interval, 1)
+
+  const failed = parse(await client.callTool({ name: 'study_grade', arguments: { id: 'card_1', score: 1 } }))
+  assert.equal(failed.interval, 0)
+  assert.equal(failed.lapses, 1)
+})
+
+test('agents: the genome is served as a directory of Markdown files', async () => {
+  const { file } = await fixtureForAgents()
+  const { client } = await connect({ workspaceFile: file, apiUrl: '' })
+  await client.callTool({ name: 'genome_learn', arguments: { claim: 'The replica lags under load', topic: 'infra' } })
+
+  const read = await client.readResource({ uri: 'alldash://workspace/genome' })
+  assert.match(read.contents[0].text, /genome\/infra\//)
+  assert.match(read.contents[0].text, /The replica lags under load/)
+})
+
+test('agents: with no workspace file the agent tools are not offered at all', async () => {
+  const { client } = await connect({ workspaceFile: '', apiUrl: 'http://127.0.0.1:9/api', apiKey: 'k' })
+  const names = (await client.listTools()).tools.map((t) => t.name)
+  for (const name of ['agents_ask', 'genome_list', 'study_queue']) {
+    assert.equal(names.includes(name), false, `${name} needs a workspace`)
+  }
+})

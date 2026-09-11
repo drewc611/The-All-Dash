@@ -26,7 +26,7 @@ const Severity = z.enum(['critical', 'serious', 'warning', 'info'])
 const Context = z.enum(['work', 'personal'])
 const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD')
 
-export function registerAll(server, { workspace, platform, publicUrl = '' }) {
+export function registerAll(server, { workspace, platform, agents = null, publicUrl = '' }) {
   const link = (kind, id) => (publicUrl ? `${publicUrl.replace(/\/+$/, '')}/${kind}/${id}` : `alldash://${kind}/${id}`)
 
   // ---------------------------------------------------------- search / fetch
@@ -390,6 +390,147 @@ export function registerAll(server, { workspace, platform, publicUrl = '' }) {
       ],
     })
   )
+
+  // ------------------------------------------------------------- agents
+
+  if (agents) {
+    server.registerTool(
+      'agents_ask',
+      {
+        title: 'Ask the five agents',
+        description:
+          'Runs the Librarian, Analyst, Tutor, Planner and Critic over the workspace. Returns an answer where every claim carries the id of the record that supports it, the passages behind it with their scores, any contradictions and gaps found, and what the Critic cut. Read-only: it changes nothing, including the claim scores. Assembled from the user\'s own sentences, never written by a model.',
+        inputSchema: {
+          question: z.string().min(1).describe('What to ask across everything in the workspace'),
+          limit: z.number().int().min(1).max(20).optional().describe('How many passages to retrieve (default 8)'),
+        },
+      },
+      guard(async ({ question, limit }) => text(await agents.ask(question, { limit })))
+    )
+
+    server.registerTool(
+      'genome_list',
+      {
+        title: 'The genome',
+        description:
+          'Claims the agents have learned, ranked by fitness. Each carries its generation, the claims it descended from, the records it was drawn from, and how often it has been cited, confirmed and contradicted. A retired claim has fallen below the floor and is out of retrieval; it is never deleted.',
+        inputSchema: {
+          includeRetired: z.boolean().optional().describe('Include claims that have decayed out of use'),
+          limit: z.number().int().min(1).max(200).optional(),
+        },
+      },
+      guard(async (args) => text(await agents.genome(args)))
+    )
+
+    server.registerTool(
+      'genome_file',
+      {
+        title: 'One claim as its Markdown file',
+        description: 'The claim exactly as it is stored: front matter with its lineage and evidence, then the text. This is the artifact, not a rendering of one.',
+        inputSchema: { id: z.string().min(1).describe('Claim id, from genome_list or an agents_ask citation') },
+      },
+      guard(async ({ id }) => text(await agents.file(id)))
+    )
+
+    server.registerTool(
+      'genome_learn',
+      {
+        title: 'Teach the genome a claim',
+        description:
+          'Adds a claim, or confirms one that is already there. Matching is on the claim text, so saying the same thing twice strengthens it rather than duplicating it. Writes to the workspace file.',
+        inputSchema: {
+          claim: z.string().min(3).describe('One sentence, the thing believed'),
+          body: z.string().optional().describe('The supporting passage, quoted from its sources'),
+          topic: z.string().optional(),
+          sources: z.array(z.string()).optional().describe('Record ids this was drawn from'),
+          contradicts: z.boolean().optional().describe('Record this as evidence against the claim rather than for it'),
+        },
+      },
+      guard(async ({ claim, body, topic, sources, contradicts }) =>
+        text(await agents.learn([{ claim, body, topic: topic || 'agents', sources: sources || [], tags: ['agents'], contradicts }])))
+    )
+
+    server.registerTool(
+      'genome_judge',
+      {
+        title: 'Confirm, contradict or credit a claim',
+        description:
+          'Moves one claim\'s evidence. `confirm` says it still holds, `contradict` records evidence against it, `cite` records that an answer leaned on it. Each changes its fitness, and fitness decides what survives. Writes to the workspace file.',
+        inputSchema: {
+          id: z.string().min(1),
+          verdict: z.enum(['confirm', 'contradict', 'cite']),
+        },
+      },
+      guard(async ({ id, verdict }) => text(await agents.judge(id, verdict)))
+    )
+
+    server.registerTool(
+      'genome_prune',
+      {
+        title: 'Run selection over the genome',
+        description:
+          'Retires claims that have fallen below the fitness floor and revives any that have climbed back above it. Retiring takes a claim out of retrieval; nothing is deleted. Writes to the workspace file.',
+        inputSchema: {},
+      },
+      guard(async () => text(await agents.prune()))
+    )
+
+    server.registerTool(
+      'agents_apply',
+      {
+        title: 'Apply a proposal the Planner made',
+        description:
+          'The Planner proposes and never writes; this is the writing half. `remember` keeps a claim in the genome, anything else adds a task. Pass a proposal exactly as agents_ask returned it. Writes to the workspace file.',
+        inputSchema: {
+          kind: z.enum(['remember', 'resolve', 'gap']).describe('From the proposal'),
+          title: z.string().min(1),
+          body: z.string().optional(),
+          claim: z.string().optional().describe('For "remember": the sentence to keep'),
+          sources: z.array(z.string()).optional(),
+        },
+      },
+      guard(async (args) => text(await agents.applyProposal(args)))
+    )
+
+    server.registerTool(
+      'study_queue',
+      {
+        title: 'What is due to study',
+        description:
+          'The spaced-repetition queue: cards cut from the user\'s own saved sentences, hardest first. Answers are withheld - grade honestly with study_grade and the schedule does the rest.',
+        inputSchema: { limit: z.number().int().min(1).max(50).optional() },
+      },
+      guard(async (args) => text(await agents.study(args)))
+    )
+
+    server.registerTool(
+      'study_grade',
+      {
+        title: 'Grade a card',
+        description:
+          'Records how an answer went and reschedules the card with SM-2. 0-2 is a lapse and brings it back today; 3 is hard, 4 good, 5 easy. Returns the answer and the new interval. Writes to the workspace file.',
+        inputSchema: {
+          id: z.string().min(1),
+          score: z.number().int().min(0).max(5).describe('0-5 as SM-2 defines it'),
+        },
+      },
+      guard(async ({ id, score }) => text(await agents.grade(id, score)))
+    )
+
+    server.registerResource(
+      'genome',
+      'alldash://workspace/genome',
+      { title: 'The genome as Markdown files', description: 'Every claim as the file it is stored as, keyed by its path.', mimeType: 'text/plain' },
+      async (uri) => ({
+        contents: [{
+          uri: uri.href,
+          text: Object.entries(await agents.files())
+            .map(([path, markdown]) => `# ${path}\n\n${markdown}`)
+            .join('\n\n---\n\n') || 'The genome is empty.',
+        }],
+      })
+    )
+  }
 
   server.registerPrompt(
     'explain-signal',

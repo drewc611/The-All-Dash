@@ -26,7 +26,7 @@ import '../../../src/engine/metrics.js'
  * export and the last one would silently win.
  */
 const queues = new Map()
-function withFileLock(file, fn) {
+export function withFileLock(file, fn) {
   const previous = queues.get(file) || Promise.resolve()
   const run = previous.then(fn, fn)
   queues.set(file, run.catch(() => {}))
