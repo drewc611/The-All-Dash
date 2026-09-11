@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { PROVIDERS, provider, model, allModels, supports, cheapest, wireOf, isLocal } from '../src/ai/catalogue.js'
+import { PROVIDERS, provider, model, allModels, supports, cheapest, wireOf, isLocal, endpointFor, usesCustomEndpoint } from '../src/ai/catalogue.js'
 import { estimateTokens, countMessages, priceOf, estimate, formatCost, windowStart, spentSince, checkBudget, ledgerEntry, summarise } from '../src/ai/cost.js'
 import { grade, shouldFallBack, GRADES } from '../src/ai/verify.js'
 import { plan, recordOutcome, circuitOpen, emptyHealth, suggestChain, describePlan, DEFAULT_POLICY } from '../src/ai/route.js'
 import { normaliseQuestion, hash, groundingFingerprint, cacheKey } from '../src/ai/cache.js'
+import { normaliseRouter } from '../src/ai/router-schema.js'
 
 /* --------------------------------------------------------------- catalogue */
 
@@ -63,6 +64,57 @@ test('the cheapest capable model is findable', () => {
   }
   assert.ok(cheapest(['image']).every((entry) => entry.modes.includes('image')))
   assert.ok(allModels().length >= PROVIDERS.reduce((n, p) => n + p.models.length, 0))
+})
+
+test('a named vendor ignores any endpoint a chain step asks for', () => {
+  // This is the control that stops a restored workspace aiming an API key at
+  // somebody else's server: for a vendor with a fixed address, the catalogue
+  // wins outright and the step's own string is never used.
+  assert.equal(endpointFor('anthropic', 'https://collect.evil.tld'), provider('anthropic').baseUrl)
+  assert.equal(endpointFor('openai', 'https://collect.evil.tld'), provider('openai').baseUrl)
+  assert.equal(endpointFor('groq', 'http://127.0.0.1:9/v1'), provider('groq').baseUrl)
+  assert.equal(usesCustomEndpoint('anthropic'), false)
+})
+
+test('a bring-your-own provider keeps the endpoint, because that is the feature', () => {
+  assert.equal(usesCustomEndpoint('custom'), true)
+  assert.equal(usesCustomEndpoint('azure'), true)
+  assert.equal(endpointFor('custom', 'https://my-vllm.internal/v1'), 'https://my-vllm.internal/v1')
+  assert.equal(endpointFor('ollama', 'http://localhost:11434'), 'http://localhost:11434')
+  // A trailing slash is noise, and a scheme that is not http(s) is refused.
+  assert.equal(endpointFor('custom', 'https://x.example/v1/'), 'https://x.example/v1')
+  assert.equal(endpointFor('custom', 'javascript:alert(1)'), provider('custom').baseUrl)
+  assert.equal(endpointFor('custom', 'not a url'), provider('custom').baseUrl)
+  assert.equal(endpointFor('nope', 'https://x.example'), '')
+})
+
+test('a restored workspace cannot carry an endpoint at all', () => {
+  const hostile = {
+    chain: [
+      { provider: 'anthropic', model: 'claude-sonnet-5', baseUrl: 'https://collect.evil.tld' },
+      { provider: 'custom', model: 'gpt-4', baseUrl: 'https://collect.evil.tld/v1' },
+    ],
+  }
+
+  // Trusted (the app's own storage): a bring-your-own override survives.
+  const trusted = normaliseRouter(hostile)
+  assert.equal(trusted.chain[0].baseUrl, '', 'a named vendor never keeps one')
+  assert.equal(trusted.chain[1].baseUrl, 'https://collect.evil.tld/v1')
+
+  // From a file: neither survives, so a key cannot be redirected by import.
+  const imported = normaliseRouter(hostile, { trusted: false })
+  assert.equal(imported.chain[0].baseUrl, '')
+  assert.equal(imported.chain[1].baseUrl, '')
+})
+
+test('the plan sends a key only to the catalogue address for a named vendor', () => {
+  const built = plan({
+    chain: [{ provider: 'anthropic', model: 'claude-sonnet-5', baseUrl: 'https://collect.evil.tld' }],
+    keys: { anthropic: ['main'] },
+  })
+  assert.equal(built.attempts.length, 1)
+  assert.equal(built.attempts[0].baseUrl, provider('anthropic').baseUrl)
+  assert.ok(!built.attempts[0].baseUrl.includes('evil'))
 })
 
 /* -------------------------------------------------------------------- cost */

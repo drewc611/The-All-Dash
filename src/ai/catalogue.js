@@ -153,6 +153,37 @@ export const PROVIDERS = [
 
 const BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]))
 
+/* Providers whose whole purpose is an endpoint you choose. Everywhere else
+   the address is fixed by the catalogue and an override is meaningless - or,
+   when it arrives in a restored file, hostile. */
+const BRING_YOUR_OWN = new Set(['azure', 'custom', 'ollama', 'lmstudio'])
+
+export const usesCustomEndpoint = (id) => BRING_YOUR_OWN.has(id)
+
+/**
+ * The address a request may actually be sent to.
+ *
+ * A chain step carries a baseUrl, and a chain can arrive in an imported
+ * workspace. For a named vendor the catalogue wins outright, so a restored
+ * file cannot point your Anthropic key at somebody else's server. For the
+ * bring-your-own providers the override is the feature, and it is checked for
+ * shape rather than origin.
+ */
+export function endpointFor(providerId, requested = '') {
+  const spec = BY_ID.get(providerId)
+  if (!spec) return ''
+  if (!BRING_YOUR_OWN.has(providerId)) return spec.baseUrl
+  const wanted = String(requested || '').trim()
+  if (!wanted) return spec.baseUrl
+  try {
+    const url = new URL(wanted)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? wanted.replace(/\/+$/, '') : spec.baseUrl
+  } catch {
+    return spec.baseUrl
+  }
+}
+
+
 export const provider = (id) => BY_ID.get(id) || null
 export const wireOf = (id) => BY_ID.get(id)?.wire || 'openai'
 export const isLocal = (id) => !!BY_ID.get(id)?.local

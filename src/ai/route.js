@@ -17,7 +17,7 @@
  *    retried into the ground on every request.
  */
 
-import { provider as providerSpec, supports } from './catalogue.js'
+import { provider as providerSpec, supports, endpointFor } from './catalogue.js'
 import { estimate } from './cost.js'
 
 export const DEFAULT_POLICY = {
@@ -121,7 +121,9 @@ export function plan({
       model: step.model,
       keyAlias: keyAlias || null,
       wire: spec.wire,
-      baseUrl: step.baseUrl || spec.baseUrl,
+      // Never the step's own string: for a named vendor the catalogue wins,
+      // so a restored chain cannot aim a key at somebody else's server.
+      baseUrl: endpointFor(step.provider, step.baseUrl),
       estimate: pre,
       why: attempts.length === 0 ? 'first choice' : `fallback ${attempts.length}`,
     })

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../../core/store.js'
-import { PROVIDERS, provider as providerSpec, PRICED_AT } from '../../ai/catalogue.js'
+import { PROVIDERS, provider as providerSpec, PRICED_AT, endpointFor, usesCustomEndpoint } from '../../ai/catalogue.js'
 import { formatCost, summarise, windowStart, spentSince } from '../../ai/cost.js'
 import { plan, suggestChain, describePlan, circuitOpen, DEFAULT_POLICY } from '../../ai/route.js'
 import { setChain, setBudget, setCacheEnabled, clearLedger, routerPolicy } from '../../ai/router-store.js'
@@ -97,6 +97,10 @@ export function Router({ onToast }) {
                           : `${formatCost(attempt?.estimate?.dollars)} for a typical question`}
                         {rested && !skipped ? ' · resting' : ''}
                       </span>
+                      {/* The address the key actually goes to. Shown always,
+                          because an endpoint nobody can see is one nobody can
+                          notice has been changed. */}
+                      <span className="chain__where">{hostOf(step) || 'no endpoint set'}</span>
                     </span>
                     <span className="chain__tools">
                       <button type="button" className="btn btn--icon btn--ghost btn--sm" aria-label="Move up" disabled={index === 0} onClick={() => move(index, -1)}><IconUp width={12} height={12} /></button>
@@ -261,13 +265,24 @@ export function Router({ onToast }) {
   )
 }
 
+/** Where a step will send the request, as a person reads a host. */
+function hostOf(step) {
+  const url = endpointFor(step.provider, step.baseUrl)
+  if (!url) return ''
+  try { return new URL(url).host } catch { return url }
+}
+
 function AddStep({ keys, onAdd }) {
   const usable = PROVIDERS.filter((p) => (keys[p.id] || []).length > 0 || p.local)
   const [providerId, setProviderId] = useState(usable[0]?.id || 'anthropic')
   const [modelId, setModelId] = useState('')
+  const [baseUrl, setBaseUrl] = useState('')
   const spec = providerSpec(providerId)
 
-  useEffect(() => { setModelId(providerSpec(providerId)?.models?.[0]?.id || '') }, [providerId])
+  useEffect(() => {
+    setModelId(providerSpec(providerId)?.models?.[0]?.id || '')
+    setBaseUrl('')
+  }, [providerId])
 
   if (!usable.length) {
     return <p className="secondary" style={{ margin: 0 }}>Add an API key in Settings → Assistant, then a chain can be built here.</p>
@@ -297,7 +312,20 @@ function AddStep({ keys, onAdd }) {
         )}
       </label>
 
-      <button type="button" className="btn" disabled={!modelId} onClick={() => onAdd({ provider: providerId, model: modelId })}>
+      {usesCustomEndpoint(providerId) && (
+        <label className="field">
+          <span className="field__label">Endpoint</span>
+          <input
+            className="input"
+            type="url"
+            value={baseUrl}
+            placeholder={providerSpec(providerId)?.baseUrl || 'https://…'}
+            onChange={(e) => setBaseUrl(e.target.value)}
+          />
+        </label>
+      )}
+
+      <button type="button" className="btn" disabled={!modelId} onClick={() => onAdd({ provider: providerId, model: modelId, baseUrl: usesCustomEndpoint(providerId) ? baseUrl.trim() : '' })}>
         <IconPlus width={12} height={12} /> Add to the chain
       </button>
 

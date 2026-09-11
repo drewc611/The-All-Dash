@@ -62,3 +62,11 @@
 .router__bad { color: var(--critical); font-weight: var(--w-bold); }
 
 .table th.num { text-align: right; }
+
+/* The endpoint a step will send a key to. Quiet, but never absent: an address
+   nobody can see is an address nobody notices has been changed. */
+.chain__where {
+  font-size: var(--t-2xs);
+  color: var(--ink-muted);
+  font-family: var(--mono);
+}

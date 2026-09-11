@@ -486,6 +486,9 @@ export function importWorkspace(json, { merge = false } = {}) {
         triage: incoming.triage && typeof incoming.triage === 'object' ? incoming.triage : {},
         brain: normaliseBrainState(incoming.brain),
         work: normaliseWork(incoming.work),
+        // A restored file is untrusted: it may not carry an endpoint that a
+        // provider key would then be sent to.
+        router: normaliseRouter(incoming.router, { trusted: false }),
         ui: { ...base.ui, ...(incoming.ui || {}) },
         reminders: incoming.reminders && typeof incoming.reminders === 'object' ? incoming.reminders : {},
       }
