@@ -79,6 +79,14 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
   usually finishes late", "Priya carries 40% of the open work") wait for your
   yes, and once accepted they change triage, reminders and the start view. It
   all becomes a folder of Markdown files on your disk, kept in sync.
+- **A router in front of the models, that grades their answers.** One chain
+  across a dozen providers, tried in order, where a *bad answer* falls through
+  as readily as a 500: an answer citing a task you do not have is a failure,
+  and the next provider gets a turn. A ceiling checked before the call, not
+  after. A cache keyed on the facts the answer was built from, so editing one
+  of them throws the answer away. And a table saying what each provider costs
+  per answer that actually worked, which is the only honest way to compare a
+  cheap model against a reliable one.
 - **An assistant that cites and proposes.** Ask questions of your own data
   through Claude, any OpenAI-compatible endpoint, or a local Ollama. Answers
   cite items as chips; changes arrive as proposals you apply or skip. A privacy
@@ -686,6 +694,121 @@ The buttons only render where the browser supports them.
 The conversation lives in the panel and is gone when it closes. Nothing the
 model says is stored unless you apply it.
 
+## The router
+
+A gateway in front of the models. Most of what a gateway does is plumbing and
+is done here in the obvious way; four things are done differently, and those
+are the reason it exists.
+
+### Twelve providers, three wire formats
+
+Anthropic, OpenAI, Groq, Cerebras, Mistral, DeepSeek, Together, OpenRouter,
+Azure, Ollama, LM Studio, and anything else that answers `/chat/completions`.
+
+That reads like twelve integrations. It is three. Almost everything on that
+list speaks the OpenAI wire format and differs by a base URL and a price list,
+so the catalogue is a table of base URLs and the wire layer has three cases in
+it. Saying so is more useful than implying each one was hard.
+
+![The chain: three providers in order, each showing what a typical question would cost](docs/screenshots/router-chain.png)
+
+### A 200 is not a success
+
+Every gateway falls back on an HTTP error. That misses the failures that cost
+you something: a stream cut off mid-sentence, an answer citing a task that
+does not exist, a proposal with a field the store would reject, a model that
+returned the empty string and a 200.
+
+This app can check, because it knows what the answer was supposed to be
+grounded in. Citations either resolve to real entities or they do not, and
+that is a fact rather than a heuristic. So a reply is graded against the
+workspace it claims to describe:
+
+| Grade | What it means | Falls through |
+|---|---|---|
+| `ok` | Answered, and everything it cited exists | No |
+| `empty` | 200, and nothing in the body | Yes |
+| `truncated` | Hit the token cap mid-thought | Yes |
+| `unresolved-citation` | Cited something that is not in your workspace | Yes |
+| `bad-action` | Claimed changes, none survived validation | Yes |
+| `refusal` | Declined, in under 320 characters | Yes, once |
+
+The last row is deliberate: one model declining might be that model, two
+independent models declining is a fact about the request, so the chain stops
+rather than touring the catalogue looking for a yes. Truncation is checked
+before citations, because a cut-off reply usually ends mid-citation and would
+otherwise be reported as the wrong failure.
+
+A graded failure counts against that provider's health exactly as a 503 would,
+and three failures in a row rest it for five minutes instead of retrying it
+into the ground on every request.
+
+### The ceiling is checked first
+
+Spend is reported after the fact everywhere else: you discover the bill by
+receiving it. The useful moment is before the request, because that is the
+only point at which anyone can still decide not to.
+
+So the estimate is computed up front and the ceiling **refuses**. A budget
+that only warns is a log line. The estimate uses the output cap rather than a
+guess at likely output, because a ceiling has to be checked against the most a
+call could cost or it is not a ceiling.
+
+There is a third outcome besides allow and refuse. A model the catalogue does
+not price cannot be checked, and waving it through silently would make the
+ceiling a decoration — so that is surfaced and you decide once.
+
+Refusing is also the *whole* response. It does not quietly drop to a cheaper
+model on your behalf, because that changes the answer without telling you.
+
+### A cache that expires when the facts do
+
+Semantic caching embeds the question and returns a near neighbour's answer.
+That needs an embedding model and a vector store — a service to deploy and a
+bill to pay in order to save money — and it has a failure mode nobody
+advertises. "What is our Q3 revenue" and "what is our Q4 revenue" are very
+close in embedding space and have different answers. A threshold loose enough
+to be useful is loose enough to return the wrong quarter, confidently.
+
+This caches on the question *and* on a fingerprint of the workspace context
+the answer was built from. Two things follow:
+
+- It never answers a different question. The key is lexical, so there is no
+  similarity threshold to tune and nothing to get wrong. Case, whitespace and
+  trailing punctuation are normalised; nothing else is, so "what is done" and
+  "what is not done" can never collapse into one key.
+- **It expires itself.** Change a due date the answer depended on and the
+  fingerprint changes, so the entry is gone. A gateway sitting in front of an
+  API has no idea the underlying facts moved. This one is inside the app that
+  moved them.
+
+### Cost per answer that worked
+
+The comparison table reports calls, success rate, latency, spend — and spend
+divided by *good answers*, which is the number that actually decides anything.
+A model at a third of the price that fails a third of the time is not cheaper,
+and no per-token price list will tell you that. Your own ledger will.
+
+Cache hits are recorded at zero with what they saved, so the cache's value
+shows up in the same units as the spend it avoided.
+
+![The comparison table: one model at 100% good, two at 0% marked in red, with cost per good answer](docs/screenshots/router-ledger.png)
+
+### Honest limits
+
+Prices are a table stamped with the date they were taken, and vendors change
+them. Tokens are estimated from character and word counts, not counted, because
+no tokeniser ships in 40KB — the estimate runs about 10% high, which is the
+right direction for something that gates spending. Both numbers are close
+enough to compare providers and not close enough to reconcile an invoice, and
+the app says so on the screen rather than only here.
+
+**Not built, on purpose:** OIDC directory sync, Prometheus scrape endpoints,
+distributed tracing, and hierarchical team or customer budgets. They need a
+server, an org chart and more than one user. This is one person's browser with
+their own keys in it, and four impressive-looking features that fall over the
+first time anyone leans on them would be worse than not having them.
+
 ## The brain
 
 The app keeps a brain about the person using it: a profile, the people they
@@ -805,12 +928,13 @@ src/
   media/      blob storage, the two encoders, camera and recorder, the player, YouTube links
   stash/      the page archive, readability, the search index, the block diff
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
+              router: provider catalogue, cost and budget, the plan, response grading, the grounded cache
   ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
   ui/work/    the seven board views, cell editors, the item panel, the rule builder
   ui/media/   camera, compressor, gallery, YouTube, the shell player
   ui/stash/   the saved list, the reader, highlights, the change view
   styles/     tokens, base, layout, components, viz, media, stash
-tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the brain and the assistant protocol
+tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the router, the brain and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 

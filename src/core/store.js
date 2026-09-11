@@ -4,6 +4,7 @@ import { uid } from './id.js'
 import { iso } from './time.js'
 import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
 import { normaliseWork } from '../work/schema.js'
+import { normaliseRouter } from '../ai/router-schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -75,6 +76,7 @@ const initialState = () => ({
   triage: {},
   brain: emptyBrainState(),
   work: normaliseWork(null),
+  router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
 })
 
@@ -94,6 +96,7 @@ function load() {
       settings: { ...base.settings, ...(parsed.settings || {}), media: { ...base.settings.media, ...(parsed.settings?.media || {}) }, assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
       brain: normaliseBrainState(parsed.brain),
       work: normaliseWork(parsed.work),
+      router: normaliseRouter(parsed.router),
     }
   } catch {
     return initialState()

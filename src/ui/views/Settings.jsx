@@ -18,6 +18,7 @@ import { downloadText } from '../download.js'
 import { AssistantSettings } from './AssistantSettings.jsx'
 import { PlatformSettings } from './PlatformSettings.jsx'
 import { MediaSettings } from './MediaSettings.jsx'
+import { Router } from '../router/Router.jsx'
 
 export function Settings({ state, entities, range, onToast }) {
   return (
@@ -26,6 +27,7 @@ export function Settings({ state, entities, range, onToast }) {
         <div className="board__cell" data-size="md"><Appearance state={state} /></div>
         <div className="board__cell" data-size="md"><Reminders state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="xl"><AssistantSettings state={state} onToast={onToast} /></div>
+        <div className="board__cell" data-size="xl"><Router onToast={onToast} /></div>
         <div className="board__cell" data-size="xl"><MetricBuilder state={state} entities={entities} range={range} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><PlatformSettings state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><MediaSettings onToast={onToast} /></div>

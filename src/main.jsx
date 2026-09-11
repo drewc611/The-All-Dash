@@ -10,6 +10,7 @@ import './styles/work.css'
 import './styles/viz.css'
 import './styles/media.css'
 import './styles/stash.css'
+import './styles/router.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
