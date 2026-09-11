@@ -12,52 +12,23 @@
  * its users a CSV of links with no articles attached.
  */
 
-const DB = 'alldash-stash'
+import { database, available, ask } from '../core/idb.js'
+
 const STORE = 'snapshots'
-const VERSION = 1
 
-let dbPromise = null
+export { available }
 
-export const available = () => typeof indexedDB !== 'undefined'
-
-function open() {
-  if (!available()) return Promise.reject(new Error('This browser has no IndexedDB, so pages cannot be saved.'))
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'id' })
-        store.createIndex('entityId', 'entityId')
-        store.createIndex('savedAt', 'savedAt')
-      }
-    }
-    req.onsuccess = () => {
-      req.result.onversionchange = () => { req.result.close(); dbPromise = null }
-      resolve(req.result)
-    }
-    req.onerror = () => reject(req.error || new Error('IndexedDB refused to open.'))
-    req.onblocked = () => reject(new Error('Another tab is holding the stash open.'))
-  })
-  dbPromise.catch(() => { dbPromise = null })
-  return dbPromise
-}
-
-const ask = (req) => new Promise((resolve, reject) => {
-  req.onsuccess = () => resolve(req.result)
-  req.onerror = () => reject(req.error)
+const db = database({
+  name: 'alldash-stash',
+  version: 1,
+  store: STORE,
+  label: 'the stash',
+  upgrade: (store) => {
+    store.createIndex('entityId', 'entityId')
+    store.createIndex('savedAt', 'savedAt')
+  },
 })
-
-function write(fn) {
-  return open().then((db) => new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error || new Error('The stash rejected the write.'))
-    tx.onabort = () => reject(tx.error || new Error('The stash write was aborted, usually because the disk is full.'))
-    fn(tx.objectStore(STORE))
-  }))
-}
+const { read, write } = db
 
 /** Keep one version of one page. */
 export async function putSnapshot(id, { entityId, url, markdown, title = '', fingerprint = '' }) {
@@ -76,16 +47,14 @@ export async function putSnapshot(id, { entityId, url, markdown, title = '', fin
 
 export async function getSnapshot(id) {
   if (!id) return null
-  const db = await open()
-  return (await ask(db.transaction(STORE, 'readonly').objectStore(STORE).get(id))) || null
+  return (await read((store) => ask(store.get(id)))) || null
 }
 
 export const deleteSnapshot = (id) => write((store) => store.delete(id))
 
 /** Every snapshot, without the text, for a size meter. */
 export async function listSnapshots() {
-  const db = await open()
-  const rows = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).getAll())
+  const rows = await read((store) => ask(store.getAll()))
   return rows.map(({ markdown, ...rest }) => ({ ...rest, bytes: rest.bytes ?? markdown?.length ?? 0 }))
 }
 
@@ -99,9 +68,8 @@ export async function listSnapshots() {
  */
 export async function corpus(ids) {
   if (!ids?.length) return []
-  const db = await open()
-  const store = db.transaction(STORE, 'readonly').objectStore(STORE)
-  const rows = await Promise.all(ids.map((id) => ask(store.get(id)).catch(() => null)))
+  // Every get is issued before the first await, so they share one transaction.
+  const rows = await read((store) => Promise.all(ids.map((id) => ask(store.get(id)).catch(() => null))))
   return rows.filter(Boolean).map((row) => ({ id: row.id, entityId: row.entityId, title: row.title, text: row.markdown }))
 }
 
@@ -135,8 +103,7 @@ export async function usage() {
  * a rental.
  */
 export async function exportAll() {
-  const db = await open()
-  const rows = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).getAll())
+  const rows = await read((store) => ask(store.getAll()))
   return { kind: 'alldash-stash', version: 1, exportedAt: new Date().toISOString(), snapshots: rows }
 }
 

@@ -11,55 +11,20 @@
  * and can be cleared without losing a single note.
  */
 
-const DB = 'alldash-media'
-const STORE = 'blobs'
-const VERSION = 1
+import { database, available, ask } from '../core/idb.js'
 
-let dbPromise = null
+const STORE = 'blobs'
 
 /** IndexedDB is absent in a worker-less SSR pass and disabled in some private
     windows. Every caller has to cope with that, so say so once, here. */
-export const available = () => typeof indexedDB !== 'undefined'
+export { available }
 
-function open() {
-  if (!available()) return Promise.reject(new Error('This browser has no IndexedDB, so media cannot be saved.'))
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'id' })
-        store.createIndex('createdAt', 'createdAt')
-      }
-    }
-    req.onsuccess = () => {
-      // A second tab upgrading the schema would block us forever otherwise.
-      req.result.onversionchange = () => { req.result.close(); dbPromise = null }
-      resolve(req.result)
-    }
-    req.onerror = () => reject(req.error || new Error('IndexedDB refused to open.'))
-    req.onblocked = () => reject(new Error('Another tab is holding the media database open.'))
-  })
-  // A failed open must not be cached, or every later call fails with it.
-  dbPromise.catch(() => { dbPromise = null })
-  return dbPromise
-}
-
-function run(mode, fn) {
-  return open().then((db) => new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
-    let result
-    tx.oncomplete = () => resolve(result)
-    tx.onerror = () => reject(tx.error || new Error('The media database rejected the write.'))
-    tx.onabort = () => reject(tx.error || new Error('The media write was aborted, usually because the disk is full.'))
-    result = fn(tx.objectStore(STORE), (v) => { result = v })
-  }))
-}
-
-const ask = (req) => new Promise((resolve, reject) => {
-  req.onsuccess = () => resolve(req.result)
-  req.onerror = () => reject(req.error)
+const { read, write } = database({
+  name: 'alldash-media',
+  version: 1,
+  store: STORE,
+  label: 'the media database',
+  upgrade: (store) => { store.createIndex('createdAt', 'createdAt') },
 })
 
 /** Store one blob. Returns the row's descriptor, never the bytes. */
@@ -72,31 +37,29 @@ export async function putBlob(id, blob, meta = {}) {
     createdAt: new Date().toISOString(),
     ...meta,
   }
-  await run('readwrite', (store) => { store.put(row) })
+  await write((store) => { store.put(row) })
   const { blob: _omit, ...rest } = row
   return rest
 }
 
 export async function getBlob(id) {
-  const db = await open()
-  const row = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).get(id))
+  const row = await read((store) => ask(store.get(id)))
   return row ? row.blob : null
 }
 
 export async function deleteBlob(id) {
-  await run('readwrite', (store) => { store.delete(id) })
+  await write((store) => { store.delete(id) })
 }
 
 /** Descriptors only - reading every blob to list them would load the whole
     library into memory. */
 export async function listBlobs() {
-  const db = await open()
-  const rows = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).getAll())
+  const rows = await read((store) => ask(store.getAll()))
   return rows.map(({ blob, ...rest }) => ({ ...rest, size: rest.size ?? blob?.size ?? 0 }))
 }
 
 export async function clearBlobs() {
-  await run('readwrite', (store) => { store.clear() })
+  await write((store) => { store.clear() })
 }
 
 /** Delete rows no entity points at any more. Closing a tab mid-record, or

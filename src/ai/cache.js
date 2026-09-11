@@ -25,11 +25,13 @@
  *   app that moved them.
  */
 
+import { database, available, ask } from '../core/idb.js'
+
 const DB = 'alldash-ai'
 const STORE = 'replies'
 const VERSION = 1
 
-export const available = () => typeof indexedDB !== 'undefined'
+export { available }
 
 /**
  * Normalise a question so trivial differences hit the same entry.
@@ -89,49 +91,21 @@ export function cacheKey({ question, provider, model, system = '', grounding = '
 
 /* ------------------------------------------------------------------ store */
 
-let dbPromise = null
-
-function open() {
-  if (!available()) return Promise.reject(new Error('No IndexedDB.'))
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'key' })
-        store.createIndex('at', 'at')
-      }
-    }
-    req.onsuccess = () => {
-      req.result.onversionchange = () => { req.result.close(); dbPromise = null }
-      resolve(req.result)
-    }
-    req.onerror = () => reject(req.error || new Error('IndexedDB refused to open.'))
-  })
-  dbPromise.catch(() => { dbPromise = null })
-  return dbPromise
-}
-
-const ask = (req) => new Promise((resolve, reject) => {
-  req.onsuccess = () => resolve(req.result)
-  req.onerror = () => reject(req.error)
+const { read: readStore, write } = database({
+  name: DB,
+  version: VERSION,
+  store: STORE,
+  keyPath: 'key',
+  label: 'the answer cache',
+  upgrade: (store) => { store.createIndex('at', 'at') },
 })
-
-const write = (fn) => open().then((db) => new Promise((resolve, reject) => {
-  const tx = db.transaction(STORE, 'readwrite')
-  tx.oncomplete = () => resolve()
-  tx.onerror = () => reject(tx.error)
-  fn(tx.objectStore(STORE))
-}))
 
 /** An entry still worth using. Age is a backstop, not the mechanism: the
     fingerprint has usually already killed a stale answer. */
 export async function read(key, { maxAgeMs = 7 * 24 * 3600_000 } = {}) {
   if (!available() || !key) return null
   try {
-    const db = await open()
-    const row = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).get(key))
+    const row = await readStore((store) => ask(store.get(key)))
     if (!row) return null
     if (Date.now() - Date.parse(row.at) > maxAgeMs) {
       await write((store) => store.delete(key)).catch(() => {})
@@ -160,8 +134,7 @@ export async function clear() {
 export async function stats() {
   if (!available()) return { count: 0, bytes: 0 }
   try {
-    const db = await open()
-    const rows = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).getAll())
+    const rows = await readStore((store) => ask(store.getAll()))
     return { count: rows.length, bytes: rows.reduce((n, row) => n + (row.text?.length || 0), 0) }
   } catch { return { count: 0, bytes: 0 } }
 }
@@ -171,8 +144,7 @@ export async function stats() {
 export async function prune({ keep = 500 } = {}) {
   if (!available()) return 0
   try {
-    const db = await open()
-    const rows = await ask(db.transaction(STORE, 'readonly').objectStore(STORE).getAll())
+    const rows = await readStore((store) => ask(store.getAll()))
     if (rows.length <= keep) return 0
     const doomed = rows.sort((a, b) => String(a.at).localeCompare(String(b.at))).slice(0, rows.length - keep)
     for (const row of doomed) await write((store) => store.delete(row.key))
