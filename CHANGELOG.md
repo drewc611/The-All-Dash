@@ -13,6 +13,14 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ## [Unreleased]
 
+### Changed
+
+- CI now builds the browser app's container image on every pull request and
+  curls it for `index.html`, the wallpaper credits and a photograph. It was
+  only built by the release workflow, so a tag push would have been the first
+  thing that ever built it — and both images share a build context, which is
+  exactly how the MCP one broke earlier on this branch.
+
 ## [0.2.0-beta.2] — 2026-09-14
 
 ### Fixed
