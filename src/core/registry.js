@@ -29,6 +29,11 @@ export function onRegistryChange(fn) {
  * @param {string} spec.description
  * @param {string} [spec.category]    grouping in the picker
  * @param {'sm'|'md'|'lg'|'xl'} [spec.size]  default board span
+ * @param {string} [spec.flag]     a flag id from core/flags.js; the widget is
+ *                                 absent from the picker and does not render on a
+ *                                 saved board while that flag is off. Same gate the
+ *                                 rail uses for a flagged view, for the same reason:
+ *                                 a feature that is off should have no surfaces.
  * @param {Function} spec.render      React component, gets { entities, config, widget }
  * @param {Array} [spec.options]      config fields: { key, label, type, choices }
  */

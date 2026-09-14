@@ -23,6 +23,33 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   passes, an existing tag is never moved, and `dry_run` builds everything while
   publishing nothing.
 
+- **Analytics charts the Focus timer.** The timer has been writing a session
+  log since the alpha and nothing read it back; that is the gap the beta wrote
+  down, and it is closed. Three widgets, in a new **Focus** category:
+
+  - **Focus time** — minutes per day, with the total as hours and minutes
+    rather than a four-digit number, your current streak, the share of
+    pomodoros you finished, and your best day.
+  - **Where the time went** — minutes ranked by the task you ran the timer on.
+    Unlinked time is a row of its own rather than dropped, because rows that
+    sum to less than the total beside them cost you trust in both numbers.
+  - **When you focus** — minutes by hour of the day, credited to the hour a
+    session *started*, since the question is when you sit down to work.
+
+  Everything buckets on local days and local hours. Bucketing by UTC puts a 9pm
+  session in California on tomorrow's bar and shifts the hour chart eight hours
+  for everyone west of Greenwich. The average is over days you actually worked,
+  not over days in the window — a 30-day average that counts a fortnight of
+  leave as zeroes is arithmetic nobody asked for. With no sessions the
+  completion rate is *absent* rather than 0%: "you finished none of them" and
+  "you have not run one" are different facts and only one is a judgement.
+
+- **Widgets can declare a flag.** `defineWidget({ flag: 'focus' })` gates a
+  widget the way the rail already gates a view: absent from the picker, and not
+  rendered on a saved board, while the flag is off. Hidden rather than removed,
+  so turning the flag back on returns the board exactly as it was — a switch
+  that costs you your layout is one nobody flips twice.
+
 - **A licence**, in `LICENSE`, with `NOTICE` covering what it does not.
 - **`NOTICE`** states that the bundled photographs are US federal government
   works in the public domain — they are not this project's to relicense, under
@@ -71,6 +98,27 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   exactly how the MCP one broke earlier on this branch.
 
 ### Fixed
+
+- **Every horizontal bar chart in the app drew an empty track.** `.hbar__fill`
+  is a `<span>` with no `display` rule. Its parent track is a grid item, so the
+  browser blockifies that and its height applies; the fill is not, so it stayed
+  `display: inline` and ignored width and height alike. The leaderboard, the
+  source mix and the workload bars have all been rendering as grey tracks with
+  nothing in them — which reads as a styled component waiting for data rather
+  than as a bug, which is why it survived this long. Found by looking at a
+  screenshot of a chart whose numbers I already knew.
+
+- **One malformed entity blanked the whole app.** The store re-normalises
+  settings, brain, focus, work and router on load and takes `entities` exactly
+  as they are, so a record written by an older build — or restored from an
+  older export — can arrive without `tags`. `FilterBar` did `e.tags.filter(...)`
+  on it and threw before anything rendered. A missing filter chip is the right
+  failure there, not a white screen.
+
+- **`BarChart` assumed its keys were dates.** Both axis labels went through a
+  date formatter and the tooltip through another, so a chart of anything else
+  rendered three unusable labels and an "Invalid Date". It takes an optional
+  `labelOf` now, defaulting to the old behaviour.
 
 - **`tests/packaging.test.js` was a binary file.** Two literal NUL bytes sat in
   it as the sentinel in a glob-to-regex conversion, so `grep`, `git diff` and

@@ -6,6 +6,7 @@
 [![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
 [![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
 [![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
+[![Focus timer](https://img.shields.io/badge/focus-pomodoro_·_charted-1baf7a)](docs/RELEASING.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](backend/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](frontend/)
 [![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
@@ -13,7 +14,7 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
 [![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
-[![Tests](https://img.shields.io/badge/tests-511_node%3Atest-1baf7a)](tests/)
+[![Tests](https://img.shields.io/badge/tests-541_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
 [![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
@@ -85,6 +86,27 @@ second.
 
 Paused time is not time worked. Half an hour away from the desk inside a
 session records ten minutes, not forty. Breaks are never recorded at all.
+
+### What the minutes add up to
+
+Three widgets on Analytics read the session log back: **Focus time** (minutes
+per day, your streak, the share of pomodoros you finished, your best day),
+**Where the time went** (ranked by task) and **When you focus** (by hour of the
+day). They live in a Focus category in the widget picker and follow the `focus`
+flag, so a build without the timer has no charts of it either.
+
+![Focus on Analytics](docs/screenshots/focus-analytics.png)
+
+Everything buckets on **local** days and hours. Bucketing by UTC puts a 9pm
+session in California on tomorrow's bar and shifts the hour chart eight hours
+for everyone west of Greenwich. A session counts toward the hour it *started* —
+the question is when you sit down to work, and that has one answer per session.
+The average is over days you actually worked rather than days in the window,
+because a 30-day average that counts a fortnight of leave as zeroes tells you
+nothing. Time you did not link to a task is shown as its own row rather than
+dropped: rows that sum to less than the total beside them cost you trust in
+both numbers. And with no sessions at all there is no completion rate, because
+"you finished none of them" and "you have not run one" are different facts.
 
 Wallpapers follow the light rather than a timer — the day is cut into seven
 bands on local hours and the photograph changes when the band does, because a

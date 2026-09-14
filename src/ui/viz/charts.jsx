@@ -164,7 +164,16 @@ export function LineChart({ series, height = 200, unit = '', showLegend = true }
 
 // ------------------------------------------------------------- bar chart
 
-export function BarChart({ points, height = 160, unit = '', color = SERIES[0], onSelect }) {
+/*
+ * `labelOf` exists because this component assumed its keys were dates. They
+ * usually are, and the default keeps that, but a bar chart of hours-of-day
+ * fed through `shortDay` renders three garbage labels and a tooltip that says
+ * "Invalid Date". Generalising the two label sites is smaller than a second
+ * near-identical component.
+ */
+export function BarChart({ points, height = 160, unit = '', color = SERIES[0], onSelect, labelOf }) {
+  const axis = labelOf || shortDay
+  const tip = labelOf || ((key) => formatDate(key, { weekday: 'short' }))
   const [hover, setHover] = useState(null)
   const pad = { top: 8, right: 4, bottom: 18, left: 34 }
   const w = 640
@@ -187,8 +196,8 @@ export function BarChart({ points, height = 160, unit = '', color = SERIES[0], o
         </g>
         <g className="viz__tick">
           {[0, max].map((t) => <text key={t} x={pad.left - 6} y={y(t) + 3} textAnchor="end">{compact(t)}</text>)}
-          <text x={pad.left} y={h - 4}>{shortDay(points[0]?.key)}</text>
-          <text x={w - pad.right} y={h - 4} textAnchor="end">{shortDay(points.at(-1)?.key)}</text>
+          <text x={pad.left} y={h - 4}>{axis(points[0]?.key)}</text>
+          <text x={w - pad.right} y={h - 4} textAnchor="end">{axis(points.at(-1)?.key)}</text>
         </g>
         {points.map((p, i) => {
           const value = Number(p.value) || 0
@@ -216,7 +225,7 @@ export function BarChart({ points, height = 160, unit = '', color = SERIES[0], o
           className="viz__tip"
           style={{ left: `${((pad.left + hover * slot + slot / 2) / w) * 100}%`, top: `${(y(Number(points[hover].value) || 0) / h) * 100}%` }}
         >
-          <div className="viz__tip-label">{formatDate(points[hover].key, { weekday: 'short' })}</div>
+          <div className="viz__tip-label">{tip(points[hover].key)}</div>
           <div className="viz__tip-value">{format(points[hover].value, unit)}</div>
         </div>
       )}
