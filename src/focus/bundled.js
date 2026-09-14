@@ -6,7 +6,7 @@
  * Service - which is public domain by statute rather than by somebody's
  * licence choice. That matters for a picture shipped inside an application:
  * a statute cannot be revoked the way a licence can, and the images stay
- * redistributable however this app is packaged, Flathub and the app stores
+ * redistributable however this app is packaged, the Snap Store and the app stores
  * included. Each entry carries the page it came from so the claim is
  * checkable rather than asserted.
  *

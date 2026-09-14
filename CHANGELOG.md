@@ -23,23 +23,59 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   passes, an existing tag is never moved, and `dry_run` builds everything while
   publishing nothing.
 
-- **A licence: MIT**, in `LICENSE`, with `NOTICE` covering what it does not.
-  Chosen against the store targets rather than by preference — the GPL family
-  conflicts with Apple's App Store terms, so copyleft would have broken the Mac
-  App Store submission this repo is set up for. The five manifests that declare
-  a licence are now checked against `LICENSE` by a test, because Flathub
-  refuses a submission whose `project_license` disagrees with the source.
+- **A licence**, in `LICENSE`, with `NOTICE` covering what it does not.
 - **`NOTICE`** states that the bundled photographs are US federal government
-  works in the public domain and are *not* MIT-licensed — they are not this
-  project's to relicense.
+  works in the public domain — they are not this project's to relicense, under
+  any licence it picks.
 
 ### Changed
+
+- **The licence is now proprietary — all rights reserved, © 2026 Andrew
+  Clark.** It shipped as MIT for three commits on this branch; that grant is
+  withdrawn going forward. Reading the source grants nothing. Running a copy
+  installed from a channel published here does, and so does keeping a backup of
+  it — which is what a store submission needs and no more.
+
+  Two carve-outs are written into the licence rather than left to goodwill.
+  Your workspace is yours and export is expressly permitted, because a
+  proprietary app that also holds your data is a worse thing than a proprietary
+  app. And the bundled photographs stay public domain: `LICENSE` could not have
+  pulled them in even if it tried.
+
+- **Flathub is dropped as a target and `packaging/flatpak/` is deleted.**
+  Flathub accepts open-source submissions only, so a manifest left in the tree
+  would have been an invitation to open a PR that gets closed on sight. The
+  `.desktop` and AppStream files moved to `packaging/linux/` — the snap
+  installs them from there, and deleting the directory outright would have
+  broken the snap build at the last step of a job that had already spent ten
+  minutes compiling Rust. A test now checks that every file `snapcraft.yaml`
+  installs actually exists.
+
+  Snap, the Mac App Store, the Microsoft Store, direct downloads and the
+  container image are unaffected — all five take proprietary software. Copyleft
+  would have been the other way round: Flathub fine, Mac App Store gone.
+
+- **Four manifests declare the licence, each in its own ecosystem's
+  vocabulary**, and a test checks all four against `LICENSE`: `UNLICENSED` for
+  npm, `license-file` for Cargo (SPDX has no id for "proprietary"),
+  `Proprietary` for snapcraft, `LicenseRef-proprietary` for AppStream. A
+  manifest left saying MIT is a grant of rights nobody meant to make, which is
+  the one mistake here that cannot be taken back from whoever relied on it.
+  `publish = false` and `"private": true` stop a one-keystroke `cargo publish`
+  or `npm publish` distributing what the licence forbids distributing.
 
 - CI now builds the browser app's container image on every pull request and
   curls it for `index.html`, the wallpaper credits and a photograph. It was
   only built by the release workflow, so a tag push would have been the first
   thing that ever built it — and both images share a build context, which is
   exactly how the MCP one broke earlier on this branch.
+
+### Fixed
+
+- **`tests/packaging.test.js` was a binary file.** Two literal NUL bytes sat in
+  it as the sentinel in a glob-to-regex conversion, so `grep`, `git diff` and
+  every editor treated the whole file as binary and refused to search it. Same
+  value, written as `\0`.
 
 ## [0.2.0-beta.2] — 2026-09-14
 

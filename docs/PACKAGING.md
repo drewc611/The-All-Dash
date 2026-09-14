@@ -1,6 +1,6 @@
 # Packaging
 
-Six ways to get this app, from one codebase. What each one is, what actually
+Five ways to get this app, from one codebase. What each one is, what actually
 builds it, and — for the stores — exactly which accounts and secrets you have
 to supply, because none of them can be faked and I have not invented any.
 
@@ -11,7 +11,7 @@ to supply, because none of them can be faked and I have not invented any.
 | Linux `.deb`, `.rpm`, AppImage | Tauri on `ubuntu-22.04` | Nothing |
 | macOS `.dmg` | Tauri on `macos-latest` | Apple Developer certificate, to avoid a Gatekeeper warning |
 | Windows `.msi`, `.exe` | Tauri on `windows-latest` | Authenticode certificate, to avoid a SmartScreen warning |
-| Flathub, Snap, Mac App Store, Microsoft Store | See below | An account per store |
+| Snap, Mac App Store, Microsoft Store | See below | An account per store |
 
 ## Why Tauri and not Electron
 
@@ -55,21 +55,57 @@ has already built. A test asserts the two files still agree.
 
 ## Licence
 
-**MIT**, in `LICENSE`. Chosen for a reason you can check rather than a
-preference: you asked for Mac App Store and Microsoft Store submissions, and
-the GPL family conflicts with Apple's App Store terms — Apple imposes
-per-device usage restrictions that the GPL forbids a distributor from adding,
-which is why GPL'd apps have been pulled from that store before. A permissive
-licence removes that conflict entirely.
+**Proprietary, all rights reserved**, in `LICENSE`. Copyright Andrew Clark.
 
-If you would rather have copyleft, the trade is real and worth making
-deliberately: swap `LICENSE`, `package.json`, `src-tauri/Cargo.toml`, the
-Flatpak metainfo and `snapcraft.yaml`, and drop the Mac App Store target.
-Direct `.dmg` downloads are unaffected.
+No rights are granted by reading the source. What the licence does grant is the
+thing a store submission needs: whoever installs a copy from a channel you
+operate — an app store listing, a signed installer, a container image you
+publish — may run it and back it up. They may not redistribute it, resell it,
+or host it for other people.
 
-`NOTICE` covers what MIT does not: the bundled photographs are US federal
-government works in the public domain, not MIT-licensed, and are listed
-individually with their sources.
+Two carve-outs, both deliberate:
+
+- **Your data is yours.** The licence claims nothing over the documents,
+  records, media and workspaces a person puts into the app, and says export is
+  permitted. A proprietary app that also holds your data hostage is a different
+  and worse thing than a proprietary app.
+- **`NOTICE` covers what LICENSE cannot.** The bundled photographs are US
+  federal government works in the public domain under 17 U.S.C. § 105 — making
+  the app proprietary does not and could not pull them in. Dependencies stay
+  under their own terms.
+
+Four manifests declare a licence, each in its ecosystem's own vocabulary, and
+`tests/packaging.test.js` checks all four against `LICENSE`:
+
+| File | Says |
+|---|---|
+| `package.json` | `"license": "UNLICENSED"`, with `"private": true` |
+| `src-tauri/Cargo.toml` | `license-file = "../LICENSE"`, with `publish = false` |
+| `packaging/snap/snapcraft.yaml` | `license: Proprietary` |
+| `packaging/linux/com.thealldash.app.metainfo.xml` | `LicenseRef-proprietary` |
+
+Cargo takes a `license-file` rather than an SPDX id because "Proprietary" is
+not one; AppStream requires the `LicenseRef-` prefix for the same reason. Both
+`publish = false` and `"private": true` exist to stop a one-keystroke
+`cargo publish` or `npm publish` distributing the thing the licence forbids
+distributing.
+
+**What this costs: Flathub.** Flathub accepts open-source submissions only, so
+that target is gone and `packaging/flatpak/` is deleted rather than left as an
+invitation to open a PR that would be closed on sight. The `.desktop` and
+AppStream files moved to `packaging/linux/`, because the snap installs them
+too. Snap, the Mac App Store, the Microsoft Store, direct downloads and the
+container image all take proprietary software without complaint.
+
+If you ever want to go the other way, the trade is real and worth making
+deliberately. Permissive (MIT, Apache-2.0) restores Flathub and every other
+target. Copyleft (GPL, AGPL) restores Flathub and costs the **Mac App Store** —
+Apple imposes per-device usage restrictions that the GPL forbids a distributor
+from adding, which is why GPL'd apps have been pulled from that store before.
+
+This file is a description of what is in the repository, not legal advice. If
+you are going to sell this or license it to a company, a solicitor reading the
+actual text is money well spent.
 
 ## Signing
 
@@ -113,28 +149,11 @@ Generate with `npx tauri signer generate`.
 
 ## The stores
 
-### Flathub — free, open source only
-
-`packaging/flatpak/com.thealldash.app.yml`.
-
-Flathub builds from source on its own infrastructure, with **no network during
-the build**, so dependencies have to be vendored first:
-
-```sh
-python3 flatpak-cargo-generator.py src-tauri/Cargo.lock -o cargo-sources.json
-flatpak-node-generator npm package-lock.json -o node-sources.json
-```
-
-Then open a PR against `flathub/flathub` with the manifest. Before you do,
-replace `PLACEHOLDER_TAG` and `PLACEHOLDER_COMMIT` with the release you are
-submitting. A branch is refused; it is not reproducible.
-
-The licence is settled: **MIT**, in `LICENSE`, and `project_license` in the
-metainfo matches it — Flathub checks that the two agree.
-
 ### Snap Store — free
 
-`packaging/snap/snapcraft.yaml`. Register the name, then:
+`packaging/snap/snapcraft.yaml`, declaring `license: Proprietary` — the Snap
+Store takes closed-source snaps, unlike Flathub. It installs the `.desktop`
+and icon from `packaging/linux/`. Register the name, then:
 
 ```sh
 snapcraft

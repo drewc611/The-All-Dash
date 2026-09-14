@@ -13,11 +13,12 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
 [![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
-[![Tests](https://img.shields.io/badge/tests-501_node%3Atest-1baf7a)](tests/)
+[![Tests](https://img.shields.io/badge/tests-511_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
 [![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
-[![Licence MIT](https://img.shields.io/badge/licence-MIT-1baf7a)](LICENSE)
+[![Licence: proprietary](https://img.shields.io/badge/licence-proprietary-b4432a)](LICENSE)
+[![Copyright Andrew Clark](https://img.shields.io/badge/©_2026-Andrew_Clark-111111)](LICENSE)
 [![Photographs public domain](https://img.shields.io/badge/photographs-US_public_domain-1baf7a)](public/wallpapers/CREDITS.md)
 
 A command center for one project or one person. Feed it the documents you already
@@ -1630,3 +1631,30 @@ To use the dashboard from the Claude app on your phone, deploy the
 `localStorage`, under `all-dash:v1`. Export and restore as JSON from Settings →
 *Your data*. Clearing site data clears the workspace, so export before you do
 anything drastic.
+
+## Licence
+
+**Proprietary. Copyright © 2026 Andrew Clark. All rights reserved.**
+Full terms in [LICENSE](LICENSE).
+
+The source is readable here. That is not a licence — no right to copy, modify,
+redistribute, resell or host it is granted by being able to see it. If you want
+to do any of those things, [open an issue](https://github.com/drewc611/The-All-Dash/issues)
+and ask.
+
+If you installed a copy from a channel published here — an app store listing, a
+signed installer, the container image — you may run it and back it up.
+
+Two things the licence deliberately does not touch, both in [NOTICE](NOTICE):
+
+- **Your data.** Every document, record and workspace you put into the app is
+  yours, stays on your device, and exports on demand. The licence claims
+  nothing over it.
+- **The bundled photographs.** US federal government works, public domain under
+  17 U.S.C. § 105. They were in the public domain before this app existed and
+  making the app proprietary does not change that. Take them.
+
+Dependencies keep their own licences. Flathub takes open-source submissions
+only, so it is not a distribution target; the Snap Store, Mac App Store,
+Microsoft Store, direct downloads and the container image all are. See
+[docs/PACKAGING.md](docs/PACKAGING.md#licence).

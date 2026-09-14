@@ -2,10 +2,13 @@
 name = "the-all-dash"
 version = "0.1.0"
 description = "A command center for a project or a person."
-authors = ["The All Dash"]
+authors = ["Andrew Clark"]
 edition = "2021"
-license = "MIT"
+license-file = "../LICENSE"
 rust-version = "1.77.2"
+# Nothing here is publishable: the crate is the desktop shell for a proprietary
+# app, and crates.io would reject `license-file` without a licence anyway.
+publish = false
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

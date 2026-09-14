@@ -18,7 +18,7 @@ description: |
 
 grade: stable
 confinement: strict
-license: MIT
+license: Proprietary
 
 platforms:
   amd64:
@@ -59,7 +59,7 @@ parts:
       cargo build --release --manifest-path src-tauri/Cargo.toml
       install -Dm755 src-tauri/target/release/the-all-dash \
         "$CRAFT_PART_INSTALL/usr/bin/the-all-dash"
-      install -Dm644 packaging/flatpak/com.thealldash.app.desktop \
+      install -Dm644 packaging/linux/com.thealldash.app.desktop \
         "$CRAFT_PART_INSTALL/usr/share/applications/the-all-dash.desktop"
       install -Dm644 src-tauri/icons/128x128.png \
         "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/the-all-dash.png"
