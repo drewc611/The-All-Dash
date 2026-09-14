@@ -23,3 +23,8 @@ frontend
 k8s
 tests
 *.md
+# ...except the wallpaper credits, which are served by the app rather than
+# being repository documentation. `*.md` had quietly dropped them, so the
+# container answered 404 for /wallpapers/CREDITS.md while happily serving the
+# seven photographs it names.
+!public/wallpapers/CREDITS.md
