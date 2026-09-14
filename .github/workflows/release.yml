@@ -1,0 +1,130 @@
+name: Release
+
+# Tag-driven. `npm run release -- <version>` writes package.json, commits and
+# tags; pushing the tag starts this. The channel is derived from the tag here
+# exactly as the app derives it from its stamped version, so a build cannot
+# advertise one channel and gate its flags on another.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      channel: ${{ steps.tag.outputs.channel }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Read the channel off the tag
+        id: tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          channel=$(node -e "import('./scripts/version.mjs').then(m => console.log(m.channelFor(process.argv[1])))" "$version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          [ "$channel" = "stable" ] && echo "prerelease=false" >> "$GITHUB_OUTPUT" || echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::$version on the $channel channel"
+
+      - name: The tag must match what the tree says its version is
+        run: |
+          in_tree=$(node -p "require('./package.json').version")
+          if [ "$in_tree" != "${{ steps.tag.outputs.version }}" ]; then
+            echo "::error::tag says ${{ steps.tag.outputs.version }}, package.json says $in_tree"
+            exit 1
+          fi
+
+      - name: The changelog must describe this version
+        run: |
+          grep -q "## \[${{ steps.tag.outputs.version }}\]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no section for ${{ steps.tag.outputs.version }}"
+            exit 1
+          }
+
+      - run: npm ci
+      - run: npm test
+      - run: TZ=America/Los_Angeles npm test
+      - run: TZ=Pacific/Auckland npm test
+
+  # A stable release additionally requires the whole platform green. A
+  # prerelease does not: the point of alpha is to get something in front of
+  # people while parts of it are still moving.
+  platform:
+    if: ${{ needs.verify.outputs.channel == 'stable' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Backend tests and lint
+        working-directory: backend
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check app tests scripts alembic
+          pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: MCP server tests
+        working-directory: mcp
+        run: |
+          npm ci
+          npm test
+
+  publish:
+    needs: [verify, platform]
+    # `platform` is skipped for a prerelease; without always() a skipped
+    # dependency would skip this job too and nothing would ever be published.
+    if: ${{ always() && needs.verify.result == 'success' && needs.platform.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Pack the build
+        run: tar -czf "the-all-dash-${{ needs.verify.outputs.version }}.tar.gz" -C dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: the-all-dash-${{ needs.verify.outputs.version }}
+          path: the-all-dash-${{ needs.verify.outputs.version }}.tar.gz
+          retention-days: 90
+
+      - name: Cut the release notes from the changelog
+        run: |
+          # The section for this version, up to the next heading. The notes
+          # were written before the tag existed, which is the point.
+          awk -v v="## [${{ needs.verify.outputs.version }}]" '
+            index($0, v) == 1 { on = 1; next }
+            on && /^## \[/    { exit }
+            on                { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo ""
+            echo "---"
+            echo "Channel: \`${{ needs.verify.outputs.channel }}\`. What that promises: [docs/RELEASING.md](docs/RELEASING.md)."
+          } >> notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          prerelease: ${{ needs.verify.outputs.prerelease }}
+          files: the-all-dash-${{ needs.verify.outputs.version }}.tar.gz
