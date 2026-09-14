@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata. Flathub, GNOME Software, KDE Discover and Snap all read
+  this; it is what people see before they install, so it is written for them
+  rather than for a linter.
+
+  The <releases> block has to carry the version being submitted or the build
+  fails validation, so the release workflow rewrites it rather than trusting
+  anyone to remember.
+-->
+<component type="desktop-application">
+  <id>com.thealldash.app</id>
+  <name>The All Dash</name>
+  <summary>A command center for a project or a person</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <!-- Set this to the repository's actual licence before submitting. Flathub
+       will not accept a submission whose project_license does not match the
+       LICENSE file in the source. -->
+  <project_license>PLACEHOLDER_LICENSE</project_license>
+
+  <description>
+    <p>
+      Drop in documents, calendars and spreadsheets and get one live dashboard
+      out of them: what is late, what is blocked, what moved, and what is
+      coming.
+    </p>
+    <p>Everything is kept on this device. In detail:</p>
+    <ul>
+      <li>Boards with twenty-two column kinds, formulas and rules, over the same records as every other view.</li>
+      <li>A read-later stash that keeps the article text rather than a link, searchable by every word and readable offline.</li>
+      <li>A media studio: camera, compression, and a player that keeps going when you change view.</li>
+      <li>Five agents over a memory under selection pressure, every claim carrying the record that supports it.</li>
+      <li>A focus timer that records its minutes against the task you ran it on.</li>
+    </ul>
+    <p>
+      The app opens no network connection until you configure something that
+      needs one: fetching a page into the stash, a model provider, or the
+      YouTube embed. With none of those set up it never talks to anything.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.thealldash.app.desktop</launchable>
+  <url type="homepage">https://github.com/drewc611/The-All-Dash</url>
+  <url type="bugtracker">https://github.com/drewc611/The-All-Dash/issues</url>
+
+  <content_rating type="oars-1.1" />
+
+  <categories>
+    <category>Office</category>
+    <category>ProjectManagement</category>
+  </categories>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+
+  <requires>
+    <!-- The layout goes to one column below this; it is usable, not cramped. -->
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Today, with what is late and what is coming</caption>
+      <image>https://raw.githubusercontent.com/drewc611/The-All-Dash/main/docs/screenshots/today.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Focus: a timer that records its minutes against a task</caption>
+      <image>https://raw.githubusercontent.com/drewc611/The-All-Dash/main/docs/screenshots/focus-11-glass-running.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Boards, in the sense a tool like Monday.com means it</caption>
+      <image>https://raw.githubusercontent.com/drewc611/The-All-Dash/main/docs/screenshots/boards-table.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The stash keeps the article, not the link</caption>
+      <image>https://raw.githubusercontent.com/drewc611/The-All-Dash/main/docs/screenshots/stash-reader.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="PLACEHOLDER_VERSION" date="PLACEHOLDER_DATE">
+      <url type="details">https://github.com/drewc611/The-All-Dash/releases</url>
+    </release>
+  </releases>
+</component>

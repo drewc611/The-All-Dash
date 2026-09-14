@@ -11,6 +11,12 @@
 [![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
 [![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
+[![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
+[![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
+[![Tests](https://img.shields.io/badge/tests-485_node%3Atest-1baf7a)](tests/)
+[![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
+[![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
+[![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
 
 A command center for one project or one person. Feed it the documents you already
 have (meeting notes, a calendar export, a transcript, a spreadsheet) and it
@@ -24,6 +30,77 @@ an app and works offline. A separate, optional
 [platform tier](#platform-tier-api-workspace-and-eks) adds a FastAPI service, a
 Celery worker, a hash-chained AI audit ledger, a Next.js workspace, an MCP
 server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
+
+## Get it
+
+| How | What you get |
+|---|---|
+| **Desktop** | `.dmg` for macOS, `.msi` for Windows, AppImage/`.deb`/`.rpm` for Linux, on the [releases page](https://github.com/drewc611/The-All-Dash/releases) |
+| **Phone** | Install the web app from the browser — see [Get it on your phone](#get-it-on-your-phone) |
+| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:latest` |
+| **Self-host** | Download the web tarball from a release and serve the directory |
+| **Source** | `npm ci && npm run dev` |
+
+The desktop build is [Tauri](https://tauri.app), so it uses the webview your
+operating system already has. The Linux `.deb` is **2.1MB** — an Electron
+equivalent would be around 150MB to deliver the same 487KB of app. Full detail,
+including what signing and each store submission needs from you, is in
+[docs/PACKAGING.md](docs/PACKAGING.md).
+
+## Release channels
+
+A build is `alpha`, `beta`, `rc` or `stable`, read off its own version and
+nowhere else. What gates an unfinished feature is not which release it lands in
+but its **maturity**: code ships to every channel, and a flag is on by default
+only when its maturity is at least as strict as the channel demands.
+
+So an alpha-quality feature is on for alpha builds and off for everyone else,
+and cutting a beta does not widen its audience. A feature widens by being
+*promoted*, which is a one-line change and reversible without shipping
+anything.
+
+Settings → Build shows which channel you are on and lets you override any flag
+by hand, in either direction — including turning a finished feature off because
+it is in your way.
+
+Entry and exit criteria per phase: [docs/RELEASING.md](docs/RELEASING.md).
+
+## Focus
+
+A Pomodoro timer that records its minutes against the task you ran it on, so
+the hours land on the record rather than in a separate log nothing else can
+see. Behind photographs that rotate through the day, under glass.
+
+![Focus](docs/screenshots/focus-11-glass-running.png)
+
+The timer stores **when it started**, not what is left. Every countdown that
+counts ticks is wrong in a background tab — browsers throttle a hidden tab to
+roughly one timer a minute, so a 25-minute pomodoro quietly finishes past the
+hour. Wall-clock arithmetic cannot drift: a tab asleep for ninety minutes wakes
+up already knowing it finished, and a reload restores the session to the same
+second.
+
+Paused time is not time worked. Half an hour away from the desk inside a
+session records ten minutes, not forty. Breaks are never recorded at all.
+
+Wallpapers follow the light rather than a timer — the day is cut into seven
+bands on local hours and the photograph changes when the band does, because a
+rotation on an interval shows you midnight at eleven in the morning. Your own
+photographs from Studio file themselves by the hour they were taken; nobody is
+going to tag a camera roll by time of day, and the photograph already knows.
+
+Glass is three layers, and the middle one does the work: a scrim between the
+photograph and the glass is what guarantees the text stays readable, because
+translucency over a photograph is not a surface colour — it is whatever the
+photograph happens to be. Contrast is measured off the composited pixels rather
+than assumed: 15.9:1 at worst, against 4.5 for AA body text.
+`prefers-reduced-transparency` and an explicit setting both give opaque
+surfaces and no blur, not a weaker blur.
+
+**In this build:** Focus is alpha-maturity, so it is in the rail on alpha
+builds and behind an override elsewhere. There is no bundled photograph set
+yet — wallpapers come from your own Studio media, and an empty Studio means a
+plain background. Glass stops at this view; carrying it app-wide is beta work.
 
 ## What it does
 

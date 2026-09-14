@@ -1,15 +1,17 @@
 name: Release
 
-# Tag-driven. `npm run release -- <version>` writes package.json, commits and
-# tags; pushing the tag starts this. The channel is derived from the tag here
-# exactly as the app derives it from its stamped version, so a build cannot
-# advertise one channel and gate its flags on another.
+# Tag-driven. `npm run release -- <version>` writes package.json and
+# tauri.conf.json, commits and tags; pushing the tag starts this. The channel
+# is derived from the tag here exactly as the app derives it from its stamped
+# version, so a build cannot advertise one channel and gate its flags on
+# another.
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   verify:
@@ -32,7 +34,11 @@ jobs:
           channel=$(node -e "import('./scripts/version.mjs').then(m => console.log(m.channelFor(process.argv[1])))" "$version")
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          [ "$channel" = "stable" ] && echo "prerelease=false" >> "$GITHUB_OUTPUT" || echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          if [ "$channel" = "stable" ]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
           echo "::notice::$version on the $channel channel"
 
       - name: The tag must match what the tree says its version is
@@ -56,7 +62,7 @@ jobs:
       - run: TZ=Pacific/Auckland npm test
 
   # A stable release additionally requires the whole platform green. A
-  # prerelease does not: the point of alpha is to get something in front of
+  # prerelease does not: the point of alpha is getting something in front of
   # people while parts of it are still moving.
   platform:
     if: ${{ needs.verify.outputs.channel == 'stable' }}
@@ -84,29 +90,146 @@ jobs:
           npm ci
           npm test
 
-  publish:
-    needs: [verify, platform]
-    # `platform` is skipped for a prerelease; without always() a skipped
-    # dependency would skip this job too and nothing would ever be published.
-    if: ${{ always() && needs.verify.result == 'success' && needs.platform.result != 'failure' }}
+  # ------------------------------------------------------------- the web build
+  web:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
-
       - name: Pack the build
-        run: tar -czf "the-all-dash-${{ needs.verify.outputs.version }}.tar.gz" -C dist .
+        run: tar -czf "the-all-dash-web-${{ needs.verify.outputs.version }}.tar.gz" -C dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: the-all-dash-web-*.tar.gz
+          retention-days: 90
+
+  # -------------------------------------------------------------- the container
+  container:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # The channel is a tag too, so `:alpha` always points at the newest
+          # alpha without anybody having to look up its number. `:latest` moves
+          # only for a stable release - a prerelease taking latest is how
+          # people end up running an alpha by accident.
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/all-dash:${{ needs.verify.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/all-dash:${{ needs.verify.outputs.channel }}
+            ${{ needs.verify.outputs.channel == 'stable' && format('ghcr.io/{0}/all-dash:latest', github.repository_owner) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------- the desktop
+  desktop:
+    needs: verify
+    strategy:
+      # One platform failing should not deny the others their artifacts - a
+      # missing Windows certificate must not also cost the Linux build.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            label: mac-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            label: mac-x64
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+
+      # Ubuntu 22.04 rather than 24.04 on purpose: an AppImage built against a
+      # newer glibc will not start on an older distribution, and the oldest
+      # runner available sets the floor for who can run this.
+      - name: Linux webview and packaging tools
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf \
+            libayatana-appindicator3-dev
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          # Signing. Every one of these is absent until the owner adds it as a
+          # repository secret; without them the build still produces installers,
+          # they are just unsigned and the OS will warn about them. See
+          # docs/PACKAGING.md for what each one is and how to get it.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: the-all-dash-${{ needs.verify.outputs.version }}
-          path: the-all-dash-${{ needs.verify.outputs.version }}.tar.gz
+          name: desktop-${{ matrix.label }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app.tar.gz
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.rpm
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
+          if-no-files-found: warn
           retention-days: 90
+
+  # ----------------------------------------------------------------- the release
+  publish:
+    needs: [verify, platform, web, container, desktop]
+    # `platform` is skipped for a prerelease, and a desktop target may fail
+    # without a certificate. Without always() a skipped dependency skips this
+    # job too and nothing is ever published.
+    if: ${{ always() && needs.verify.result == 'success' && needs.web.result == 'success' && needs.platform.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Cut the release notes from the changelog
         run: |
@@ -119,12 +242,35 @@ jobs:
           ' CHANGELOG.md > notes.md
           {
             echo ""
+            echo "### Downloads"
+            echo ""
+            echo "| Platform | File |"
+            echo "|---|---|"
+            for f in artifacts/*; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f")
+              case "$name" in
+                *.dmg)      echo "| macOS | \`$name\` |" ;;
+                *.msi|*.exe) echo "| Windows | \`$name\` |" ;;
+                *.AppImage) echo "| Linux (portable) | \`$name\` |" ;;
+                *.deb)      echo "| Debian, Ubuntu | \`$name\` |" ;;
+                *.rpm)      echo "| Fedora, RHEL | \`$name\` |" ;;
+                *.tar.gz)   echo "| Web (self-host) | \`$name\` |" ;;
+              esac
+            done
+            echo ""
+            echo "Container: \`ghcr.io/${{ github.repository_owner }}/all-dash:${{ needs.verify.outputs.version }}\`"
+            echo ""
             echo "---"
             echo "Channel: \`${{ needs.verify.outputs.channel }}\`. What that promises: [docs/RELEASING.md](docs/RELEASING.md)."
           } >> notes.md
+          if [ "${{ needs.verify.outputs.channel }}" != "stable" ]; then
+            echo "::warning::desktop installers may be unsigned; the OS will warn on first open"
+          fi
 
       - uses: softprops/action-gh-release@v2
         with:
           body_path: notes.md
           prerelease: ${{ needs.verify.outputs.prerelease }}
-          files: the-all-dash-${{ needs.verify.outputs.version }}.tar.gz
+          files: artifacts/*
+          fail_on_unmatched_files: false

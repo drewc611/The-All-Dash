@@ -1,12 +1,12 @@
-# Context for `docker build -f mcp/Dockerfile .` (the MCP image needs the
-# browser app's engines from src/). Everything else stays out of the context.
-.git
 node_modules
 dist
-docs
+src-tauri/target
+.git
+.github
+docs/screenshots
 backend
 frontend
-public
+mcp
+k8s
 tests
 *.md
-!package.json

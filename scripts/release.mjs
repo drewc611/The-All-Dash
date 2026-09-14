@@ -77,7 +77,20 @@ if (dryRun) {
 pkg.version = next
 writeFileSync(PKG, `${JSON.stringify(pkg, null, 2)}\n`)
 
-git('add', 'package.json')
+/*
+ * The desktop version, without the prerelease tag.
+ *
+ * Windows installers - both MSI and MSIX - take major.minor.patch and nothing
+ * else. Leaving `0.2.0-alpha.1` in tauri.conf.json fails the Windows job after
+ * every other target in the matrix has already built, which is the most
+ * expensive place to discover it. So the tag is stripped here, and a test
+ * asserts the two files still agree.
+ */
+const tauriConf = JSON.parse(readFileSync(TAURI, 'utf8'))
+tauriConf.version = next.split('-')[0]
+writeFileSync(TAURI, `${JSON.stringify(tauriConf, null, 2)}\n`)
+
+git('add', 'package.json', 'src-tauri/tauri.conf.json')
 git('commit', '-m', `Release ${next}`)
 git('tag', '-a', tag, '-m', `${next} (${channel})`)
 

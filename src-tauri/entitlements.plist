@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Mac App Store sandbox.
+
+    The list is short because the app genuinely does little: it renders its own
+    bundled assets and writes to its own container. Every entitlement below is
+    here because a feature needs it, and App Review asks why for each one.
+  -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+
+  <!-- Import a file the person chooses, and export the workspace back out.
+       Read-write rather than read-only because "Export workspace" saves. -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+
+  <!-- Studio records from the camera and microphone. Both are opt-in in the
+       app and prompt on first use. -->
+  <key>com.apple.security.device.camera</key>
+  <true/>
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+
+  <!--
+    Outgoing network only, and only when the person has configured something
+    that needs it: a platform URL, a model provider, or the YouTube embed.
+    There is no server in this app, so no incoming entitlement.
+  -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+</dict>
+</plist>
