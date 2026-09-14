@@ -1,12 +1,25 @@
+# The app image's build context.
+#
+# A root .dockerignore also applies to any other image built from this
+# directory unless that image has its own <dockerfile>.dockerignore. The MCP
+# image is built from here too (`docker build -f mcp/Dockerfile .`) and now has
+# one, but `mcp` is deliberately NOT excluded here as well: the per-Dockerfile
+# file is a BuildKit feature, and if a build ever runs without BuildKit the
+# fallback is this file. Excluding mcp/ here would then empty the MCP image's
+# context again, and the failure reads "/mcp/src: not found" in a job that
+# looks unrelated - which is exactly how it went the first time.
+#
+# The cost is a few hundred kilobytes of extra context for the app image, which
+# copies its sources explicitly and ignores the rest.
 node_modules
 dist
-src-tauri/target
+src-tauri
 .git
 .github
-docs/screenshots
+docs
+packaging
 backend
 frontend
-mcp
 k8s
 tests
 *.md
