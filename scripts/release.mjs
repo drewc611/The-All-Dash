@@ -24,6 +24,7 @@ import { canFollow, channelFor, suggestions } from './version.mjs'
 const ROOT = new URL('../', import.meta.url)
 const PKG = new URL('package.json', ROOT)
 const CHANGELOG = new URL('CHANGELOG.md', ROOT)
+const TAURI = new URL('src-tauri/tauri.conf.json', ROOT)
 
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim()
 
@@ -74,20 +75,26 @@ if (dryRun) {
   process.exit(0)
 }
 
-pkg.version = next
-writeFileSync(PKG, `${JSON.stringify(pkg, null, 2)}\n`)
-
 /*
- * The desktop version, without the prerelease tag.
+ * Both files are prepared before either is written.
  *
- * Windows installers - both MSI and MSIX - take major.minor.patch and nothing
- * else. Leaving `0.2.0-alpha.1` in tauri.conf.json fails the Windows job after
- * every other target in the matrix has already built, which is the most
- * expensive place to discover it. So the tag is stripped here, and a test
- * asserts the two files still agree.
+ * Found by running this: an earlier version wrote package.json, then threw
+ * while reading tauri.conf.json, and left the tree bumped but untagged - so
+ * the next attempt refused on the grounds that the version was already
+ * current. A release script that can half-release is worse than one that
+ * refuses, because the failure looks like success until you look.
+ *
+ * The desktop version drops the prerelease tag. Windows installers - MSI and
+ * MSIX alike - take major.minor.patch and nothing else, so leaving
+ * `0.2.0-alpha.1` in that field fails the Windows job after every other target
+ * in the matrix has already built, which is the most expensive place to find
+ * it. A test asserts the two files still agree.
  */
 const tauriConf = JSON.parse(readFileSync(TAURI, 'utf8'))
+pkg.version = next
 tauriConf.version = next.split('-')[0]
+
+writeFileSync(PKG, `${JSON.stringify(pkg, null, 2)}\n`)
 writeFileSync(TAURI, `${JSON.stringify(tauriConf, null, 2)}\n`)
 
 git('add', 'package.json', 'src-tauri/tauri.conf.json')
