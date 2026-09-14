@@ -66,6 +66,7 @@
       "nsis": {
         "installMode": "perMachine"
       }
-    }
+    },
+    "licenseFile": "../LICENSE"
   }
 }

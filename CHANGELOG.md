@@ -13,6 +13,18 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ## [Unreleased]
 
+### Added
+
+- **A licence: MIT**, in `LICENSE`, with `NOTICE` covering what it does not.
+  Chosen against the store targets rather than by preference — the GPL family
+  conflicts with Apple's App Store terms, so copyleft would have broken the Mac
+  App Store submission this repo is set up for. The five manifests that declare
+  a licence are now checked against `LICENSE` by a test, because Flathub
+  refuses a submission whose `project_license` disagrees with the source.
+- **`NOTICE`** states that the bundled photographs are US federal government
+  works in the public domain and are *not* MIT-licensed — they are not this
+  project's to relicense.
+
 ### Changed
 
 - CI now builds the browser app's container image on every pull request and

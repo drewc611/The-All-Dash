@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A command center for a project or a person."
 authors = ["The All Dash"]
 edition = "2021"
+license = "MIT"
 rust-version = "1.77.2"
 
 [build-dependencies]

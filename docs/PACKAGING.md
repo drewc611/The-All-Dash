@@ -53,6 +53,24 @@ one: Windows installers take `major.minor.patch` and nothing else, so
 `0.2.0-alpha.1` in that field fails the Windows job after every other target
 has already built. A test asserts the two files still agree.
 
+## Licence
+
+**MIT**, in `LICENSE`. Chosen for a reason you can check rather than a
+preference: you asked for Mac App Store and Microsoft Store submissions, and
+the GPL family conflicts with Apple's App Store terms — Apple imposes
+per-device usage restrictions that the GPL forbids a distributor from adding,
+which is why GPL'd apps have been pulled from that store before. A permissive
+licence removes that conflict entirely.
+
+If you would rather have copyleft, the trade is real and worth making
+deliberately: swap `LICENSE`, `package.json`, `src-tauri/Cargo.toml`, the
+Flatpak metainfo and `snapcraft.yaml`, and drop the Mac App Store target.
+Direct `.dmg` downloads are unaffected.
+
+`NOTICE` covers what MIT does not: the bundled photographs are US federal
+government works in the public domain, not MIT-licensed, and are listed
+individually with their sources.
+
 ## Signing
 
 Unsigned installers work. They also make the operating system tell the person
@@ -107,14 +125,12 @@ python3 flatpak-cargo-generator.py src-tauri/Cargo.lock -o cargo-sources.json
 flatpak-node-generator npm package-lock.json -o node-sources.json
 ```
 
-Then open a PR against `flathub/flathub` with the manifest. Before you do:
+Then open a PR against `flathub/flathub` with the manifest. Before you do,
+replace `PLACEHOLDER_TAG` and `PLACEHOLDER_COMMIT` with the release you are
+submitting. A branch is refused; it is not reproducible.
 
-1. Put a real `LICENSE` in the repository. **There is not one yet.** Flathub
-   checks that `project_license` in the metainfo matches it, and I have not
-   chosen a licence for you — that is yours to decide.
-2. Replace `PLACEHOLDER_TAG` and `PLACEHOLDER_COMMIT` with the release you are
-   submitting. A branch is refused; it is not reproducible.
-3. Replace `PLACEHOLDER_LICENSE` in the metainfo.
+The licence is settled: **MIT**, in `LICENSE`, and `project_license` in the
+metainfo matches it — Flathub checks that the two agree.
 
 ### Snap Store — free
 

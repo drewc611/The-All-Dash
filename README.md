@@ -13,10 +13,12 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
 [![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
-[![Tests](https://img.shields.io/badge/tests-495_node%3Atest-1baf7a)](tests/)
+[![Tests](https://img.shields.io/badge/tests-501_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
 [![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
+[![Licence MIT](https://img.shields.io/badge/licence-MIT-1baf7a)](LICENSE)
+[![Photographs public domain](https://img.shields.io/badge/photographs-US_public_domain-1baf7a)](public/wallpapers/CREDITS.md)
 
 A command center for one project or one person. Feed it the documents you already
 have (meeting notes, a calendar export, a transcript, a spreadsheet) and it

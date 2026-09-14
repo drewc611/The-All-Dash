@@ -14,10 +14,7 @@
   <summary>A command center for a project or a person</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
-  <!-- Set this to the repository's actual licence before submitting. Flathub
-       will not accept a submission whose project_license does not match the
-       LICENSE file in the source. -->
-  <project_license>PLACEHOLDER_LICENSE</project_license>
+  <project_license>MIT</project_license>
 
   <description>
     <p>
