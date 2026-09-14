@@ -91,10 +91,39 @@ and is the honest move.
 
 ## Cutting a release
 
+Two ways, and they do the same thing.
+
+### From a checkout
+
 ```sh
-npm run release -- 0.2.0-alpha.1     # writes package.json, commits, tags
+npm run release -- 0.2.0-alpha.1     # writes package.json + tauri.conf.json, commits, tags
 git push --follow-tags
 ```
+
+### From the Actions tab
+
+Push the version commit, then **Actions → Release → Run workflow**, pick the
+branch, and leave the version blank to use whatever `package.json` says. The
+workflow creates the tag itself.
+
+This exists because creating a tag is not always available to whoever is
+cutting the release. A restricted token gets `HTTP 403` on a tag ref while
+pushing branches perfectly well — which is exactly what happened here, and the
+release then waits on somebody with a laptop. `GITHUB_TOKEN` inside Actions has
+`contents: write` and can create the tag, so it does.
+
+Two details worth knowing:
+
+- **The tag is created last**, after the suite passes in all three timezones. A
+  tag pointing at a commit whose tests failed is worse than no tag: it is a
+  version number somebody will later assume was released.
+- **An existing tag is left alone**, never moved. Same rule as the script.
+- **`dry_run`** builds everything and publishes nothing — no tag, no container
+  push, no release. Use it to prove a release works before making one.
+
+`workflow_dispatch` only appears once `release.yml` is on the **default
+branch**; GitHub does not offer the button for a workflow that exists only on a
+feature branch.
 
 `scripts/release.mjs` refuses a version that is not a legal step from the
 current one, so `0.2.0-beta.1` cannot be cut while the tree still says

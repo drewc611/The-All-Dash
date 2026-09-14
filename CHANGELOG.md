@@ -15,6 +15,14 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ### Added
 
+- **A release can be cut from the Actions tab**, not only by pushing a tag.
+  Creating a tag is not always available to whoever is releasing — a restricted
+  token gets `HTTP 403` on a tag ref while pushing branches fine — and
+  `GITHUB_TOKEN` inside Actions can create one, so the workflow does it rather
+  than the release waiting on a laptop. The tag is created **after** the suite
+  passes, an existing tag is never moved, and `dry_run` builds everything while
+  publishing nothing.
+
 - **A licence: MIT**, in `LICENSE`, with `NOTICE` covering what it does not.
   Chosen against the store targets rather than by preference — the GPL family
   conflicts with Apple's App Store terms, so copyleft would have broken the Mac
