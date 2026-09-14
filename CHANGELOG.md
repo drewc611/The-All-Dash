@@ -13,6 +13,18 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] — 2026-09-14
+
+### Fixed
+
+- **The container served the seven photographs and 404'd their credits.**
+  `*.md` in the app image's ignore file is right for repository documentation
+  and wrong for `public/wallpapers/CREDITS.md`, which the app serves as a file
+  and links to. Tests now assert the credits survive the image build, and that
+  every band they name has both its AVIF and its WebP present — a credits file
+  listing photographs the image does not ship would be the same defect pointing
+  the other way.
+
 ## [0.2.0-beta.1] — 2026-09-14
 
 Focus is feature complete, so its flags are promoted to beta maturity and beta
@@ -120,6 +132,7 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-beta.1...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-beta.2...HEAD
+[0.2.0-beta.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.1
 [0.2.0-alpha.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-alpha.1
