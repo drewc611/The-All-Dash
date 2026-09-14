@@ -5,6 +5,8 @@ import { q } from './core/query.js'
 import { rangeFor, RANGE_PRESETS } from './core/time.js'
 import { buildReminders, runNotifications } from './engine/reminders.js'
 import { seedWorkspace } from './data/seed.js'
+import { isOn } from './core/flags.js'
+import { CHANNEL } from './core/build.js'
 
 import { Board, BoardControls } from './ui/Board.jsx'
 import { CommandBar } from './ui/CommandBar.jsx'
@@ -19,7 +21,7 @@ import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
   IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
-  IconDoc, IconLink, IconPlay, IconVideo, IconInbox,
+  IconDoc, IconLink, IconPlay, IconVideo, IconInbox, IconClock,
 } from './ui/icons.jsx'
 
 import './ui/widgets/index.js'
@@ -44,6 +46,7 @@ const load = {
   library: () => import('./ui/views/Library.jsx'),
   work: () => import('./ui/views/Work.jsx'),
   studio: () => import('./ui/views/Studio.jsx'),
+  focus: () => import('./ui/views/Focus.jsx'),
   stash: () => import('./ui/stash/Stash.jsx'),
   brain: () => import('./ui/views/Brain.jsx'),
   agents: () => import('./ui/views/Agents.jsx'),
@@ -56,6 +59,7 @@ const Timeline = lazy(() => load.timeline().then((m) => ({ default: m.Timeline }
 const Library = lazy(() => load.library().then((m) => ({ default: m.Library })))
 const Work = lazy(() => load.work().then((m) => ({ default: m.Work })))
 const Studio = lazy(() => load.studio().then((m) => ({ default: m.Studio })))
+const Focus = lazy(() => load.focus().then((m) => ({ default: m.Focus })))
 const Stash = lazy(() => load.stash().then((m) => ({ default: m.Stash })))
 const Brain = lazy(() => load.brain().then((m) => ({ default: m.Brain })))
 const Agents = lazy(() => load.agents().then((m) => ({ default: m.Agents })))
@@ -75,18 +79,35 @@ const VIEWS = [
   { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
   { id: 'stash', label: 'Stash', Icon: IconInbox },
   { id: 'studio', label: 'Studio', Icon: IconVideo },
+  // Behind a flag, so it is in the rail on alpha builds and absent elsewhere
+  // until it is promoted. See core/flags.js.
+  { id: 'focus', label: 'Focus', Icon: IconClock, flag: 'focus' },
   { id: 'library', label: 'Library', Icon: IconLibrary },
   { id: 'brain', label: 'Brain', Icon: IconBrain },
   { id: 'agents', label: 'Agents', Icon: IconSpark },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ]
 
+/*
+ * Views this build actually offers.
+ *
+ * A flagged view is absent from the rail, and - just as important - absent
+ * from hash routing. Without the second half, a bookmark to #focus left over
+ * from an alpha build would land a stable user on a blank screen with a
+ * nav that does not admit the view exists.
+ */
+const visibleViews = () => {
+  const overrides = getState().settings?.flags
+  return VIEWS.filter((v) => !v.flag || isOn(v.flag, { channel: CHANNEL, overrides }))
+}
+
 const readHash = () => {
+  const views = visibleViews()
   const id = window.location.hash.replace('#', '')
-  if (VIEWS.some((v) => v.id === id)) return id
+  if (views.some((v) => v.id === id)) return id
   // No hash: the brain may have learned which view the person opens first.
   const start = getState().settings?.startView
-  return VIEWS.some((v) => v.id === start) ? start : 'today'
+  return views.some((v) => v.id === start) ? start : 'today'
 }
 
 export default function App() {
@@ -226,7 +247,11 @@ export default function App() {
   )
 
   const unreadWork = (state.work?.notifications || []).filter((n) => !n.read).length
-  const active = VIEWS.find((v) => v.id === view) || VIEWS[0]
+  const views = useMemo(
+    () => VIEWS.filter((v) => !v.flag || isOn(v.flag, { channel: CHANNEL, overrides: state.settings.flags })),
+    [state.settings.flags],
+  )
+  const active = views.find((v) => v.id === view) || views[0]
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
   const empty = allEntities.length === 0
 
@@ -247,7 +272,7 @@ export default function App() {
         </div>
 
         <div className="rail__group">
-          {VIEWS.map(({ id, label, Icon }) => (
+          {views.map(({ id, label, Icon }) => (
             <button
               key={id}
               className="rail__item"
@@ -315,7 +340,7 @@ export default function App() {
           <Suspense fallback={<Loading />}>
           {/* Boards and Settings work on an empty workspace; every other
               view needs something to read first. */}
-          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' && view !== 'agents' ? (
+          {empty && view !== 'settings' && view !== 'work' && view !== 'studio' && view !== 'stash' && view !== 'agents' && view !== 'focus' ? (
             <FirstRun onSeed={() => seedWorkspace()} onFiles={accept} onPaste={() => setPasting(true)} onUrl={() => setImportingUrl('')} />
           ) : active.board ? (
             <Board view={view} items={state.boards[view] || []} context={context} editing={editing} />
@@ -333,6 +358,8 @@ export default function App() {
             <Stash entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : view === 'brain' ? (
             <Brain state={state} onOpen={setInspecting} onToast={toast} />
+          ) : view === 'focus' ? (
+            <Focus entities={allEntities} onOpen={setInspecting} />
           ) : view === 'agents' ? (
             <Agents state={state} entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : (

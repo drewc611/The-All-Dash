@@ -11,6 +11,7 @@ import './styles/viz.css'
 import './styles/media.css'
 import './styles/stash.css'
 import './styles/agents.css'
+import './styles/focus.css'
 import './styles/router.css'
 
 createRoot(document.getElementById('root')).render(

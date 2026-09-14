@@ -1,0 +1,192 @@
+/*
+ * Focus.
+ *
+ * The one screen in this app that is not about density. Everything else here
+ * is a tool for scanning; this is a tool for not scanning, so it gets the
+ * opposite treatment - one thing large, in the middle, with air around it.
+ */
+
+/*
+ * Full bleed.
+ *
+ * The scroller pads every view and caps it at 1440px, which is right for a
+ * dashboard and wrong for a wallpaper: a photograph inset by 24px with a
+ * plane-coloured border around it reads as a framed panel on a wall, not as
+ * the wall. So this view cancels both, and puts the padding back on its own
+ * inside edge where it belongs.
+ */
+.focus {
+  position: relative;
+  max-width: none;
+  margin: calc(var(--gap-5) * -1);
+  margin-bottom: calc(var(--gap-8) * -1);
+  min-height: calc(100% + var(--gap-5) + var(--gap-8));
+  display: grid;
+  place-items: center;
+  padding: var(--gap-8) var(--gap-5);
+  isolation: isolate;
+}
+
+/* ------------------------------------------------------------- wallpaper */
+
+/*
+ * Two stacked layers so a change is a crossfade rather than a swap. The
+ * outgoing photograph stays mounted at opacity 0 until the transition ends;
+ * removing it on the same frame is what produces the flash of background
+ * every naive version of this has.
+ */
+.focus-paper {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background: var(--plane);
+}
+
+.focus-paper img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1200ms ease-in-out;
+  /* A photograph is decoration here; it must never be announced or focusable. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.focus-paper img[data-shown='true'] { opacity: 1; }
+
+/* The scrim. This is the layer that makes the text readable, not the blur. */
+.focus-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-scrim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-paper img { transition: none; }
+}
+
+/* ----------------------------------------------------------------- glass */
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/* ------------------------------------------------------------- the timer */
+
+.focus-card {
+  width: min(520px, 100%);
+  border-radius: var(--r-xl);
+  padding: var(--gap-8) var(--gap-7) var(--gap-7);
+  display: grid;
+  gap: var(--gap-6);
+  justify-items: center;
+  text-align: center;
+}
+
+.focus-phase {
+  font-size: var(--t-xs);
+  font-weight: var(--w-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.focus-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 260px;
+  height: 260px;
+}
+
+.focus-dial svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.focus-dial .track { stroke: var(--glass-line); }
+
+.focus-dial .sweep {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--base);
+}
+
+/* A paused dial should read as paused without needing the label. */
+.focus-dial[data-paused='true'] .sweep { stroke: var(--ink-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-dial .sweep { transition: none; }
+}
+
+.focus-time {
+  font-size: 54px;
+  font-weight: var(--w-medium);
+  line-height: 1;
+  /* Tabular figures, or the whole dial jitters once a second as digits
+     change width. The single most noticeable defect in a timer. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.focus-rounds {
+  display: flex;
+  gap: var(--gap-2);
+  align-items: center;
+}
+
+.focus-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--glass-line);
+}
+
+.focus-pip[data-done='true'] { background: var(--accent); }
+
+.focus-task {
+  font-size: var(--t-md);
+  color: var(--ink-2);
+  max-width: 40ch;
+}
+
+.focus-task strong {
+  color: var(--ink);
+  font-weight: var(--w-medium);
+}
+
+.focus-actions {
+  display: flex;
+  gap: var(--gap-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.focus-meta {
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+  display: flex;
+  gap: var(--gap-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------- the phone */
+
+@media (max-width: 560px) {
+  .focus { padding: var(--gap-5) var(--gap-4); }
+  .focus-card { padding: var(--gap-6) var(--gap-4) var(--gap-5); gap: var(--gap-5); }
+  .focus-dial { width: 210px; height: 210px; }
+  .focus-time { font-size: 42px; }
+}
