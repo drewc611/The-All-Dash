@@ -15,6 +15,7 @@ import { clock, isComplete, isPaused, progress, remaining } from '../../focus/ti
 import { abandon, begin, finish, hold, next as skip, unhold } from '../../focus/store.js'
 import { minutesOn } from '../../focus/schema.js'
 import { bandAt, fromMedia, msUntilNextBand, pick } from '../../focus/wallpaper.js'
+import { bundledPictures } from '../../focus/bundled.js'
 import { chime } from '../../focus/chime.js'
 import { useFlag } from '../../core/useFlag.js'
 import { Empty } from '../components.jsx'
@@ -95,14 +96,16 @@ export function Focus({ entities, onOpen }) {
 
   const pictures = useMemo(() => {
     if (!wallpaperOn) return []
-    // Your own photographs, filed by the hour they were taken. A curated set
-    // ships in beta; until then an empty Studio means a plain background,
-    // which is stated in the empty state rather than left as a mystery.
-    return fromMedia(
+    // Your own photographs, filed by the hour they were taken, ahead of the
+    // bundled set: somebody who has put their own pictures in Studio meant
+    // them to be seen. The bundled seven are the floor, so an empty Studio is
+    // still a photograph rather than a plain background.
+    const mine = fromMedia(
       entities
         .filter((e) => e.type === 'media' && e.meta?.kind === 'photo' && e.meta?.blobId)
         .map((e) => ({ id: e.id, kind: 'photo', capturedAt: e.at, title: e.title, blobId: e.meta.blobId })),
     )
+    return [...mine, ...bundledPictures()]
   }, [entities, wallpaperOn])
 
   const picture = useMemo(() => pick(pictures, { band }), [pictures, band])
@@ -183,9 +186,13 @@ export function Focus({ entities, onOpen }) {
               <>
                 <div className="focus-task">what are you working on?</div>
                 <div className="focus-actions">
+                  {/* The label truncates inside its own box. `.truncate` on the
+                      button itself clips at both ends instead of ellipsising,
+                      because a button centres its text and the overflow is
+                      split across both sides. */}
                   {open.slice(0, 4).map((e) => (
-                    <button key={e.id} type="button" className="btn btn--sm truncate" style={{ maxWidth: 220 }} title={e.title} onClick={() => begin(e.id)}>
-                      {e.title}
+                    <button key={e.id} type="button" className="btn btn--sm focus-pick" title={e.title} onClick={() => begin(e.id)}>
+                      <span className="truncate">{e.title}</span>
                     </button>
                   ))}
                 </div>
@@ -205,7 +212,6 @@ export function Focus({ entities, onOpen }) {
         <div className="focus-meta">
           <span>{todayMinutes} min today</span>
           {task ? <span>{minutesOn(focus, task.id)} min on this task</span> : null}
-          {wallpaperOn && !pictures.length ? <span>no photographs in Studio yet</span> : null}
         </div>
       </div>
     </div>

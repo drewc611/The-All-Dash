@@ -56,6 +56,10 @@ const initialState = () => ({
   settings: {
     theme: 'system',
     density: 'comfortable',
+    // 'auto' follows prefers-reduced-transparency; 'off' turns glass off
+    // regardless. There is no 'on': overriding somebody's accessibility
+    // setting to force translucency on them is not a preference worth having.
+    glass: 'auto',
     weekStartsOn: 1,
     notifications: false,
     reminderLeadMinutes: 15,

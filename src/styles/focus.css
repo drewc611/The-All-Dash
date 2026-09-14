@@ -58,6 +58,15 @@
 
 .focus-paper img[data-shown='true'] { opacity: 1; }
 
+/* The inlined blur sits under both slots and never fades - it is what is
+   already there when the view opens, not something arriving. */
+.focus-paper__blur {
+  z-index: -1;
+  transition: none !important;
+  filter: blur(24px);
+  transform: scale(1.1); /* blur samples past the edge; scale hides the halo */
+}
+
 /* The scrim. This is the layer that makes the text readable, not the blur. */
 .focus-paper::after {
   content: '';
@@ -77,7 +86,6 @@
   border: 1px solid var(--glass-line);
   box-shadow: var(--shadow-glass);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
 /* ------------------------------------------------------------- the timer */
@@ -171,6 +179,24 @@
   gap: var(--gap-3);
   flex-wrap: wrap;
   justify-content: center;
+}
+
+/*
+ * A task you can start the timer on.
+ *
+ * min-width:0 is the load-bearing line: a flex item defaults to min-width
+ * auto, which refuses to shrink below its content, so the label never gets
+ * the chance to ellipsise and the box overflows instead.
+ */
+.focus-pick {
+  max-width: 240px;
+  min-width: 0;
+}
+
+.focus-pick > .truncate {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .focus-meta {

@@ -143,6 +143,14 @@ export default function Wallpaper({ picture, fade = 1200 }) {
 
   return (
     <div className="focus-paper" aria-hidden="true">
+      {/*
+        A 24px blur of the same photograph, inlined in the bundle at about
+        300 bytes. It is up on the first frame, so the view opens on something
+        the shape and colour of what is arriving rather than on a flat plane
+        that gets replaced a moment later. Nothing to load, so nothing to wait
+        for; the real photograph fades over it.
+      */}
+      {picture?.placeholder ? <img className="focus-paper__blur" src={picture.placeholder} alt="" data-shown="true" /> : null}
       {fading ? <img key={fading.key} src={fading.url} alt="" data-shown="false" /> : null}
       {shown ? <img key={shown.key} src={shown.url} alt="" data-shown={lit ? 'true' : 'false'} /> : null}
     </div>

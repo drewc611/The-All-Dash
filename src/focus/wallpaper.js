@@ -86,8 +86,19 @@ export function pick(pictures, { now = new Date(), band = null } = {}) {
   const list = Array.isArray(pictures) ? pictures.filter(Boolean) : []
   if (!list.length) return null
   const id = band || bandAt(now).id
-  const matching = list.filter((p) => p.band === id)
-  const pool = matching.length ? matching : list
+
+  /*
+   * Three preferences, strongest first.
+   *
+   * Somebody's own photograph for this hour beats a bundled one, because
+   * putting a picture in Studio is a statement that they want to look at it.
+   * Failing that, the bundled photograph for the hour. Failing that - a band
+   * nothing covers at all - anything, since a photograph from the wrong time
+   * of day still beats an empty rectangle.
+   */
+  const inBand = list.filter((p) => p.band === id)
+  const own = inBand.filter((p) => p.own)
+  const pool = own.length ? own : (inBand.length ? inBand : list)
   // Day number since the epoch, in local terms, so the pick is stable for a
   // calendar day and moves on the next one.
   const day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000)

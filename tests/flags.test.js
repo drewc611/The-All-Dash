@@ -33,19 +33,31 @@ test('an unknown channel ranks as the strictest one', () => {
 
 /* ------------------------------------------------------ the maturity gate */
 
-test('an alpha feature reaches alpha builds and stops there', () => {
-  // The direction that matters. Alpha-quality code must not widen its
-  // audience simply because a beta was cut.
-  assert.equal(defaultFor('focus', 'alpha'), true)
-  assert.equal(defaultFor('focus', 'beta'), false)
-  assert.equal(defaultFor('focus', 'rc'), false)
-  assert.equal(defaultFor('focus', 'stable'), false)
+test('every flag is on exactly in the channels its maturity allows', () => {
+  // The direction that matters, and stated as the rule rather than about one
+  // flag: alpha-quality code must not widen its audience simply because a
+  // beta was cut. An earlier version of this test named `focus` and its
+  // assertions became false the day that flag was promoted, which tested the
+  // registry's current contents rather than the rule.
+  for (const [id, flag] of Object.entries(REGISTRY)) {
+    for (const channel of CHANNELS) {
+      const allowed = rankOf(flag.maturity) >= rankOf(channel)
+      assert.equal(
+        defaultFor(id, channel), allowed,
+        `${id} is ${flag.maturity}-maturity, so on a ${channel} build it should be ${allowed ? 'on' : 'off'}`,
+      )
+    }
+  }
 })
 
-test('a beta feature reaches alpha and beta', () => {
-  assert.equal(defaultFor('glass.app', 'alpha'), true)
-  assert.equal(defaultFor('glass.app', 'beta'), true)
-  assert.equal(defaultFor('glass.app', 'stable'), false)
+test('the rule itself: stricter maturity reaches fewer channels', () => {
+  // Proven against every maturity the registry can declare, whether or not a
+  // flag currently sits at each one.
+  const reach = (maturity) => CHANNELS.filter((c) => rankOf(maturity) >= rankOf(c))
+  assert.deepEqual(reach('alpha'), ['alpha'])
+  assert.deepEqual(reach('beta'), ['alpha', 'beta'])
+  assert.deepEqual(reach('rc'), ['alpha', 'beta', 'rc'])
+  assert.deepEqual(reach('stable'), CHANNELS)
 })
 
 test('promoting a flag only ever widens its audience', () => {
@@ -109,11 +121,12 @@ test('describe reports the default, the override and the result apart', () => {
   assert.equal(focus.default, false, 'stable would not turn this on by itself')
   assert.equal(focus.override, true)
   assert.equal(focus.on, true)
-  assert.equal(focus.maturity, 'alpha')
+  // Whatever the registry says today, not a value copied into the test.
+  assert.equal(focus.maturity, REGISTRY.focus.maturity)
 
-  const untouched = rows.find((r) => r.id === 'glass.app')
-  assert.equal(untouched.override, null, 'an untouched flag has no override, not a false one')
-  assert.equal(untouched.on, untouched.default)
+  const untouched = rows.find((r) => r.id !== 'focus' && r.override === null)
+  assert.ok(untouched, 'expected at least one flag nobody has overridden')
+  assert.equal(untouched.on, untouched.default, 'an untouched flag follows its channel')
 })
 
 test('describe covers the whole registry', () => {

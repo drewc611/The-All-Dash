@@ -12,6 +12,7 @@ import './styles/media.css'
 import './styles/stash.css'
 import './styles/agents.css'
 import './styles/focus.css'
+import './styles/glass-app.css'
 import './styles/router.css'
 
 createRoot(document.getElementById('root')).render(

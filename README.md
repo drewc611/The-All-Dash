@@ -13,7 +13,7 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
 [![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
-[![Tests](https://img.shields.io/badge/tests-485_node%3Atest-1baf7a)](tests/)
+[![Tests](https://img.shields.io/badge/tests-495_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
 [![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
@@ -97,10 +97,21 @@ than assumed: 15.9:1 at worst, against 4.5 for AA body text.
 `prefers-reduced-transparency` and an explicit setting both give opaque
 surfaces and no blur, not a weaker blur.
 
-**In this build:** Focus is alpha-maturity, so it is in the rail on alpha
-builds and behind an override elsewhere. There is no bundled photograph set
-yet — wallpapers come from your own Studio media, and an empty Studio means a
-plain background. Glass stops at this view; carrying it app-wide is beta work.
+Seven photographs ship with the app, one per band, every one a work of the US
+National Park Service or Fish and Wildlife Service and public domain by
+statute ([credits](public/wallpapers/CREDITS.md)). Your own photograph for an
+hour beats the bundled one for that hour; the bundled set is the floor. The
+AVIF set is 810KB in total and a browser fetches one of them.
+
+Glass carries past Focus into the rail, the topbar, cards and overlays when
+`glass.app` is on. Tables, charts, code and form controls keep solid backing —
+translucency is for chrome you look past, never for data you read. Settings →
+Appearance → Transparency turns it off, and
+`prefers-reduced-transparency` already does so without being asked.
+
+**In this build:** Focus is beta-maturity, so it is in the rail on alpha and
+beta builds and behind an override on rc and stable. Analytics does not chart
+the timer sessions yet.
 
 ## What it does
 

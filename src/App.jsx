@@ -13,6 +13,7 @@ import { CommandBar } from './ui/CommandBar.jsx'
 import { Inspector } from './ui/Inspector.jsx'
 import { DropHint, Toasts, PasteSheet, UrlSheet, FilePicker, useIntake } from './ui/Intake.jsx'
 import { MiniPlayer } from './ui/media/MiniPlayer.jsx'
+import { AppWallpaper } from './ui/AppWallpaper.jsx'
 import { runTimedAutomations } from './work/store.js'
 import { useBrainSync } from './ui/brainSync.js'
 import { buildTriage } from './engine/triage.js'
@@ -170,7 +171,18 @@ export default function App() {
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
     root.setAttribute('data-density', state.settings.density)
-  }, [state.settings.theme, state.settings.density])
+    /*
+     * Reduce transparency.
+     *
+     * `prefers-reduced-transparency` already collapses the glass tokens on
+     * its own (tokens.css), and this is the in-app switch beside it, for the
+     * person whose OS has no such setting or who simply finds glass harder to
+     * read. Only 'off' is stamped: the absence of the attribute is the normal
+     * state, so nothing has to be removed when the setting is cleared.
+     */
+    if (state.settings.glass === 'off') root.setAttribute('data-glass', 'off')
+    else root.removeAttribute('data-glass')
+  }, [state.settings.theme, state.settings.density, state.settings.glass])
 
   useEffect(() => {
     const onKey = (event) => {
@@ -265,6 +277,11 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Behind everything, and only when glass.app is on. It also sets the
+          data-glass-app attribute the stylesheet keys off, because the
+          wallpaper and the translucency have to arrive together. */}
+      <AppWallpaper entities={allEntities} />
+
       <nav className="rail" aria-label="Views">
         <div className="rail__brand">
           <span className="rail__mark">AD</span>

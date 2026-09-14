@@ -19,5 +19,23 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify(process.env.GITHUB_SHA?.slice(0, 7) || 'dev'),
   },
   server: { host: true, port: 5173 },
-  build: { target: 'es2022' },
+  build: {
+    target: 'es2022',
+    /*
+     * CSS gets browsers, not an ECMAScript year.
+     *
+     * cssTarget defaults to `target`, and esbuild cannot map "es2022" onto
+     * browser support, so it fell back to mangling anything it was unsure of.
+     * The result was that `backdrop-filter` survived only in its -webkit-
+     * form - which meant the glass had a tint and no blur in every browser,
+     * and looked plausible enough that it took reading the built stylesheet
+     * to notice.
+     *
+     * Safari 15.4 is the oldest here because it is the first with
+     * :has() and container-query-free modern CSS this app already relies on;
+     * it also still wants the -webkit- prefix, which esbuild now adds
+     * *alongside* the standard property rather than instead of it.
+     */
+    cssTarget: ['chrome100', 'firefox103', 'safari15.4', 'edge100'],
+  },
 })
