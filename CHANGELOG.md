@@ -13,6 +13,38 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0-rc.1] — 2026-09-14
+
+The beta's exit criteria are met: every gap it wrote down is closed, so this
+enters release candidate. **No new features from here** — only fixes for what
+the `rc` itself turns up. A feature added now restarts `beta`, per
+[docs/RELEASING.md](docs/RELEASING.md).
+
+### Changed
+
+- **Focus and glass are promoted to `stable` maturity, so they are on for
+  everybody.** This, not the release being cut, is the change that reaches
+  people — the code has shipped in every build since `alpha.1` and was simply
+  gated. Cutting an `rc` with the flags still at `beta` would have produced a
+  release candidate that did not contain the feature it is a candidate for.
+  The promotion is its own commit, reviewable on its own, as
+  [docs/RELEASING.md](docs/RELEASING.md) asks.
+
+### Flags in this build
+
+| Flag | Maturity | On in |
+|---|---|---|
+| `focus` | stable | every channel |
+| `focus.wallpaper` | stable | every channel |
+| `focus.glass` | stable | every channel |
+| `glass.app` | stable | every channel |
+
+Any of them can still be turned off by hand in Settings → Build. An override
+wins in both directions, including turning a finished feature off because it is
+in the way.
+
 ### Added
 
 - **A release can be cut from the Actions tab**, not only by pushing a tag.
@@ -244,7 +276,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-beta.2...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.1...HEAD
+[0.2.0-rc.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.1
 [0.2.0-beta.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.1
 [0.2.0-alpha.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-alpha.1

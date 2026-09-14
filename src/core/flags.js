@@ -47,22 +47,22 @@ const FALLBACK = 'stable'
  */
 export const REGISTRY = {
   focus: {
-    maturity: 'beta',
+    maturity: 'stable',
     title: 'Focus',
     summary: 'A Pomodoro timer that records its sessions against the task you ran it on.',
   },
   'focus.wallpaper': {
-    maturity: 'beta',
+    maturity: 'stable',
     title: 'Focus wallpapers',
     summary: 'Photographs behind the Focus view, rotating through the day with a crossfade.',
   },
   'focus.glass': {
-    maturity: 'beta',
+    maturity: 'stable',
     title: 'Glass in Focus',
     summary: 'Translucent surfaces over the wallpaper, inside the Focus view only.',
   },
   'glass.app': {
-    maturity: 'beta',
+    maturity: 'stable',
     title: 'Glass everywhere',
     summary: 'Carries the wallpaper and glass past Focus into the rest of the app. Dense tables keep solid backing regardless.',
   },

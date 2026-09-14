@@ -89,9 +89,19 @@ test('an override wins in both directions', () => {
 })
 
 test('no override means the channel decides', () => {
-  assert.equal(isOn('focus', { channel: 'alpha' }), true)
-  assert.equal(isOn('focus', { channel: 'stable' }), false)
-  assert.equal(isOn('focus', { channel: 'alpha', overrides: {} }), true)
+  // Asserted as the rule, for every flag, against whatever maturity the
+  // registry declares today. Writing `isOn('focus', 'stable') === false` here
+  // encodes the registry's contents instead, and becomes a lie the moment the
+  // flag is promoted - which it has been, twice, on this branch alone.
+  for (const [id, flag] of Object.entries(REGISTRY)) {
+    for (const channel of CHANNELS) {
+      const expected = rankOf(flag.maturity) >= rankOf(channel)
+      assert.equal(isOn(id, { channel }), expected, `${id} in ${channel}`)
+      assert.equal(isOn(id, { channel, overrides: {} }), expected, `${id} in ${channel}, empty overrides`)
+    }
+    // A flag is always on in its own maturity's channel, whatever that is.
+    assert.equal(isOn(id, { channel: flag.maturity }), true, `${id} off in its own channel`)
+  }
 })
 
 test('a non-boolean override is ignored rather than coerced', () => {
@@ -116,15 +126,24 @@ test('normalising survives rubbish', () => {
 /* ------------------------------------------------------------- describing */
 
 test('describe reports the default, the override and the result apart', () => {
-  const rows = describeFlags({ channel: 'stable', overrides: { focus: true } })
-  const focus = rows.find((r) => r.id === 'focus')
-  assert.equal(focus.default, false, 'stable would not turn this on by itself')
-  assert.equal(focus.override, true)
-  assert.equal(focus.on, true)
-  // Whatever the registry says today, not a value copied into the test.
-  assert.equal(focus.maturity, REGISTRY.focus.maturity)
+  // The override is derived as the opposite of whatever the default happens to
+  // be, so this keeps testing the three-way separation no matter which way the
+  // registry moves. Hardcoding `default: false` only worked while some flag
+  // was off in stable, which stopped being true the moment they were promoted.
+  const [id, flag] = Object.entries(REGISTRY)[0]
+  const channel = 'stable'
+  const byDefault = defaultFor(id, channel)
 
-  const untouched = rows.find((r) => r.id !== 'focus' && r.override === null)
+  const rows = describeFlags({ channel, overrides: { [id]: !byDefault } })
+  const row = rows.find((r) => r.id === id)
+  assert.equal(row.default, byDefault, 'the default is not what the channel says')
+  assert.equal(row.override, !byDefault, 'the override is not reported as given')
+  assert.equal(row.on, !byDefault, 'the override did not win')
+  assert.notEqual(row.on, row.default, 'default and result are the same, so nothing was separated')
+  // Whatever the registry says today, not a value copied into the test.
+  assert.equal(row.maturity, flag.maturity)
+
+  const untouched = rows.find((r) => r.id !== id && r.override === null)
   assert.ok(untouched, 'expected at least one flag nobody has overridden')
   assert.equal(untouched.on, untouched.default, 'an untouched flag follows its channel')
 })
