@@ -321,20 +321,40 @@ test('the Flathub manifest is gone rather than left to be submitted', () => {
 /* ------------------------------------------------------- the release paths */
 
 /*
- * Two ways to cut a release, and both have to keep working.
+ * Three ways to cut a release, and all three have to keep working.
  *
- * Pushing a tag is the normal one. The manual one exists because creating a
- * tag is not always available to whoever is cutting the release - a restricted
- * token gets HTTP 403 on a tag ref while pushing branches fine, which is
- * exactly what happened here. GITHUB_TOKEN inside Actions can create one, so
- * the workflow does it rather than the release waiting on a laptop.
+ * Pushing a tag is the normal one. The other two exist because creating a tag
+ * is not always available to whoever is cutting the release, and because the
+ * first replacement for it turned out not to be enough either: the same
+ * restricted token was refused a tag ref with HTTP 403 AND refused
+ * workflow_dispatch with "Resource not accessible by integration", while
+ * pushing an ordinary branch worked fine. GITHUB_TOKEN inside Actions can
+ * create the tag, so the workflow does it rather than the release waiting on
+ * somebody with the right laptop.
  */
 const RELEASE = read('.github/workflows/release.yml')
 
-test('a release can be started by a tag or by hand', () => {
+test('a release can be started three ways', () => {
   assert.match(RELEASE, /^on:/m)
   assert.match(RELEASE, /tags: \['v\*'\]/, 'the tag trigger is gone')
-  assert.match(RELEASE, /workflow_dispatch:/, 'the manual trigger is gone, so a restricted token has no way to release')
+  assert.match(RELEASE, /workflow_dispatch:/, 'the manual trigger is gone')
+  assert.match(RELEASE, /branches: \['release\/v\*'\]/, 'the release-branch trigger is gone, and it is the only one a token without actions:write can reach')
+})
+
+test('each way in derives the version from its own shape of ref', () => {
+  // A branch called release/v0.2.0 with "v" stripped is "release/v0.2.0",
+  // which fails the package.json comparison with a message about the wrong
+  // file. Each ref shape needs its own case.
+  assert.match(RELEASE, /push:tag\)\s+version="\$\{GITHUB_REF_NAME#v\}"/)
+  assert.match(RELEASE, /push:branch\)\s+version="\$\{GITHUB_REF_NAME#release\/v\}"/)
+})
+
+test('both tagless ways in can create the tag', () => {
+  // Gating the tag step on workflow_dispatch alone means a release branch runs
+  // the whole suite, builds every installer, and then publishes against a tag
+  // that does not exist.
+  const step = RELEASE.slice(RELEASE.indexOf('name: Create the tag'))
+  assert.match(step, /github\.event_name == 'workflow_dispatch' \|\| github\.ref_type == 'branch'/)
 })
 
 test('the manual path can actually create the tag it needs', () => {
@@ -356,7 +376,8 @@ test('a dry run publishes nothing', () => {
   const guard = /github\.event_name == 'push' \|\| !inputs\.dry_run/g
   const guarded = RELEASE.match(guard) || []
   assert.ok(guarded.length >= 2, `only ${guarded.length} publishing step(s) check dry_run; the container push and the release both must`)
-  assert.match(RELEASE, /if: \$\{\{ github\.event_name == 'workflow_dispatch' && !inputs\.dry_run \}\}/, 'a dry run would still create a tag')
+  const step = RELEASE.slice(RELEASE.indexOf('name: Create the tag'))
+  assert.match(step, /&& !inputs\.dry_run \}\}/, 'a dry run would still create a tag')
 })
 
 test('the tag is only created after the tests have passed', () => {

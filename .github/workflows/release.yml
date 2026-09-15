@@ -1,6 +1,6 @@
 name: Release
 
-# Two ways in, one behaviour.
+# Three ways in, one behaviour.
 #
 #   1. Push a tag. `npm run release -- <version>` writes package.json and
 #      tauri.conf.json, commits and tags; pushing the tag starts this.
@@ -8,10 +8,22 @@ name: Release
 #   2. Run it from the Actions tab. The version comes from package.json on the
 #      branch you pick, and this workflow creates the tag itself.
 #
-# The second exists because creating a tag is not always available to whoever
+#   3. Push a branch named `release/v<version>`. Same as 2, for anyone who
+#      cannot press the button either.
+#
+# Two and three exist because creating a tag is not always available to whoever
 # cut the release - a restricted token, a CI runner, a machine with no
 # checkout. GITHUB_TOKEN here has `contents: write` and can create one, so a
 # release does not have to wait on somebody's laptop.
+#
+# Three exists because two was not enough, which is the sort of thing you only
+# learn by trying to release from a restricted credential. The same token can
+# be refused a tag ref with HTTP 403 *and* refused workflow_dispatch with
+# "Resource not accessible by integration", while pushing an ordinary branch
+# works perfectly well. That is what happened cutting v0.2.0-rc.1: two doors
+# locked, one open. A release process with one way in is a release process that
+# stops the day that way is shut, and the fix is another door rather than a
+# person with the right laptop.
 #
 # A tag created with GITHUB_TOKEN deliberately does not start another workflow
 # run - GitHub's recursion guard - so there is no double release: the manual
@@ -23,6 +35,11 @@ name: Release
 on:
   push:
     tags: ['v*']
+    # `release/v1.2.3` releases 1.2.3. The branch is a trigger and nothing
+    # else - it carries no commits of its own - and `verify` still refuses when
+    # it disagrees with package.json, so a stale release branch cannot publish
+    # a version the tree does not claim.
+    branches: ['release/v*']
   workflow_dispatch:
     inputs:
       version:
@@ -57,12 +74,16 @@ jobs:
         id: tag
         run: |
           in_tree=$(node -p "require('./package.json').version")
-          if [ "${{ github.event_name }}" = "push" ]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="${{ inputs.version }}"
-            [ -n "$version" ] || version="$in_tree"
-          fi
+          # Three ways in, three shapes of ref. Stripping a leading "v" off a
+          # branch called release/v0.2.0 leaves "release/v0.2.0", which then
+          # fails the check below with a message about package.json: true,
+          # useless, and pointing at the wrong file.
+          case "${{ github.event_name }}:${{ github.ref_type }}" in
+            push:tag)    version="${GITHUB_REF_NAME#v}" ;;
+            push:branch) version="${GITHUB_REF_NAME#release/v}" ;;
+            *)           version="${{ inputs.version }}"
+                         [ -n "$version" ] || version="$in_tree" ;;
+          esac
 
           # Whichever way in: the version being released and the version the
           # build stamps into itself have to be the same one, or the app would
@@ -102,7 +123,9 @@ jobs:
       # may already have fetched is not rewritten, which is the same rule
       # scripts/release.mjs enforces locally.
       - name: Create the tag
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        # Both tagless ways in. A tag push already has its tag, and there
+        # `inputs.dry_run` is null, which is falsey, so the guard still holds.
+        if: ${{ (github.event_name == 'workflow_dispatch' || github.ref_type == 'branch') && !inputs.dry_run }}
         run: |
           tag="v${{ steps.tag.outputs.version }}"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
