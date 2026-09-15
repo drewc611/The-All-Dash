@@ -1,0 +1,36 @@
+# Third-party content
+
+The proprietary licence in LICENSE covers the code written for this project.
+It does not cover, and cannot cover, the things below — they are not this
+project's to license, and nothing in LICENSE restricts your rights to them.
+
+## The bundled photographs
+
+`public/wallpapers/*.avif` and `*.webp` are works of the United States federal
+government — the National Park Service and the Fish and Wildlife Service — and
+are in the public domain in the United States under 17 U.S.C. § 105. They are
+unencumbered. Making the surrounding app proprietary does not and could not
+place them under that licence, and anyone is free to take them from this
+repository and use them for anything.
+
+Every photograph, its author and the page it came from are listed in
+[`public/wallpapers/CREDITS.md`](public/wallpapers/CREDITS.md).
+
+## Dependencies
+
+Each remains under its own licence, which continues to govern it regardless of
+this project's terms. Where a dependency's licence requires its notice to
+travel with a distribution, that obligation survives here.
+
+React and React DOM (MIT) are the only runtime dependencies of the browser
+app. The MCP server depends on `@modelcontextprotocol/sdk` (MIT) and `zod`
+(MIT). The desktop shell is built with Tauri (MIT or Apache-2.0 at your
+option) and its Rust dependency tree; `cargo tree` from `src-tauri/` lists it.
+
+The platform tier's Python and Next.js dependencies are pinned in
+`backend/requirements.txt` and `frontend/package.json`.
+
+## Your own data
+
+The Software stores your documents, records, media and workspaces on your own
+device, in formats it exports. LICENSE claims nothing over them.

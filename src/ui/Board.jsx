@@ -1,5 +1,6 @@
 import { Component, useMemo, useState } from 'react'
 import { getWidget, listWidgets } from '../core/registry.js'
+import { useFlags } from '../core/useFlag.js'
 import { moveWidget, removeWidget, updateWidget, addWidget, resetBoard } from '../core/store.js'
 import { availableMetrics } from '../engine/metrics.js'
 import { q } from '../core/query.js'
@@ -20,11 +21,17 @@ const SIZES = [
  */
 export function Board({ view, items, context, editing }) {
   const [configuring, setConfiguring] = useState(null)
+  const isOn = useFlagGate()
 
   return (
     <div className="board">
       {items.map((item) => {
         const widget = getWidget(item.widgetId)
+        // A widget whose flag is off is hidden rather than rendered broken, and
+        // hidden rather than removed: turning the flag back on has to bring the
+        // board back exactly as it was, or the switch costs you your layout and
+        // nobody flips it twice.
+        if (widget?.flag && !isOn(widget.flag)) return null
         if (!widget) {
           return (
             <div className="board__cell" data-size="sm" key={item.id}>
@@ -270,6 +277,19 @@ function WidgetSettings({ view, item, widget, context, onClose }) {
   )
 }
 
+/**
+ * One subscription for the whole board, rather than a useFlag() per widget.
+ * `useFlags` already derives from the overrides object in a memo, so calling
+ * it here and closing over the result costs one store read per render.
+ */
+function useFlagGate() {
+  const flags = useFlags()
+  return useMemo(() => {
+    const on = new Set(flags.filter((f) => f.on).map((f) => f.id))
+    return (id) => on.has(id)
+  }, [flags])
+}
+
 function topValues(list, pick, limit = 40) {
   const counts = new Map()
   for (const e of list) for (const v of pick(e) || []) counts.set(v, (counts.get(v) || 0) + 1)
@@ -278,7 +298,9 @@ function topValues(list, pick, limit = 40) {
 
 function WidgetPicker({ view, onClose }) {
   const [query, setQuery] = useState('')
+  const isOn = useFlagGate()
   const widgets = listWidgets().filter((w) =>
+    (!w.flag || isOn(w.flag)) &&
     `${w.name} ${w.description} ${w.category}`.toLowerCase().includes(query.toLowerCase())
   )
   const groups = new Map()

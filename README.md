@@ -6,11 +6,21 @@
 [![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
 [![Runtime dependency](https://img.shields.io/badge/runtime_dependency-React_only-2a78d6)](package.json)
 [![Data stays on device](https://img.shields.io/badge/your_data-stays_on_your_device-2a78d6)](#storage)
+[![Focus timer](https://img.shields.io/badge/focus-pomodoro_·_charted-1baf7a)](docs/RELEASING.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](backend/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](frontend/)
 [![Kubernetes](https://img.shields.io/badge/AWS_EKS-kustomize-326ce5?logo=kubernetes&logoColor=white)](k8s/)
 [![MCP server](https://img.shields.io/badge/MCP-Claude_·_Copilot_·_ChatGPT-111111?logo=modelcontextprotocol&logoColor=white)](mcp/)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
+[![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
+[![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
+[![Tests](https://img.shields.io/badge/tests-541_node%3Atest-1baf7a)](tests/)
+[![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
+[![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
+[![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
+[![Licence: proprietary](https://img.shields.io/badge/licence-proprietary-b4432a)](LICENSE)
+[![Copyright Andrew Clark](https://img.shields.io/badge/©_2026-Andrew_Clark-111111)](LICENSE)
+[![Photographs public domain](https://img.shields.io/badge/photographs-US_public_domain-1baf7a)](public/wallpapers/CREDITS.md)
 
 A command center for one project or one person. Feed it the documents you already
 have (meeting notes, a calendar export, a transcript, a spreadsheet) and it
@@ -24,6 +34,109 @@ an app and works offline. A separate, optional
 [platform tier](#platform-tier-api-workspace-and-eks) adds a FastAPI service, a
 Celery worker, a hash-chained AI audit ledger, a Next.js workspace, an MCP
 server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
+
+## Get it
+
+| How | What you get |
+|---|---|
+| **Desktop** | `.dmg` for macOS, `.msi` for Windows, AppImage/`.deb`/`.rpm` for Linux, on the [releases page](https://github.com/drewc611/The-All-Dash/releases) |
+| **Phone** | Install the web app from the browser — see [Get it on your phone](#get-it-on-your-phone) |
+| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:latest` |
+| **Self-host** | Download the web tarball from a release and serve the directory |
+| **Source** | `npm ci && npm run dev` |
+
+The desktop build is [Tauri](https://tauri.app), so it uses the webview your
+operating system already has. The Linux `.deb` is **2.1MB** — an Electron
+equivalent would be around 150MB to deliver the same 487KB of app. Full detail,
+including what signing and each store submission needs from you, is in
+[docs/PACKAGING.md](docs/PACKAGING.md).
+
+## Release channels
+
+A build is `alpha`, `beta`, `rc` or `stable`, read off its own version and
+nowhere else. What gates an unfinished feature is not which release it lands in
+but its **maturity**: code ships to every channel, and a flag is on by default
+only when its maturity is at least as strict as the channel demands.
+
+So an alpha-quality feature is on for alpha builds and off for everyone else,
+and cutting a beta does not widen its audience. A feature widens by being
+*promoted*, which is a one-line change and reversible without shipping
+anything.
+
+Settings → Build shows which channel you are on and lets you override any flag
+by hand, in either direction — including turning a finished feature off because
+it is in your way.
+
+Entry and exit criteria per phase: [docs/RELEASING.md](docs/RELEASING.md).
+
+## Focus
+
+A Pomodoro timer that records its minutes against the task you ran it on, so
+the hours land on the record rather than in a separate log nothing else can
+see. Behind photographs that rotate through the day, under glass.
+
+![Focus](docs/screenshots/focus-11-glass-running.png)
+
+The timer stores **when it started**, not what is left. Every countdown that
+counts ticks is wrong in a background tab — browsers throttle a hidden tab to
+roughly one timer a minute, so a 25-minute pomodoro quietly finishes past the
+hour. Wall-clock arithmetic cannot drift: a tab asleep for ninety minutes wakes
+up already knowing it finished, and a reload restores the session to the same
+second.
+
+Paused time is not time worked. Half an hour away from the desk inside a
+session records ten minutes, not forty. Breaks are never recorded at all.
+
+### What the minutes add up to
+
+Three widgets on Analytics read the session log back: **Focus time** (minutes
+per day, your streak, the share of pomodoros you finished, your best day),
+**Where the time went** (ranked by task) and **When you focus** (by hour of the
+day). They live in a Focus category in the widget picker and follow the `focus`
+flag, so a build without the timer has no charts of it either.
+
+![Focus on Analytics](docs/screenshots/focus-analytics.png)
+
+Everything buckets on **local** days and hours. Bucketing by UTC puts a 9pm
+session in California on tomorrow's bar and shifts the hour chart eight hours
+for everyone west of Greenwich. A session counts toward the hour it *started* —
+the question is when you sit down to work, and that has one answer per session.
+The average is over days you actually worked rather than days in the window,
+because a 30-day average that counts a fortnight of leave as zeroes tells you
+nothing. Time you did not link to a task is shown as its own row rather than
+dropped: rows that sum to less than the total beside them cost you trust in
+both numbers. And with no sessions at all there is no completion rate, because
+"you finished none of them" and "you have not run one" are different facts.
+
+Wallpapers follow the light rather than a timer — the day is cut into seven
+bands on local hours and the photograph changes when the band does, because a
+rotation on an interval shows you midnight at eleven in the morning. Your own
+photographs from Studio file themselves by the hour they were taken; nobody is
+going to tag a camera roll by time of day, and the photograph already knows.
+
+Glass is three layers, and the middle one does the work: a scrim between the
+photograph and the glass is what guarantees the text stays readable, because
+translucency over a photograph is not a surface colour — it is whatever the
+photograph happens to be. Contrast is measured off the composited pixels rather
+than assumed: 15.9:1 at worst, against 4.5 for AA body text.
+`prefers-reduced-transparency` and an explicit setting both give opaque
+surfaces and no blur, not a weaker blur.
+
+Seven photographs ship with the app, one per band, every one a work of the US
+National Park Service or Fish and Wildlife Service and public domain by
+statute ([credits](public/wallpapers/CREDITS.md)). Your own photograph for an
+hour beats the bundled one for that hour; the bundled set is the floor. The
+AVIF set is 810KB in total and a browser fetches one of them.
+
+Glass carries past Focus into the rail, the topbar, cards and overlays when
+`glass.app` is on. Tables, charts, code and form controls keep solid backing —
+translucency is for chrome you look past, never for data you read. Settings →
+Appearance → Transparency turns it off, and
+`prefers-reduced-transparency` already does so without being asked.
+
+**In this build:** Focus is beta-maturity, so it is in the rail on alpha and
+beta builds and behind an override on rc and stable. Analytics does not chart
+the timer sessions yet.
 
 ## What it does
 
@@ -1540,3 +1653,30 @@ To use the dashboard from the Claude app on your phone, deploy the
 `localStorage`, under `all-dash:v1`. Export and restore as JSON from Settings →
 *Your data*. Clearing site data clears the workspace, so export before you do
 anything drastic.
+
+## Licence
+
+**Proprietary. Copyright © 2026 Andrew Clark. All rights reserved.**
+Full terms in [LICENSE](LICENSE).
+
+The source is readable here. That is not a licence — no right to copy, modify,
+redistribute, resell or host it is granted by being able to see it. If you want
+to do any of those things, [open an issue](https://github.com/drewc611/The-All-Dash/issues)
+and ask.
+
+If you installed a copy from a channel published here — an app store listing, a
+signed installer, the container image — you may run it and back it up.
+
+Two things the licence deliberately does not touch, both in [NOTICE](NOTICE):
+
+- **Your data.** Every document, record and workspace you put into the app is
+  yours, stays on your device, and exports on demand. The licence claims
+  nothing over it.
+- **The bundled photographs.** US federal government works, public domain under
+  17 U.S.C. § 105. They were in the public domain before this app existed and
+  making the app proprietary does not change that. Take them.
+
+Dependencies keep their own licences. Flathub takes open-source submissions
+only, so it is not a distribution target; the Snap Store, Mac App Store,
+Microsoft Store, direct downloads and the container image all are. See
+[docs/PACKAGING.md](docs/PACKAGING.md#licence).

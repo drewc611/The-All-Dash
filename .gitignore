@@ -14,3 +14,6 @@ frontend/.next/
 frontend/node_modules/
 mcp/node_modules/
 frontend/tsconfig.tsbuildinfo
+
+# Rust build output for the desktop shell
+src-tauri/target/

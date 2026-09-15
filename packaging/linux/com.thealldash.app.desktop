@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=The All Dash
+Comment=A command center for a project or a person
+Exec=the-all-dash
+Icon=com.thealldash.app
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=dashboard;tasks;projects;notes;timer;pomodoro;
+StartupWMClass=the-all-dash

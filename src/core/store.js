@@ -6,6 +6,8 @@ import { emptyBrainState, normaliseBrainState } from '../brain/learn.js'
 import { normaliseWork } from '../work/schema.js'
 import { normaliseRouter } from '../ai/router-schema.js'
 import { normaliseSettings } from './settings-schema.js'
+import { normaliseFlags } from './flags.js'
+import { normaliseFocus, emptyFocus } from '../focus/schema.js'
 import { normaliseStudy, emptyStudy } from '../agents/study-schema.js'
 
 /**
@@ -54,6 +56,10 @@ const initialState = () => ({
   settings: {
     theme: 'system',
     density: 'comfortable',
+    // 'auto' follows prefers-reduced-transparency; 'off' turns glass off
+    // regardless. There is no 'on': overriding somebody's accessibility
+    // setting to force translucency on them is not a preference worth having.
+    glass: 'auto',
     weekStartsOn: 1,
     notifications: false,
     reminderLeadMinutes: 15,
@@ -64,6 +70,9 @@ const initialState = () => ({
     // Media. Both of these are off until asked for: one reaches a Google
     // server, the other downloads 32MB from a CDN.
     media: { youtube: false, ffmpeg: false },
+    // Feature flag overrides, by id. Empty means "whatever this channel does
+    // by default" - see core/flags.js. Only ids this build knows survive.
+    flags: {},
     // The assistant's key is never in here; see src/ai/keys.js.
     assistant: {
       provider: 'anthropic',
@@ -78,6 +87,7 @@ const initialState = () => ({
   triage: {},
   brain: emptyBrainState(),
   study: emptyStudy(),
+  focus: emptyFocus(),
   work: normaliseWork(null),
   router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
@@ -96,9 +106,10 @@ function load() {
       ...base,
       ...parsed,
       version: SCHEMA_VERSION,
-      settings: { ...base.settings, ...(parsed.settings || {}), media: { ...base.settings.media, ...(parsed.settings?.media || {}) }, assistant: { ...base.settings.assistant, ...(parsed.settings?.assistant || {}) } },
+      settings: normaliseSettings(parsed.settings, base.settings, { trusted: true }).settings,
       brain: normaliseBrainState(parsed.brain),
       study: normaliseStudy(parsed.study),
+      focus: normaliseFocus(parsed.focus),
       work: normaliseWork(parsed.work),
       router: normaliseRouter(parsed.router),
     }
@@ -318,6 +329,22 @@ export function updateAssistantSettings(patch) {
     the ffmpeg setting down with it. */
 export function updateMediaSettings(patch) {
   set((s) => ({ ...s, settings: { ...s.settings, media: { ...(s.settings.media || {}), ...patch } } }))
+}
+
+/**
+ * Turn one feature flag on or off by hand, or hand it back to the channel.
+ *
+ * `null` clears the override rather than storing a third state, so a flag the
+ * person has not touched keeps following its channel as the feature matures
+ * instead of being frozen at whatever it happened to be the day they looked.
+ */
+export function setFlagOverride(id, value) {
+  set((s) => {
+    const flags = { ...(s.settings.flags || {}) }
+    if (value === null) delete flags[id]
+    else flags[id] = Boolean(value)
+    return { ...s, settings: { ...s.settings, flags: normaliseFlags(flags).flags } }
+  })
 }
 
 /** Silence one triage signal until a date. The signal itself is never stored. */

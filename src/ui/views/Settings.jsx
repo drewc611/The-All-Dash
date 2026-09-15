@@ -60,6 +60,19 @@ function Appearance({ state }) {
             onChange={(density) => updateSettings({ density })}
           />
         </div>
+        <div className="field">
+          <span className="field__label">Transparency</span>
+          <Segmented
+            label="Transparency"
+            value={state.settings.glass || 'auto'}
+            options={[{ value: 'auto', label: 'Follow system' }, { value: 'off', label: 'Reduce' }]}
+            onChange={(glass) => updateSettings({ glass })}
+          />
+          <span className="field__hint">
+            Glass surfaces already turn solid when your system asks for reduced transparency.
+            Reduce turns them off regardless.
+          </span>
+        </div>
       </div>
     </Card>
   )

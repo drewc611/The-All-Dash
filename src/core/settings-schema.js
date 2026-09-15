@@ -25,6 +25,8 @@
  * origin's own earlier state and can say what it likes.
  */
 
+import { normaliseFlags } from './flags.js'
+
 /** Settings fields a file may not decide, and what they fall back to. */
 const NOT_FROM_A_FILE = {
   platformUrl: '',
@@ -42,16 +44,22 @@ const NOT_FROM_A_FILE = {
  */
 export function normaliseSettings(incoming, base, { trusted = true } = {}) {
   const from = incoming && typeof incoming === 'object' ? incoming : {}
+  // Flag overrides are welcome from a file - they are preference, not a
+  // secret and not consent - but only for flags this build has. An id this
+  // build never heard of is reported rather than kept, since a flag that
+  // silently does nothing is worse than one that is visibly gone.
+  const { flags, dropped: unknownFlags } = normaliseFlags({ ...(base.flags || {}), ...(from.flags || {}) })
   const settings = {
     ...base,
     ...from,
+    flags,
     platform: { ...(base.platform || {}), ...(from.platform || {}) },
     assistant: { ...(base.assistant || {}), ...(from.assistant || {}) },
     media: { ...(base.media || {}), ...(from.media || {}) },
   }
-  if (trusted) return { settings, dropped: [] }
+  const dropped = unknownFlags.map((id) => `the unknown flag "${id}"`)
+  if (trusted) return { settings, dropped }
 
-  const dropped = []
   if (String(from.platform?.url || '').trim()) {
     settings.platform = { ...settings.platform, url: NOT_FROM_A_FILE.platformUrl }
     dropped.push('the platform URL')

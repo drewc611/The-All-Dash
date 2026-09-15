@@ -113,7 +113,13 @@
 .hbar__row { display: grid; grid-template-columns: minmax(72px, 30%) 1fr auto; align-items: center; gap: var(--gap-3); font-size: var(--t-sm); }
 .hbar__label { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hbar__track { height: 8px; border-radius: var(--r-full); background: var(--surface-sunken); overflow: hidden; }
-.hbar__fill { height: 100%; border-radius: var(--r-full); transition: width var(--base); }
+/* `display: block` is load-bearing. Both of these are spans; the track is a
+   grid item so the browser blockifies it and its height applies, but the fill
+   is not, so it stayed inline and ignored width and height alike - every bar
+   in every HBars chart drew as an empty track, in the leaderboard and the
+   source mix as well as here. It looked like a styled component with no data
+   rather than a bug, which is why it survived. */
+.hbar__fill { display: block; height: 100%; border-radius: var(--r-full); transition: width var(--base); }
 .hbar__value { font-variant-numeric: tabular-nums; color: var(--ink-2); min-width: 32px; text-align: right; }
 
 /* -------------------------------------------------------------- heatmap */

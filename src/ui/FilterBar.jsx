@@ -11,7 +11,7 @@ export function FilterBar({ entityList, ui }) {
   const people = useMemo(() => top(entityList, (e) => e.people, 8), [entityList])
   const tags = useMemo(() => {
     const fileTags = fileDerivedTags(entityList)
-    return top(entityList, (e) => e.tags.filter((t) => !NOISE.has(t) && !fileTags.has(t)), 8)
+    return top(entityList, (e) => tagsOf(e).filter((t) => !NOISE.has(t) && !fileTags.has(t)), 8)
   }, [entityList])
   if (!people.length && !tags.length) return null
 
@@ -54,6 +54,16 @@ export function FilterBar({ entityList, ui }) {
   )
 }
 
+/*
+ * Entities restored from localStorage are NOT run back through the schema on
+ * load - the store normalises settings, brain, focus, work and router, and
+ * takes entities as they are. So an entity written by an older build, or
+ * restored from an older export, can arrive without `tags`, and `e.tags.filter`
+ * on it threw before anything rendered: one malformed record, whole app blank.
+ * A missing chip is the right failure here, not a white screen.
+ */
+const tagsOf = (e) => (Array.isArray(e?.tags) ? e.tags : [])
+
 const NOISE = new Set(['notes', 'calendar', 'transcript', 'attendee', 'table', 'action-items', 'metrics', 'decisions', 'risks', 'timeline', 'open-questions', 'all-day', 'json', 'question', 'docx', 'pptx', 'markdown'])
 
 /** Tags that are just the slug of the file they came from - "atlas-backlog"
@@ -64,7 +74,7 @@ function fileDerivedTags(list) {
     const name = e.source?.name
     if (!name) continue
     const slug = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    for (const t of e.tags) if (t === slug || t.startsWith(`${slug}-`)) out.add(t)
+    for (const t of tagsOf(e)) if (t === slug || t.startsWith(`${slug}-`)) out.add(t)
   }
   return out
 }

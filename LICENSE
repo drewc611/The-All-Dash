@@ -1,0 +1,66 @@
+The All Dash — Proprietary Software Licence
+
+Copyright (c) 2026 Andrew Clark. All rights reserved.
+
+The software, its source code, its documentation and the files distributed
+with it (together, the "Software") are the exclusive property of Andrew Clark
+and are protected by copyright law and international copyright treaties.
+
+NO LICENCE IS GRANTED BY THIS FILE. Except as expressly permitted below, or by
+a separate written agreement signed by the copyright holder, you may not use,
+copy, modify, translate, merge, publish, distribute, sublicense, rent, lease,
+sell, decompile, disassemble, reverse engineer, or create derivative works
+from the Software, in whole or in part.
+
+Being able to read the source — because a repository is public, because access
+was granted to you, or because a build was shipped with sources — grants none
+of the rights above. Access is not a licence.
+
+PERMITTED USE
+
+If you obtained a copy from a distribution channel operated or authorised by
+the copyright holder — an app store listing, a signed installer, or a
+container image published by the copyright holder — you may:
+
+  1. run that copy, for yourself or within the organisation it was supplied
+     to, for as long as this licence is not terminated; and
+  2. keep backup copies, used only to restore your own installation.
+
+You may not redistribute it, charge for access to it, or offer it as a hosted
+service to third parties.
+
+YOUR DATA IS YOURS
+
+The Software stores its data on your device, in formats it can export. Nothing
+in this licence claims any right over the documents, records, media or
+workspaces you put into it. They are yours, and exporting them, keeping them
+and moving them elsewhere is expressly permitted.
+
+THIRD-PARTY CONTENT
+
+This licence covers the code written for this project and nothing else. The
+bundled photographs and the third-party libraries this project depends on are
+covered by their own terms, which this licence neither replaces nor restricts.
+NOTICE records what they are and where they came from.
+
+TERMINATION
+
+This licence ends automatically if you breach it. On termination you must stop
+using the Software and destroy every copy in your possession.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Nothing here excludes a liability that cannot lawfully be excluded, or limits
+any right you have as a consumer under the law of the place you live.
+
+PERMISSIONS AND ENQUIRIES
+
+To ask for rights this licence does not grant, open an issue at
+https://github.com/drewc611/The-All-Dash/issues and say what you want to do.

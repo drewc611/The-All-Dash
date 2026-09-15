@@ -1,0 +1,25 @@
+# The MCP image's build context.
+#
+# This image is built from the repository root (`docker build -f mcp/Dockerfile .`)
+# because it needs the browser app's engine sources, so it cannot use
+# mcp/.dockerignore - that one only applies when mcp/ is itself the context.
+#
+# BuildKit reads <dockerfile>.dockerignore in preference to the root
+# .dockerignore, which is what keeps this image's context independent of the
+# app image's. Without it both images share one ignore file, and an exclusion
+# added for one silently empties the other - the app image's `mcp` exclusion
+# did exactly that, and the MCP build failed with "/mcp/src: not found".
+node_modules
+mcp/node_modules
+dist
+src-tauri
+.git
+.github
+docs
+packaging
+k8s
+tests
+backend
+frontend
+public
+*.md

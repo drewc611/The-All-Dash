@@ -73,8 +73,22 @@ jobs:
           docker build -q backend -t alldash-backend:ci
           docker build -q frontend -t alldash-frontend:ci
           docker build -q -f mcp/Dockerfile . -t alldash-mcp:ci
+          # The browser app's image builds from the same root context as the
+          # MCP one, which is how an exclusion added for either can silently
+          # empty the other's. Building both here means a tag push is not the
+          # first time anybody finds out.
+          docker build -q . -t alldash-app:ci
           # The MCP image must start in platform mode and answer its health check.
           docker run -d --rm --name mcp-ci -e MCP_AUTH_TOKEN=ci -e ALLDASH_API_URL=http://backend:8000 -e ALLDASH_API_KEY=ci -p 18080:8080 alldash-mcp:ci
           for i in $(seq 1 20); do curl -fsS http://127.0.0.1:18080/healthz && break || sleep 1; done
           docker logs mcp-ci
           docker stop mcp-ci
+          # The app image: it must serve index.html and the wallpaper credits
+          # it links to. An image that builds and serves nothing is a green
+          # check and a broken deploy.
+          docker run -d --rm --name app-ci -p 18081:8080 alldash-app:ci
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:18081/index.html && break || sleep 1; done
+          curl -fsS -o /dev/null http://127.0.0.1:18081/index.html
+          curl -fsS -o /dev/null http://127.0.0.1:18081/wallpapers/CREDITS.md
+          curl -fsS -o /dev/null http://127.0.0.1:18081/wallpapers/night.avif
+          docker stop app-ci

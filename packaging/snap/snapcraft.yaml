@@ -1,0 +1,65 @@
+# Snap package.
+#
+# `core24` with the GNOME extension, which supplies the GTK and webkit runtime
+# so the snap does not have to carry its own. Confinement is strict: this app
+# reads the files you hand it and writes its own data, and nothing here needs
+# more than that.
+name: the-all-dash
+base: core24
+version: 'PLACEHOLDER_VERSION'
+summary: A command center for a project or a person
+description: |
+  Drop in documents, calendars and spreadsheets and get one live dashboard out
+  of them: what is late, what is blocked, what moved, and what is coming.
+
+  Everything is kept on this device. The app opens no network connection until
+  you configure something that needs one - fetching a page into the stash, a
+  model provider, or the YouTube embed.
+
+grade: stable
+confinement: strict
+license: Proprietary
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  the-all-dash:
+    command: usr/bin/the-all-dash
+    extensions: [gnome]
+    plugs:
+      - home            # import a file, export the workspace
+      - removable-media
+      - network         # only used once a provider or platform URL is set
+      - audio-playback
+      - audio-record    # Studio, opt-in and prompted
+      - camera          # Studio, opt-in and prompted
+      - opengl
+
+parts:
+  the-all-dash:
+    plugin: nil
+    source: .
+    build-snaps:
+      - node/20/stable
+      - rustup/latest/stable
+    build-packages:
+      - libwebkit2gtk-4.1-dev
+      - libgtk-3-dev
+      - librsvg2-dev
+      - patchelf
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0
+    override-build: |
+      rustup default stable
+      npm ci
+      npm run build
+      cargo build --release --manifest-path src-tauri/Cargo.toml
+      install -Dm755 src-tauri/target/release/the-all-dash \
+        "$CRAFT_PART_INSTALL/usr/bin/the-all-dash"
+      install -Dm644 packaging/linux/com.thealldash.app.desktop \
+        "$CRAFT_PART_INSTALL/usr/share/applications/the-all-dash.desktop"
+      install -Dm644 src-tauri/icons/128x128.png \
+        "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/the-all-dash.png"

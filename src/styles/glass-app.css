@@ -1,0 +1,186 @@
+/*
+ * Glass, past the Focus view.
+ *
+ * Everything here hangs off `[data-glass-app='on']` on the root element, which
+ * the app sets only when the `glass.app` flag is on. One attribute, so turning
+ * it off restores the flat build exactly rather than approximately.
+ *
+ * The rule that makes this survivable: **translucency is for chrome, never for
+ * dense data.** A rail, a topbar and a dashboard card are surfaces you look
+ * past; a twenty-two-column table, a chart and a triage list are surfaces you
+ * read, and a photograph moving behind a column of numbers is the fastest way
+ * to make a good app feel cheap. So the selectors below are a short list of
+ * chrome, and the long list underneath puts dense surfaces back on solid.
+ *
+ * Contrast is measured over the real composited pixels, not assumed - see the
+ * contrast harness in the verification notes. `prefers-reduced-transparency`
+ * and the in-app switch both collapse every token here to opaque, which is
+ * handled once in tokens.css rather than repeated per rule.
+ */
+
+[data-glass-app='on'] {
+  /* The wallpaper lives behind the whole shell, so the grid itself must not
+     paint over it. */
+  background: transparent;
+}
+
+/*
+ * The wallpaper, behind everything.
+ *
+ * Fixed rather than absolute: it must not scroll with a view, and it must not
+ * be re-laid-out when the rail or an overlay changes size. -10 keeps it under
+ * every positioned thing in the app without needing a z-index on each.
+ */
+.app-paper {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  background: var(--plane);
+  pointer-events: none;
+}
+
+.app-paper img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1600ms ease-in-out;
+}
+
+.app-paper img[data-shown='true'] { opacity: 1; }
+
+.app-paper__blur {
+  z-index: -1;
+  transition: none !important;
+  filter: blur(24px);
+  transform: scale(1.1);
+}
+
+/*
+ * The scrim.
+ *
+ * The ordinary one, not the strong one. Reaching for `--glass-scrim-strong`
+ * here was the obvious move and the wrong one: at 0.72 over a photograph the
+ * whole screen came back off-white and the wallpaper may as well not have
+ * existed - the same mistake already made and fixed once inside the Focus
+ * view, made again the moment the surface got bigger.
+ *
+ * Readability does not come from this layer app-wide. Every piece of text in
+ * the shell sits on a rail, a topbar, a card or a chip, and each of those
+ * carries its own tint at 0.74. This only has to calm the gaps between them,
+ * where there is nothing to read.
+ */
+.app-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-scrim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-paper img { transition: none; }
+}
+
+/* ------------------------------------------------------------- the chrome */
+
+[data-glass-app='on'] .rail,
+[data-glass-app='on'] .topbar {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-color: var(--glass-line);
+}
+
+[data-glass-app='on'] .card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-color: var(--glass-line);
+  box-shadow: var(--shadow-glass);
+}
+
+/*
+ * Anything that floats already, floats over glass.
+ *
+ * An overlay over a translucent app needs a heavier surface than a card does,
+ * or the thing behind it reads through two layers of blur and neither is
+ * legible. This is the one place `--glass-scrim-strong` is used as a surface.
+ */
+[data-glass-app='on'] .sheet,
+[data-glass-app='on'] .palette,
+[data-glass-app='on'] .inspector {
+  background: var(--glass-scrim-strong);
+  backdrop-filter: blur(28px) saturate(var(--glass-saturate));
+  border-color: var(--glass-line);
+}
+
+/* --------------------------------------------------------- dense surfaces */
+
+/*
+ * Everything you read rather than look past.
+ *
+ * These sit *inside* glass cards, so they need an opaque surface of their own
+ * rather than an absence of one. `--glass-solid` is the theme's real surface
+ * colour, which is what they had before any of this existed.
+ *
+ * The list is long on purpose. Every entry is somewhere a photograph behind
+ * text would cost legibility, and the cost of missing one is not "slightly
+ * worse" - it is a table nobody can read at a glance, which is the entire job
+ * of this app.
+ */
+[data-glass-app='on'] .wtable,
+[data-glass-app='on'] .wtable__head,
+[data-glass-app='on'] .wtable__cell,
+[data-glass-app='on'] .wkanban__col,
+[data-glass-app='on'] .wtimeline,
+[data-glass-app='on'] .wcalendar,
+[data-glass-app='on'] .wchart,
+[data-glass-app='on'] .wworkload,
+[data-glass-app='on'] .viz,
+[data-glass-app='on'] .metric-grid,
+[data-glass-app='on'] .srow,
+[data-glass-app='on'] .reader,
+[data-glass-app='on'] .router-ledger,
+[data-glass-app='on'] .genome-file,
+[data-glass-app='on'] pre,
+[data-glass-app='on'] code,
+[data-glass-app='on'] table {
+  background: var(--glass-solid);
+  backdrop-filter: none;
+}
+
+/*
+ * A form control over a photograph is unusable, and unlike a table it is also
+ * a target - a person has to find its edge to click it.
+ */
+[data-glass-app='on'] input,
+[data-glass-app='on'] textarea,
+[data-glass-app='on'] select {
+  background: var(--glass-solid);
+}
+
+/* ----------------------------------------------------------- performance */
+
+/*
+ * backdrop-filter is not free.
+ *
+ * Each element carrying one forces the compositor to sample and blur what is
+ * behind it, every frame it changes. A handful is fine; one per row of a
+ * thousand-row list is not, which is the other reason dense surfaces above are
+ * opaque rather than merely darker.
+ *
+ * A device that says it cannot cope gets the flat build. `update: slow` is the
+ * media query for exactly that - e-ink and low-powered displays.
+ */
+@media (update: slow) {
+  [data-glass-app='on'] .rail,
+  [data-glass-app='on'] .topbar,
+  [data-glass-app='on'] .card,
+  [data-glass-app='on'] .sheet,
+  [data-glass-app='on'] .palette,
+  [data-glass-app='on'] .inspector {
+    backdrop-filter: none;
+    background: var(--glass-solid);
+  }
+}
