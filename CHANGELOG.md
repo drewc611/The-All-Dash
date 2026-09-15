@@ -15,6 +15,34 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.1] — 2026-09-15
+
+A patch for one thing: v0.2.0 shipped without its container image.
+
+### Fixed
+
+- **The arm64 image no longer rebuilds the whole app under emulation.** The
+  Dockerfile's build stage runs `npm ci` and vite, and everything it produces
+  is static — HTML, CSS, JavaScript, images, none of it architecture-specific.
+  It was not pinned to the build machine, so a `linux/arm64` build ran all of
+  Node under QEMU to arrive at byte-identical output. That took 83 seconds one
+  day and twenty-five minutes another; on v0.2.0 it passed thirty and hit the
+  job's timeout. Pinning the stage to `$BUILDPLATFORM` leaves only the busybox
+  runner stage per-architecture, and that stage does nothing but copy files.
+
+### Known issue in v0.2.0
+
+The v0.2.0 release page and its notes name `ghcr.io/drewc611/all-dash:0.2.0`
+and `:latest`. **Neither tag exists.** The image build was cancelled at 29
+minutes 41 seconds by the timeout that exists precisely so a wedged image
+cannot hold a finished release hostage, and the release published thirteen
+seconds later with all eight installers and no image. The notes were written
+before the run, which is the same mistake as describing a build you have not
+watched finish.
+
+All eight v0.2.0 installers are real and unaffected. For the container, use
+`:0.2.1` or `:latest` from this release.
+
 ## [0.2.0] — 2026-09-15
 
 The first stable release, and the first one you can install rather than build.
@@ -468,7 +496,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.1
 [0.2.0]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0
 [0.2.0-rc.6]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.6
 [0.2.0-rc.5]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.5

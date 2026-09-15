@@ -8,7 +8,18 @@
 #
 #   docker build -t alldash .
 #   docker run --rm -p 8080:8080 alldash
-FROM node:20-alpine AS build
+# --platform=$BUILDPLATFORM pins this stage to whatever machine is doing the
+# building, rather than to the architecture being built for. It matters because
+# this stage runs `npm ci` and vite, and its entire output is /app/dist: HTML,
+# CSS, JavaScript and images, none of it architecture-specific. Without the
+# pin, a linux/arm64 build re-runs all of Node under QEMU to produce the same
+# bytes - which took 83 seconds once, twenty-five minutes on another day, and
+# then more than thirty on v0.2.0, where it hit the job timeout and that
+# release shipped its installers with no container image at all.
+#
+# Only the runner stage below is per-architecture now, and all it does is copy
+# files into a busybox image.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
