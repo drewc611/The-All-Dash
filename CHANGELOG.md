@@ -15,6 +15,30 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0-rc.4] — 2026-09-15
+
+The macOS installers, and a release that cannot be held hostage by a slow
+image. Both found by releasing rather than by reading.
+
+### Fixed
+
+- **macOS installers now build.** Both Mac runners compiled Rust successfully
+  and then failed bundling with `failed to import keychain certificate`. An
+  absent GitHub secret is an **empty string**, not an absent variable, so
+  `APPLE_CERTIFICATE=""` made tauri try to import an empty certificate and take
+  the whole bundle down. `docs/PACKAGING.md` claimed the build produced
+  installers without the secrets; it did not, and now it does. The unsigned
+  build is not the signed one with fewer secrets — it is a build that must not
+  be handed them at all, so there are two, and the job picks one.
+
+- **A slow container build no longer blocks a finished release.** `publish`
+  waits on the image job completing, and the emulated arm64 half built in 83
+  seconds once and then sat for twenty-five minutes on an identical commit when
+  several releases ran at once and contended for the same build cache. With
+  GitHub's six-hour default timeout that is a release held hostage with its
+  installers already built. Thirty minutes now, and `publish` still does not
+  gate on the image's conclusion.
+
 ## [0.2.0-rc.3] — 2026-09-15
 
 The second thing the rc turned up. Every other job had already succeeded.
@@ -325,7 +349,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.3...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.4...HEAD
+[0.2.0-rc.4]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.4
 [0.2.0-rc.3]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.3
 [0.2.0-rc.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.2
 [0.2.0-rc.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.1
