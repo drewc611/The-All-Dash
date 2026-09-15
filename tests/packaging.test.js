@@ -449,6 +449,30 @@ test('two runners cannot quietly overwrite each other during the download', () =
   assert.match(RELEASE, /bundle\/\*\*\/\*\.dmg/, 'macOS has no deliverable left at all')
 })
 
+test('the multi-arch build does not run Node under emulation', () => {
+  // The build stage runs `npm ci` and vite, and everything it produces is
+  // static: HTML, CSS, JavaScript, images. None of it differs by architecture.
+  // Unpinned, a linux/arm64 build re-runs all of Node under QEMU to arrive at
+  // the same bytes - 83 seconds one day, twenty-five minutes another, and on
+  // v0.2.0 more than thirty, where it hit the job timeout and that release
+  // shipped every installer with no container image at all.
+  //
+  // Pinned to $BUILDPLATFORM, only the busybox runner stage is per-architecture
+  // and it does nothing but copy files.
+  assert.match(
+    DOCKERFILE,
+    /^FROM --platform=\$BUILDPLATFORM \S+ AS build$/m,
+    'the build stage is not pinned to the builder, so arm64 runs the whole Node build under QEMU',
+  )
+  // The runner stage must NOT be pinned - it is the half that genuinely has to
+  // be built per architecture.
+  assert.doesNotMatch(
+    DOCKERFILE,
+    /^FROM --platform=\$BUILDPLATFORM \S+ AS runner$/m,
+    'the runner stage is pinned to the builder, so every architecture would get the builder\'s image',
+  )
+})
+
 test('an existing tag is never moved', () => {
   // A tag people may already have fetched is not rewritten - the same rule
   // scripts/release.mjs enforces locally.
