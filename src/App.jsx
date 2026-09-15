@@ -6,6 +6,7 @@ import { rangeFor, RANGE_PRESETS } from './core/time.js'
 import { buildReminders, runNotifications } from './engine/reminders.js'
 import { seedWorkspace } from './data/seed.js'
 import { isOn } from './core/flags.js'
+import { VIEW_LABELS } from './core/views.js'
 import { CHANNEL } from './core/build.js'
 
 import { Board, BoardControls } from './ui/Board.jsx'
@@ -73,20 +74,20 @@ const Assistant = lazy(() => load.assistant().then((m) => ({ default: m.Assistan
 const Loading = () => <div className="view-loading" aria-live="polite">Loading…</div>
 
 const VIEWS = [
-  { id: 'today', label: 'Today', Icon: IconToday, board: true },
-  { id: 'work', label: 'Boards', Icon: IconGrid },
-  { id: 'triage', label: 'Triage', Icon: IconPulse, filters: true },
-  { id: 'timeline', label: 'Timeline', Icon: IconTimeline, filters: true },
-  { id: 'analytics', label: 'Analytics', Icon: IconChart, board: true },
-  { id: 'stash', label: 'Stash', Icon: IconInbox },
-  { id: 'studio', label: 'Studio', Icon: IconVideo },
+  { id: 'today', label: VIEW_LABELS.today, Icon: IconToday, board: true },
+  { id: 'work', label: VIEW_LABELS.work, Icon: IconGrid },
+  { id: 'triage', label: VIEW_LABELS.triage, Icon: IconPulse, filters: true },
+  { id: 'timeline', label: VIEW_LABELS.timeline, Icon: IconTimeline, filters: true },
+  { id: 'analytics', label: VIEW_LABELS.analytics, Icon: IconChart, board: true },
+  { id: 'stash', label: VIEW_LABELS.stash, Icon: IconInbox },
+  { id: 'studio', label: VIEW_LABELS.studio, Icon: IconVideo },
   // Behind a flag, so it is in the rail on alpha builds and absent elsewhere
   // until it is promoted. See core/flags.js.
-  { id: 'focus', label: 'Focus', Icon: IconClock, flag: 'focus' },
-  { id: 'library', label: 'Library', Icon: IconLibrary },
-  { id: 'brain', label: 'Brain', Icon: IconBrain },
-  { id: 'agents', label: 'Agents', Icon: IconSpark },
-  { id: 'settings', label: 'Settings', Icon: IconSettings },
+  { id: 'focus', label: VIEW_LABELS.focus, Icon: IconClock, flag: 'focus' },
+  { id: 'library', label: VIEW_LABELS.library, Icon: IconLibrary },
+  { id: 'brain', label: VIEW_LABELS.brain, Icon: IconBrain },
+  { id: 'agents', label: VIEW_LABELS.agents, Icon: IconSpark },
+  { id: 'settings', label: VIEW_LABELS.settings, Icon: IconSettings },
 ]
 
 /*

@@ -47,7 +47,11 @@ const DEFAULT_BOARDS = {
 
 const initialState = () => ({
   version: SCHEMA_VERSION,
-  workspace: { name: 'My Command Center', createdAt: iso(new Date()) },
+  // 'My Command Center' needed 161px of the 153px the rail gives the name, so
+  // the first words of a fresh install were "My Command Cen...". A default that
+  // does not fit the app's own chrome is the app getting itself wrong; a name
+  // the person chooses can still be any length and still truncates.
+  workspace: { name: 'Command Center', createdAt: iso(new Date()) },
   entities: {},
   docs: [],
   boards: structuredClone(DEFAULT_BOARDS),
