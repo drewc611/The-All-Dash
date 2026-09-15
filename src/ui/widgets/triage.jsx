@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { defineWidget } from '../../core/registry.js'
 import { buildTriage, summarise } from '../../engine/triage.js'
 import { Empty } from '../components.jsx'
-import { Row } from '../views/Triage.jsx'
+import { Row } from '../views/TriageRow.jsx'
 import { runTriageAction } from '../triageActions.js'
 
 /** The top of the triage list, on the Today board. */
