@@ -42,7 +42,7 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
 |---|---|
 | **Desktop** | `.dmg` for macOS, `.msi` for Windows, AppImage/`.deb`/`.rpm` for Linux, on the [releases page](https://github.com/drewc611/The-All-Dash/releases) |
 | **Phone** | Install the web app from the browser — see [Get it on your phone](#get-it-on-your-phone) |
-| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:rc` |
+| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:latest` |
 | **Self-host** | Download the web tarball from a release and serve the directory |
 | **Source** | `npm ci && npm run dev` |
 
@@ -52,9 +52,10 @@ where an Electron equivalent would be around 150MB to deliver the same 487KB of
 app. The AppImage is the outlier at 82MB, because it carries its own runtime
 instead of using the one you have.
 
-The container tag is the release channel: `rc` today, and `latest` once a
-`stable` version ships. Full detail, including what signing and each store
-submission needs from you, is in [docs/PACKAGING.md](docs/PACKAGING.md).
+Container tags follow the release channel, so `:alpha`, `:beta` and `:rc` each
+point at the newest build on that channel and `:latest` moves only for a stable
+release. Full detail, including what signing and each store submission needs
+from you, is in [docs/PACKAGING.md](docs/PACKAGING.md).
 
 ## Release channels
 

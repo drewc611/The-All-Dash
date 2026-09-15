@@ -15,6 +15,83 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0] — 2026-09-15
+
+The first stable release, and the first one you can install rather than build.
+
+Everything below has been in the code since the alpha and gated behind a flag.
+What changes here is that the flags are on for everybody and there are
+installers to download.
+
+### Focus
+
+A Pomodoro timer that knows which task you are working on, so a finished
+session is attached to something rather than to a number in a log.
+
+- **The timer is task-linked.** Start it against a task and the minutes land on
+  that task.
+- **A wallpaper per time of day**, drawn from your own Studio photographs when
+  you have one taken in that hour, and from seven bundled photographs when you
+  do not. All seven are works of the US National Park Service or Fish and
+  Wildlife Service, public domain by statute — credits and sources in
+  [`public/wallpapers/CREDITS.md`](public/wallpapers/CREDITS.md). A browser
+  fetches one, averaging 118KB, and the service worker keeps it.
+- **Three Analytics widgets** chart what the timer recorded: minutes per day,
+  minutes per task, and the hours of the day you actually focus in. Every
+  bucket is your local day, not UTC, so a late evening session counts towards
+  the evening you had.
+- **Glass** across the rail, topbar, cards and overlays. Tables, charts, code
+  and form controls keep solid backing, because translucency is for chrome you
+  look past and never for data you read. `prefers-reduced-transparency` turns
+  it solid, and Settings → Appearance → Transparency is the switch beside it
+  for anyone whose system has no such setting.
+
+### Install it
+
+- **Desktop.** `.dmg` for macOS on both Apple Silicon and Intel, `.msi` and an
+  installer `.exe` for Windows, `.deb`, `.rpm` and an AppImage for Linux. Built
+  with [Tauri](https://tauri.app), so the app uses the webview your operating
+  system already has: the `.deb` is 4.2MB where an Electron equivalent would be
+  around 150MB.
+- **Container.** `ghcr.io/drewc611/all-dash:latest`, for amd64 and arm64.
+- **Self-host.** A web tarball on the release page — serve the directory.
+
+Nothing is signed yet, so macOS and Windows warn on first open.
+[docs/PACKAGING.md](docs/PACKAGING.md) says exactly which certificates change
+that and what they cost.
+
+### Release process
+
+- **Channels are read off the version and nothing else.** A build is alpha,
+  beta, rc or stable because of its own version number, so it cannot claim a
+  channel it does not have. Settings → Build shows which one you are on.
+- **Flags carry a maturity.** Code reaches every channel the moment it merges;
+  what gates exposure is how finished a feature says it is. Cutting a release
+  therefore cannot widen an unfinished feature's audience by accident — that
+  takes a deliberate one-line promotion. Overrides in Settings win in both
+  directions, including turning a finished feature off because it is in the way.
+- **`npm run release`** refuses a version that is not a legal step from the
+  current one, and writes `package.json` and `src-tauri/tauri.conf.json`
+  together.
+
+### Licence
+
+Proprietary, all rights reserved, © 2026 Andrew Clark. Installing a copy from
+a channel the owner operates buys you the right to run it and to back it up.
+**Your data stays yours** — the licence claims nothing over what you put into
+the app and export is explicitly permitted. `NOTICE` covers what `LICENSE`
+cannot: the bundled photographs are public domain under 17 U.S.C. § 105, and
+dependencies keep their own terms.
+
+### Flags in this build
+
+| Flag | Maturity | On in |
+|---|---|---|
+| `focus` | stable | every channel |
+| `focus.wallpaper` | stable | every channel |
+| `focus.glass` | stable | every channel |
+| `glass.app` | stable | every channel |
+
 ## [0.2.0-rc.6] — 2026-09-15
 
 One asset on the rc.5 page could not tell you what it was for.
@@ -391,7 +468,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.6...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0
 [0.2.0-rc.6]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.6
 [0.2.0-rc.5]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.5
 [0.2.0-rc.4]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.4
