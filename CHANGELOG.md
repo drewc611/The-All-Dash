@@ -15,6 +15,35 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0-rc.2] — 2026-09-15
+
+The first thing `rc.1` turned up, which is the entire purpose of cutting one.
+
+### Fixed
+
+- **The desktop installers did not build.** All four runners failed one second
+  into the first real release with `npm error Missing script: "tauri"`.
+  `tauri-action` shells out to `npm run tauri build -- --target <triple>` and
+  there was no such script. `docs/PACKAGING.md` documents `npx tauri build`,
+  which works and resolves the binary a completely different way, so every
+  local check went down a path the release never uses — the `.deb` built by
+  hand proved the Tauri config was right and proved nothing about the workflow.
+  The gap was not in either half; it was in the seam between them.
+
+  A test now asserts the script exists, that the CLI providing its binary is
+  installed, and that the workflow still uses the action that needs it — so
+  swapping `tauri-action` out makes the test say it is checking the wrong thing
+  rather than passing forever.
+
+- **A release could only be started two ways, and a restricted token could use
+  neither.** The same credential that gets `HTTP 403` creating a tag ref is
+  also refused `workflow_dispatch` with "Resource not accessible by
+  integration" — two different permissions, and a token can be short of both.
+  Pushing an ordinary branch worked the whole time. Pushing
+  `release/v<version>` now starts a release; the workflow still makes the tag
+  itself, still only after the suite passes in all three timezones, and still
+  never moves an existing one.
+
 ## [0.2.0-rc.1] — 2026-09-14
 
 The beta's exit criteria are met: every gap it wrote down is closed, so this
@@ -276,7 +305,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.1...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.2...HEAD
+[0.2.0-rc.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.2
 [0.2.0-rc.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.1
 [0.2.0-beta.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.1
