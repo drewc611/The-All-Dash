@@ -355,6 +355,32 @@ jobs:
           pattern: '{web,desktop-*}'
           merge-multiple: true
 
+      - name: Flatten the bundles
+        run: |
+          # upload-artifact roots an artifact at the least common ancestor of
+          # the paths it matched. The desktop job matches seven globs that all
+          # live under .../release/bundle/, so each artifact arrives as deb/,
+          # rpm/, dmg/, msi/ and friends rather than as bare files. Then
+          # `files: artifacts/*` matched directories, which action-gh-release
+          # skips without saying so: rc.4 built all four desktop targets,
+          # uploaded them, downloaded them, and attached none of them. The web
+          # tarball was the only flat artifact and the only asset published.
+          #
+          # Two bundles landing on the same name would silently lose one, so
+          # that is an error rather than a guess about which to keep.
+          mapfile -d '' nested < <(find artifacts -mindepth 2 -type f -print0)
+          for f in "${nested[@]}"; do
+            name=$(basename "$f")
+            if [ -e "artifacts/$name" ]; then
+              echo "::error::two bundles are both called $name"
+              exit 1
+            fi
+            mv "$f" "artifacts/$name"
+          done
+          find artifacts -mindepth 1 -type d -delete
+          echo "Attaching:"
+          ls -1 artifacts
+
       - name: Cut the release notes from the changelog
         run: |
           # The section for this version, up to the next heading. The notes

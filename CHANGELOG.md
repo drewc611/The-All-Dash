@@ -15,6 +15,25 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0-rc.5] — 2026-09-15
+
+Every installer the matrix builds now actually reaches the release page.
+
+### Fixed
+
+- **The desktop installers are attached, not just built.** v0.2.0-rc.4 compiled
+  all four desktop targets, uploaded them, and published exactly one asset: the
+  web tarball. `upload-artifact` roots an artifact at the least common ancestor
+  of the paths it matched, and the desktop job matches seven globs that all sit
+  under `.../release/bundle/`. So each artifact arrived as `deb/`, `rpm/`,
+  `dmg/`, `msi/` and `nsis/` directories rather than as bare files;
+  `files: artifacts/*` matched those directories, and the upload action skips a
+  directory without saying anything. The web tarball was the only artifact that
+  was already flat, which is the only reason anything was published at all. The
+  bundles are flattened before the notes are written, so the downloads table and
+  the assets are now built from the same list. Two bundles landing on the same
+  name is an error rather than a silent loss of one of them.
+
 ## [0.2.0-rc.4] — 2026-09-15
 
 The macOS installers, and a release that cannot be held hostage by a slow
@@ -349,7 +368,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.4...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.5...HEAD
+[0.2.0-rc.5]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.5
 [0.2.0-rc.4]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.4
 [0.2.0-rc.3]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.3
 [0.2.0-rc.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.2
