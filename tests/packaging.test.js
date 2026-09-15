@@ -414,6 +414,23 @@ test('the release publishes only what it built, not whatever is lying around', (
   assert.match(RELEASE, /DOCKER_BUILD_RECORD_UPLOAD: false/, 'the build record that broke publish is being created again')
 })
 
+test('every bundle the matrix builds is attached, not just the flat ones', () => {
+  // upload-artifact roots an artifact at the least common ancestor of the paths
+  // it matched, and the desktop job matches seven globs that all sit under
+  // .../release/bundle/. So each desktop artifact arrives as deb/, rpm/, dmg/,
+  // msi/ and nsis/ subdirectories rather than as bare files, `files: artifacts/*`
+  // matched directories, and action-gh-release skipped them without a word.
+  // v0.2.0-rc.4 built all four desktop targets, uploaded them, downloaded them
+  // and published one asset: the web tarball, the only artifact already flat.
+  const job = RELEASE.slice(RELEASE.indexOf('  publish:'))
+  const flatten = job.indexOf('name: Flatten the bundles')
+  assert.ok(flatten > 0, 'nothing flattens the bundles, so only the web tarball reaches the release')
+  assert.ok(flatten > job.indexOf('download-artifact'), 'the flatten runs before there is anything to flatten')
+  assert.ok(flatten < job.indexOf('action-gh-release'), 'the flatten runs after the upload, which is too late to matter')
+  assert.match(job, /find artifacts -mindepth 2 -type f/, 'the flatten never reaches into the bundle subdirectories')
+  assert.match(job, /two bundles are both called/, 'a name collision quietly drops one of the two')
+})
+
 test('an existing tag is never moved', () => {
   // A tag people may already have fetched is not rewritten - the same rule
   // scripts/release.mjs enforces locally.
