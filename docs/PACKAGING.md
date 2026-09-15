@@ -113,8 +113,14 @@ Unsigned installers work. They also make the operating system tell the person
 installing them that the app may be malicious, which is not a thing to
 discover on release day.
 
-Every secret below is optional. Absent, the build still produces installers
-and the release notes carry a warning instead.
+Every secret below is optional, and the build produces installers without them.
+Getting that to be true took a fix: an absent GitHub secret is an **empty
+string**, not an absent variable, so handing `APPLE_CERTIFICATE=""` to the
+build made it try to import an empty certificate and fail the entire macOS
+bundle — after the Rust build had already succeeded. The workflow now decides
+first whether a certificate exists and runs one of two builds, because the
+unsigned build is not the signed one with fewer secrets; it is a build that
+must not be handed them at all.
 
 ### macOS — `APPLE_*`
 

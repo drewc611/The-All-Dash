@@ -376,6 +376,19 @@ test('the manual path can actually create the tag it needs', () => {
   assert.match(RELEASE, /git push origin "refs\/tags\/\$tag"/, 'nothing creates the tag on a manual run')
 })
 
+test('an unsigned macOS build is never handed empty signing secrets', () => {
+  // An absent GitHub secret is an empty string, not an absent variable, so
+  // APPLE_CERTIFICATE="" made tauri import an empty certificate and fail the
+  // whole macOS bundle - after the Rust build had already succeeded. There
+  // have to be two builds, and the unsigned one must carry no APPLE_ vars.
+  const unsigned = RELEASE.slice(RELEASE.indexOf('Build and bundle, unsigned'))
+  const nextJob = unsigned.indexOf('- uses: actions/upload-artifact')
+  const body = nextJob === -1 ? unsigned : unsigned.slice(0, nextJob)
+  assert.doesNotMatch(body, /APPLE_/, 'the unsigned build is handed Apple secrets, which are empty strings when unset')
+  assert.match(RELEASE, /Build and bundle, signed/, 'there is no signed build left')
+  assert.match(RELEASE, /steps\.signing\.outputs\.apple/, 'nothing decides which of the two builds runs')
+})
+
 test('the release publishes only what it built, not whatever is lying around', () => {
   // `download-artifact` with no filter takes every artifact in the run. On the
   // first real release that included a `.dockerbuild` build record uploaded by
