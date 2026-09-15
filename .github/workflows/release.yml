@@ -323,7 +323,6 @@ jobs:
           name: desktop-${{ matrix.label }}
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app.tar.gz
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.rpm
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
@@ -353,7 +352,13 @@ jobs:
           # every other job had succeeded. An allow-list also means the next
           # action that quietly uploads something cannot break the release.
           pattern: '{web,desktop-*}'
-          merge-multiple: true
+          # Each artifact keeps its own directory. merge-multiple extracts them
+          # all over one tree, so two runners producing the same path overwrite
+          # each other silently during the download - which is exactly what
+          # happened to the two `The All Dash.app.tar.gz` files in rc.5, one of
+          # which reached the release page with no way to tell its architecture
+          # from its name. Separate directories mean the flatten below is the
+          # only thing that merges them, and it refuses to merge a collision.
 
       - name: Flatten the bundles
         run: |
