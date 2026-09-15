@@ -15,6 +15,29 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0-rc.6] — 2026-09-15
+
+One asset on the rc.5 page could not tell you what it was for.
+
+### Fixed
+
+- **No two builds can overwrite each other on the way to the release.** rc.5
+  published a single `The All Dash.app.tar.gz`, and both Mac runners produced a
+  file by that name — the macOS `.app` tarball carries no architecture. Because
+  `download-artifact` was extracting every artifact over one tree, the second
+  download replaced the first during extraction, before the collision guard had
+  anything to compare. Whichever one survived reached the release page with
+  nothing in its name to say which chip it was built for. Each artifact keeps
+  its own directory now, so the flatten is the only thing that merges them, and
+  it fails on a collision rather than picking a winner.
+
+### Removed
+
+- **The macOS `.app` tarball.** It exists for the built-in updater, which this
+  repo does not turn on, and it was the one bundle whose name could not be told
+  apart between the two Mac targets. The `.dmg` is the macOS download, one per
+  architecture, and both are on the release page.
+
 ## [0.2.0-rc.5] — 2026-09-15
 
 Every installer the matrix builds now actually reaches the release page.
@@ -368,7 +391,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.5...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.6...HEAD
+[0.2.0-rc.6]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.6
 [0.2.0-rc.5]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.5
 [0.2.0-rc.4]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.4
 [0.2.0-rc.3]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.3

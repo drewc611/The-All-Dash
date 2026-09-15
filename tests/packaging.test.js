@@ -431,6 +431,24 @@ test('every bundle the matrix builds is attached, not just the flat ones', () =>
   assert.match(job, /two bundles are both called/, 'a name collision quietly drops one of the two')
 })
 
+test('two runners cannot quietly overwrite each other during the download', () => {
+  // v0.2.0-rc.5 published one `The All Dash.app.tar.gz`, and two Mac runners
+  // each produced a file by that name: it carries no architecture, and
+  // `merge-multiple: true` extracts every artifact over one tree, so the second
+  // download overwrote the first before the flatten's collision guard could see
+  // that there were two. Whichever survived reached the release page with
+  // nothing in its name to say which chip it was built for.
+  //
+  // Each artifact keeps its own directory now, so the flatten is the only thing
+  // that merges them, and the flatten refuses a collision instead of picking.
+  // Keyed on the YAML key, not the word: the comment above it in the workflow
+  // explains what merge-multiple did, and a test that reads prose about a
+  // setting instead of the setting is a test that fails for the wrong reason.
+  assert.doesNotMatch(RELEASE, /^\s*merge-multiple:/m, 'artifacts extract over one tree again, where a duplicate path overwrites in silence')
+  assert.doesNotMatch(RELEASE, /\*\.app\.tar\.gz/, 'the macOS .app tarball is back and its name still carries no architecture')
+  assert.match(RELEASE, /bundle\/\*\*\/\*\.dmg/, 'macOS has no deliverable left at all')
+})
+
 test('an existing tag is never moved', () => {
   // A tag people may already have fetched is not rewritten - the same rule
   // scripts/release.mjs enforces locally.
