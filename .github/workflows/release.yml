@@ -200,6 +200,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v6
+        env:
+          # Otherwise this action uploads a `*.dockerbuild` build record as a
+          # workflow artifact, which `publish` then tries to download along
+          # with everything else and fails on. Nothing reads it and it is not
+          # part of the release.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -307,6 +313,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          # Name what the release carries rather than taking whatever the run
+          # happens to contain. Without this it downloads every artifact in the
+          # run, which on the first real release meant a `.dockerbuild` build
+          # record uploaded by docker/build-push-action: it failed to extract
+          # after five retries and took the whole publish down with it, after
+          # every other job had succeeded. An allow-list also means the next
+          # action that quietly uploads something cannot break the release.
+          pattern: '{web,desktop-*}'
           merge-multiple: true
 
       - name: Cut the release notes from the changelog

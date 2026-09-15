@@ -15,6 +15,26 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 Nothing yet.
 
+## [0.2.0-rc.3] — 2026-09-15
+
+The second thing the rc turned up. Every other job had already succeeded.
+
+### Fixed
+
+- **The release published nothing, at the last step, with everything built.**
+  `verify` passed, the tag was created, the web bundle and the multi-arch
+  container both succeeded — and then `publish` failed downloading artifacts.
+  Not the ones it wanted: `download-artifact` with no filter takes *every*
+  artifact in the run, and `docker/build-push-action` quietly uploads a
+  `.dockerbuild` build record that nothing reads. It failed to extract after
+  five retries and took the whole release down with it.
+
+  Two changes, because one of them is the cause and the other is the class.
+  The build record is no longer created, and `publish` now downloads an
+  allow-list of what the release actually carries rather than whatever the run
+  happens to contain — so the next action that decides to upload something on
+  its own cannot break a release that has otherwise entirely succeeded.
+
 ## [0.2.0-rc.2] — 2026-09-15
 
 The first thing `rc.1` turned up, which is the entire purpose of cutting one.
@@ -305,7 +325,8 @@ Written down rather than left to be found:
   beta-maturity, so it is off outside alpha.
 - Timer sessions are recorded but Analytics does not chart them yet.
 
-[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.2...HEAD
+[Unreleased]: https://github.com/drewc611/The-All-Dash/compare/v0.2.0-rc.3...HEAD
+[0.2.0-rc.3]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.3
 [0.2.0-rc.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.2
 [0.2.0-rc.1]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-rc.1
 [0.2.0-beta.2]: https://github.com/drewc611/The-All-Dash/releases/tag/v0.2.0-beta.2

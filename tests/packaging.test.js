@@ -376,6 +376,17 @@ test('the manual path can actually create the tag it needs', () => {
   assert.match(RELEASE, /git push origin "refs\/tags\/\$tag"/, 'nothing creates the tag on a manual run')
 })
 
+test('the release publishes only what it built, not whatever is lying around', () => {
+  // `download-artifact` with no filter takes every artifact in the run. On the
+  // first real release that included a `.dockerbuild` build record uploaded by
+  // docker/build-push-action, which failed to extract after five retries and
+  // took publish down with it - after verify, web, container and the tag had
+  // all succeeded. An allow-list survives the next action that decides to
+  // upload something on its own.
+  assert.match(RELEASE, /pattern: '\{web,desktop-\*\}'/, 'publish downloads every artifact in the run, including ones nothing uploaded on purpose')
+  assert.match(RELEASE, /DOCKER_BUILD_RECORD_UPLOAD: false/, 'the build record that broke publish is being created again')
+})
+
 test('an existing tag is never moved', () => {
   // A tag people may already have fetched is not rewritten - the same rule
   // scripts/release.mjs enforces locally.
