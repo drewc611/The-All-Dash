@@ -16,8 +16,7 @@ to supply, because none of them can be faked and I have not invented any.
 ## Why Tauri and not Electron
 
 The app is 487KB. An Electron installer carries its own Chromium and lands
-around 150MB; the Tauri `.deb` built from this repo is **2.1MB**, against a
-4.0MB binary. Tauri uses the webview the operating system already has — WebKit
+around 150MB; the Tauri `.deb` on the release page is **4.2MB**. Tauri uses the webview the operating system already has — WebKit
 on macOS and Linux, WebView2 on Windows — which is the entire argument, and
 also the one real cost: three webview engines instead of one, so the CI matrix
 is doing genuine work rather than repeating itself.
@@ -201,18 +200,44 @@ above is only needed for the direct download.
 
 ## What is verified, and what is not
 
-Built and checked on this machine:
+Every target below is built by the release workflow and attached to the release
+page. These are the sizes from `v0.2.0-rc.6`:
 
-- The **Linux `.deb`**: 2.1MB, 4.0MB binary, dependencies correct. One defect
-  found and fixed — `Depends` listed `libwebkit2gtk-4.1-0` and `libgtk-3-0`
-  twice, because Tauri already declares them and the config declared them
-  again.
+| File | Size |
+|---|---|
+| `The All Dash_0.2.0_aarch64.dmg` | 4.2MB |
+| `The All Dash_0.2.0_x64.dmg` | 4.3MB |
+| `The All Dash_0.2.0_x64_en-US.msi` | 4.3MB |
+| `The All Dash_0.2.0_x64-setup.exe` | 3.9MB |
+| `The All Dash_0.2.0_amd64.deb` | 4.2MB |
+| `The All Dash-0.2.0-1.x86_64.rpm` | 4.2MB |
+| `The All Dash_0.2.0_amd64.AppImage` | 82MB |
+| `the-all-dash-web-0.2.0-rc.6.tar.gz` | 2.8MB |
+
+The AppImage is twenty times the `.deb` because it is the one Linux format that
+bundles its own runtime rather than depending on the system webview. That is the
+whole point of the format, and it is the reason the `.deb` or `.rpm` is the
+better download if your distribution can take one.
+
+Four defects were found by releasing rather than by reading, each one after
+every other job had already succeeded: `tauri-action` runs `npm run tauri build`
+and the package had no `tauri` script; an absent `APPLE_CERTIFICATE` is an empty
+string and not an absent variable, so both Mac bundles failed trying to import
+it; `files: artifacts/*` matched directories, which the upload action skips
+without a word, so rc.4 published one asset out of nine; and two Mac runners
+produced the same `.app.tar.gz` filename, which one download silently overwrote.
+
+Checked separately from the matrix:
+
+- The **Linux `.deb`** dependencies. One defect found and fixed — `Depends`
+  listed `libwebkit2gtk-4.1-0` and `libgtk-3-0` twice, because Tauri already
+  declares them and the config declared them again.
 - The **container's file list**: staged into an empty tree and built there, so
-  the `COPY` lines are known to be sufficient. The image itself was **not**
-  built — there is no Docker daemon in this environment. `tests/packaging.test.js`
-  pins the file list so a new directory fails a test rather than a deploy.
+  the `COPY` lines are known to be sufficient. `tests/packaging.test.js` pins
+  the file list so a new directory fails a test rather than a deploy. The image
+  builds for `amd64` and `arm64` in the release workflow and pushes to GHCR.
 
-Not built here, and not claimed to be: the macOS and Windows installers, and
-every store submission. Those need the right operating system and credentials
-that are yours. The manifests are written and the CI matrix runs them; the
-first real tag is what proves them.
+Still not done here, and not claimed to be: every store submission. Those need
+accounts and credentials that are yours. Installers signed with a real
+certificate are also unproven — the matrix takes the unsigned path because this
+repository has no `APPLE_*` secrets set, so what ships warns on first open.

@@ -1,6 +1,7 @@
 # The All Dash
 
 [![CI](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml/badge.svg)](https://github.com/drewc611/The-All-Dash/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=1baf7a)](https://github.com/drewc611/The-All-Dash/releases/latest)
 [![React 19](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)](package.json)
 [![Vite 8](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](vite.config.js)
 [![Installable PWA](https://img.shields.io/badge/PWA-installs_on_iPhone_and_Android-5a0fc8?logo=pwa&logoColor=white)](#get-it-on-your-phone)
@@ -16,7 +17,7 @@
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
 [![Tests](https://img.shields.io/badge/tests-541_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
-[![Installer size](https://img.shields.io/badge/Linux_.deb-2.1MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
+[![Installer size](https://img.shields.io/badge/Linux_.deb-4.2MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
 [![Licence: proprietary](https://img.shields.io/badge/licence-proprietary-b4432a)](LICENSE)
 [![Copyright Andrew Clark](https://img.shields.io/badge/©_2026-Andrew_Clark-111111)](LICENSE)
@@ -41,15 +42,19 @@ server for Claude, Copilot and ChatGPT, and Kubernetes manifests for AWS EKS.
 |---|---|
 | **Desktop** | `.dmg` for macOS, `.msi` for Windows, AppImage/`.deb`/`.rpm` for Linux, on the [releases page](https://github.com/drewc611/The-All-Dash/releases) |
 | **Phone** | Install the web app from the browser — see [Get it on your phone](#get-it-on-your-phone) |
-| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:latest` |
+| **Container** | `docker run --rm -p 8080:8080 ghcr.io/drewc611/all-dash:rc` |
 | **Self-host** | Download the web tarball from a release and serve the directory |
 | **Source** | `npm ci && npm run dev` |
 
 The desktop build is [Tauri](https://tauri.app), so it uses the webview your
-operating system already has. The Linux `.deb` is **2.1MB** — an Electron
-equivalent would be around 150MB to deliver the same 487KB of app. Full detail,
-including what signing and each store submission needs from you, is in
-[docs/PACKAGING.md](docs/PACKAGING.md).
+operating system already has. The Linux `.deb` on the release page is **4.2MB**,
+where an Electron equivalent would be around 150MB to deliver the same 487KB of
+app. The AppImage is the outlier at 82MB, because it carries its own runtime
+instead of using the one you have.
+
+The container tag is the release channel: `rc` today, and `latest` once a
+`stable` version ships. Full detail, including what signing and each store
+submission needs from you, is in [docs/PACKAGING.md](docs/PACKAGING.md).
 
 ## Release channels
 
