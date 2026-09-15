@@ -8,6 +8,8 @@ import { buildTriage } from '../src/engine/triage.js'
 import { aboutUser, buildContext } from '../src/ai/context.js'
 import { makeEntity } from '../src/data/schema.js'
 import { addDays, iso } from '../src/core/time.js'
+import { VIEW_LABELS, labelOfView } from '../src/core/views.js'
+import { readFileSync } from 'node:fs'
 
 const now = new Date()
 const at = (offset, hour = 12) => { const d = addDays(now, offset); d.setHours(hour, 0, 0, 0); return iso(d) }
@@ -159,4 +161,57 @@ test('the assistant context carries what the brain knows unless sharing is off',
   state.settings.assistant.shareBrain = false
   const quiet = buildContext(state.entities, 'what is late?', { state, now })
   assert.doesNotMatch(quiet.text, /About the user/)
+})
+
+
+// --------------------------------------------------------------- view names
+
+test('a fact never names a view the app does not show', () => {
+  // The rail calls this view Boards; its id is `work`. The brain printed the
+  // id, so the Today dashboard advised "Opens work most" about a view nobody
+  // can find in the app. Naming something the person cannot go and look at is
+  // worse than saying nothing.
+  const state = fixture()
+  state.brain.usage.views = { work: 9 }
+  const [fact] = buildBrain(state, { now }).facts.filter((f) => /view you open most|more than any other view/.test(f))
+  assert.ok(fact, 'no fact about views at all')
+  assert.match(fact, /Boards/, 'the view is not named the way the rail names it')
+  assert.doesNotMatch(fact, /\bwork\b/, 'the raw view id reached a person')
+})
+
+test('the one-view fact is a sentence rather than a list of one', () => {
+  // `Opens ${views.join(', then ')} most.` produced "Opens today most." for a
+  // single view, which reads as "opens most today" and does not name the view
+  // at all. Every other id had the same shape; `today` is the one where the
+  // collision is total.
+  const state = fixture()
+  state.brain.usage.views = { today: 7 }
+  const [fact] = buildBrain(state, { now }).facts.filter((f) => /view you open most/.test(f))
+  assert.equal(fact, 'Today is the view you open most.')
+})
+
+test('several views are listed in order, by label', () => {
+  const state = fixture()
+  state.brain.usage.views = { work: 30, today: 20, triage: 10 }
+  const [fact] = buildBrain(state, { now }).facts.filter((f) => /more than any other view/.test(f))
+  assert.equal(fact, 'Opens Boards, then Today, then Triage, more than any other view.')
+})
+
+test('the rail and the brain read the same labels', () => {
+  // One source, so they cannot drift back apart. The rail used to carry its
+  // own strings and the brain had no idea they existed.
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const nav = [...app.matchAll(/\{ id: '([a-z]+)', label: VIEW_LABELS\.([a-z]+)/g)]
+  assert.ok(nav.length >= 12, `expected the whole rail, read ${nav.length} entries`)
+  for (const [, id, key] of nav) {
+    assert.equal(id, key, `the rail's ${id} view takes its label from VIEW_LABELS.${key}`)
+    assert.ok(VIEW_LABELS[id], `no label for the ${id} view`)
+  }
+  assert.doesNotMatch(app, /\{ id: '[a-z]+', label: '/, 'a view went back to a hand-written label')
+})
+
+test('an unknown view id is shown rather than hidden', () => {
+  // A usage counter can outlive the view it counted. Showing the id is honest;
+  // "undefined" or a blank is not.
+  assert.equal(labelOfView('some-removed-view'), 'some-removed-view')
 })

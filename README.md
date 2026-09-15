@@ -57,6 +57,34 @@ point at the newest build on that channel and `:latest` moves only for a stable
 release. Full detail, including what signing and each store submission needs
 from you, is in [docs/PACKAGING.md](docs/PACKAGING.md).
 
+### The first time you open it
+
+The desktop builds are **not signed**, so macOS and Windows will both stop you
+once. This is the expected behaviour for any app whose developer has not paid
+for a certificate, not a sign that something is wrong with the download, and
+the OS gives you no hint that there is a way through. So:
+
+**macOS.** You get "Apple could not verify *The All Dash* is free of malware."
+Open **System Settings → Privacy & Security**, scroll to the bottom, and click
+**Open Anyway** next to the message about the app. It asks once, then never
+again. (On older macOS, Control-clicking the app and choosing **Open** does the
+same thing in one step; recent versions removed that shortcut.)
+
+**Windows.** SmartScreen says "Windows protected your PC". Click **More info**,
+then **Run anyway**. The warning fades as more people download a given release.
+
+**Linux.** No warning. The AppImage needs to be made executable first:
+`chmod +x 'The All Dash_*.AppImage'`.
+
+Every release asset has a SHA-256 digest on its release page if you want to
+check the download is the one that was built.
+
+What removes the warnings is an Apple Developer certificate and an Authenticode
+certificate, which cost real money per year and are the owner's to buy;
+[docs/PACKAGING.md](docs/PACKAGING.md) lists exactly which ones and what each
+costs. The release workflow already builds signed installers the moment those
+secrets exist, with no code change.
+
 ## Release channels
 
 A build is `alpha`, `beta`, `rc` or `stable`, read off its own version and

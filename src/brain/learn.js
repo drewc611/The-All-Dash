@@ -1,5 +1,6 @@
 import { q } from '../core/query.js'
 import { addDays, endOfDay, MS } from '../core/time.js'
+import { labelOfView } from '../core/views.js'
 
 /**
  * The brain: what the app has learned about the person using it.
@@ -456,7 +457,15 @@ function factLines({ profile, habits, rhythm, people, topics }) {
   const lines = []
   if (profile.documents) lines.push(`${profile.documents} document${profile.documents === 1 ? '' : 's'} read${profile.formats.length ? ` (${profile.formats.map((f) => f.kind).join(', ')})` : ''}.`)
   if (rhythm.activeHours.length) lines.push(`Usually here ${rhythm.activeHours.join(' and ')}${rhythm.activeDays.length ? ` on ${rhythm.activeDays.map((d) => WEEKDAYS[d].slice(0, 3)).join(', ')}` : ''}.`)
-  if (rhythm.topViews.length) lines.push(`Opens ${rhythm.topViews.map((v) => v.view).join(', then ')} most.`)
+  if (rhythm.topViews.length) {
+    // Through the same labels the rail uses. Printing the id gave "Opens work
+    // most" for a view the app calls Boards, and "Opens today most" - which
+    // reads as "opens most today" rather than naming the Today view at all.
+    const names = rhythm.topViews.map((v) => labelOfView(v.view))
+    lines.push(names.length === 1
+      ? `${names[0]} is the view you open most.`
+      : `Opens ${names.join(', then ')}, more than any other view.`)
+  }
   if (habits.finished >= 3) {
     lines.push(`Finished ${habits.finished} dated tasks in the app; ${pct(habits.finishedLate, habits.finished)}% after the due date${habits.medianLeadDays !== null ? `, typically ${describeLead(habits.medianLeadDays)}` : ''}.`)
   }
