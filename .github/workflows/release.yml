@@ -269,12 +269,29 @@ jobs:
 
       - run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      # An absent secret is an EMPTY STRING, not an absent variable. Passing
+      # APPLE_CERTIFICATE="" makes tauri try to import an empty certificate,
+      # and `security import` fails, and the whole macOS bundle fails with it -
+      # after the Rust build has already succeeded. So the unsigned build is
+      # not the same command with fewer secrets; it is a command that must not
+      # be handed the secrets at all.
+      - name: Is there an Apple certificate to sign with?
+        id: signing
+        shell: bash
         env:
-          # Signing. Every one of these is absent until the owner adds it as a
-          # repository secret; without them the build still produces installers,
-          # they are just unsigned and the OS will warn about them. See
-          # docs/PACKAGING.md for what each one is and how to get it.
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$CERT" ]; then
+            echo "apple=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "apple=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::no APPLE_CERTIFICATE secret; macOS builds will be unsigned and Gatekeeper will warn on first open"
+          fi
+
+      - name: Build and bundle, signed
+        if: steps.signing.outputs.apple == 'yes'
+        uses: tauri-apps/tauri-action@v0
+        env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -283,6 +300,12 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: --target ${{ matrix.target }}
+
+      - name: Build and bundle, unsigned
+        if: steps.signing.outputs.apple != 'yes'
+        uses: tauri-apps/tauri-action@v0
         with:
           args: --target ${{ matrix.target }}
 
