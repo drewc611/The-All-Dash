@@ -376,6 +376,20 @@ test('the manual path can actually create the tag it needs', () => {
   assert.match(RELEASE, /git push origin "refs\/tags\/\$tag"/, 'nothing creates the tag on a manual run')
 })
 
+test('a slow container build cannot hold a finished release hostage', () => {
+  // publish waits on container completing, whatever it concludes. The arm64
+  // half is emulated: it built in 83 seconds once and sat for twenty minutes
+  // on an identical commit when two releases contended for the build cache.
+  // Unbounded, that is a six-hour hold on a release whose installers are done.
+  const job = RELEASE.slice(RELEASE.indexOf('\n  container:'), RELEASE.indexOf('\n  desktop:'))
+  assert.match(job, /timeout-minutes: \d+/, 'the emulated container build has no time bound')
+  assert.doesNotMatch(
+    RELEASE.slice(RELEASE.indexOf('  publish:')),
+    /needs\.container\.result/,
+    'publish gates on the container, so a failed image would block a release the installers are ready for'
+  )
+})
+
 test('an unsigned macOS build is never handed empty signing secrets', () => {
   // An absent GitHub secret is an empty string, not an absent variable, so
   // APPLE_CERTIFICATE="" made tauri import an empty certificate and fail the

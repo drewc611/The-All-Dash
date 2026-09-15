@@ -189,6 +189,15 @@ jobs:
   container:
     needs: verify
     runs-on: ubuntu-latest
+    # `publish` waits on this job completing, whatever it concludes. The arm64
+    # half is emulated through QEMU, and it built both architectures in 83
+    # seconds once and then sat for twenty minutes on an identical commit when
+    # two releases ran at the same time and contended for the same build cache.
+    # Without a bound, a slow or wedged emulated build holds a finished release
+    # hostage for GitHub's six-hour default. The image is worth waiting a while
+    # for and is not worth waiting all afternoon for, so it gets half an hour
+    # and the release goes out without it after that.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
