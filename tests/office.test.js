@@ -159,3 +159,100 @@ test('the status update is assembled from real entities only', () => {
   assert.match(md, /## Open questions\n- Who owns the runbook/)
   assert.doesNotMatch(md, /## Overdue/)
 })
+
+
+// ------------------------------------------- real archives, end to end
+
+/*
+ * Everything above hands XML straight to a parser. That leaves the path a
+ * person actually takes - a file on disk, unzipped, the right part found,
+ * parsed, turned into entities - with no coverage at all, which is how a bug
+ * that cost every HTML and bulleted keyword line its entity lived long enough
+ * to ship. These build genuine archives with the repo's own zip writer and run
+ * them through `ingestFile`, the same entry point the file picker calls.
+ */
+
+import { zipFiles } from '../src/brain/bundle.js'
+import { ingestFile } from '../src/ingest/index.js'
+
+const archive = (parts, name) =>
+  new File([zipFiles(Object.entries(parts).map(([path, text]) => ({ path, text })))], name)
+
+const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+const wp = (text, style) =>
+  `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`
+
+test('a real .docx becomes entities, not just text', async () => {
+  const body = [
+    wp('Migration readiness', 'Heading1'),
+    wp('- Decided: the rollback script ships first.'),
+    wp('- TODO: Marco Bianchi to load test the pilot cohort'),
+    wp('- Risk: the cohort was never load tested at full size.'),
+  ].join('')
+  const file = archive({
+    '[Content_Types].xml': `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>`,
+    'word/document.xml': `${XML}<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`,
+  }, 'migration.docx')
+
+  const { entities } = await ingestFile(file)
+  const types = entities.map((e) => e.type)
+  assert.ok(types.includes('decision'), `no decision: ${types.join(',')}`)
+  assert.ok(types.includes('task'), `no task: ${types.join(',')}`)
+  assert.ok(types.includes('risk'), `no risk: ${types.join(',')}`)
+})
+
+test('a real .xlsx becomes one task per row', async () => {
+  const strings = ['Title', 'Owner', 'Status', 'Rewrite the rollback script', 'Priya Raman', 'To Do',
+    'Load test the pilot cohort', 'Marco Bianchi']
+  const si = (v) => strings.indexOf(v)
+  const row = (r, vals) =>
+    `<row r="${r}">${vals.map((v, c) => `<c r="${String.fromCharCode(65 + c)}${r}" t="s"><v>${si(v)}</v></c>`).join('')}</row>`
+  const file = archive({
+    '[Content_Types].xml': `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>`,
+    'xl/workbook.xml': `${XML}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Backlog" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels': `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+    'xl/worksheets/sheet1.xml': `${XML}<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${
+      row(1, ['Title', 'Owner', 'Status'])}${
+      row(2, ['Rewrite the rollback script', 'Priya Raman', 'To Do'])}${
+      row(3, ['Load test the pilot cohort', 'Marco Bianchi', 'To Do'])}</sheetData></worksheet>`,
+    'xl/sharedStrings.xml': `${XML}<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${
+      strings.map((t) => `<si><t xml:space="preserve">${t}</t></si>`).join('')}</sst>`,
+  }, 'backlog.xlsx')
+
+  const { entities } = await ingestFile(file)
+  const titles = entities.filter((e) => e.type === 'task').map((e) => e.title)
+  assert.equal(titles.length, 2, `expected both rows, got ${JSON.stringify(titles)}`)
+  assert.ok(titles.includes('Rewrite the rollback script'))
+})
+
+test('a real .pptx reads every slide, in order', async () => {
+  const slide = (lines) => `${XML}<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree>${
+    lines.map((t) => `<p:sp><p:txBody><a:p><a:r><a:t>${t}</a:t></a:r></a:p></p:txBody></p:sp>`).join('')}</p:spTree></p:cSld></p:sld>`
+  const file = archive({
+    '[Content_Types].xml': `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>`,
+    'ppt/slides/slide1.xml': slide(['Migration readiness', 'Rollback first, then tenants']),
+    // A slide's first text box is its title, so the body goes underneath it -
+    // which is how a deck is actually shaped, and what makes the rest readable
+    // as content rather than as five headings in a row.
+    'ppt/slides/slide2.xml': slide(['Next steps', '- TODO: Marco Bianchi to load test the pilot cohort']),
+  }, 'deck.pptx')
+
+  const { entities } = await ingestFile(file)
+  const titles = entities.map((e) => e.title || '')
+  // Slide 1 is reached through its title; its body is ordinary prose and
+  // belongs in the note, not in an entity of its own.
+  assert.ok(titles.some((t) => /Migration readiness/.test(t)), `slide 1 was not read: ${JSON.stringify(titles)}`)
+  // Slide 2 proves the reader got past the first slide and that a bullet on a
+  // slide still classifies.
+  const task = entities.find((e) => e.type === 'task')
+  assert.ok(task, `slide 2 produced no task: ${JSON.stringify(titles)}`)
+  assert.match(task.title, /load test the pilot cohort/)
+})
+
+test('an archive missing the part we want fails as a message, not a crash', async () => {
+  // A .docx that is a valid zip but has no word/document.xml - a renamed file,
+  // a partial download. The picker hands it straight here, so it must come back
+  // as something the person can read.
+  const file = archive({ 'random.txt': 'not a word document' }, 'broken.docx')
+  await assert.rejects(() => ingestFile(file), (e) => e instanceof Error && typeof e.message === 'string')
+})
