@@ -295,3 +295,79 @@ test('the plain-text fallback refuses bytes that are not text', () => {
   const okay = { name: 'blob.unknown', text: 'just words', buffer: null, kind: 'unknown' }
   assert.equal(pickParser(okay)?.id, 'plain')
 })
+
+
+// ------------------------------------------------------- list markers
+
+test('a bullet does not hide a keyword line', () => {
+  // Every regex in MARKERS is anchored to the start of the line, and the line
+  // was tested with its list marker still attached. So "TODO: x" produced a
+  // task and "- TODO: x" produced nothing - and people write meeting notes in
+  // lists. Numbered lists had it too.
+  const forms = ['TODO: %s', '- TODO: %s', '* TODO: %s', '+ TODO: %s', '1. TODO: %s', '2) TODO: %s']
+  for (const form of forms) {
+    const text = form.replace('%s', 'rotate the signing keys')
+    const { entities } = extractFromText(text, { docId: 'd', name: 'n.md', kind: 'markdown' })
+    const tasks = entities.filter((e) => e.type === 'task')
+    assert.equal(tasks.length, 1, `no task from ${JSON.stringify(text)}`)
+    assert.match(tasks[0].title, /rotate the signing keys/)
+  }
+})
+
+test('every marker keyword survives a bullet', () => {
+  const cases = [
+    ['- Decision: we stay on Postgres 16', 'decision'],
+    ['- Decided: we stay on Postgres 16', 'decision'],
+    ['- Risk: the cohort was never load tested', 'risk'],
+    ['- Blocked: waiting on the rollback script', 'risk'],
+    ['- Milestone: code freeze', 'milestone'],
+  ]
+  for (const [text, type] of cases) {
+    const { entities } = extractFromText(text, { docId: 'd', name: 'n.md', kind: 'markdown' })
+    assert.ok(entities.some((e) => e.type === type), `${JSON.stringify(text)} produced no ${type}`)
+  }
+})
+
+test('a plain bullet is still just prose', () => {
+  // The fix strips the marker before testing keywords; it must not turn every
+  // bullet into an entity.
+  const { entities } = extractFromText('- just a sentence about nothing in particular',
+    { docId: 'd', name: 'n.md', kind: 'markdown' })
+  assert.equal(entities.length, 0)
+})
+
+test('html keeps its keyword lines', () => {
+  // htmlToText turns every <li> into "- ", so the bullet bug cost HTML import
+  // every Decided: and TODO: line it had. A changelog imported as one note.
+  const text = htmlToText('<ul><li>Decided: the rollback script ships first.</li>' +
+    '<li>TODO: benchmark p99</li></ul>')
+  const { entities } = extractFromText(text, { docId: 'd', name: 'c.html', kind: 'html' })
+  assert.ok(entities.some((e) => e.type === 'decision'), 'the decision was lost')
+  assert.ok(entities.some((e) => e.type === 'task'), 'the task was lost')
+})
+
+// ------------------------------------------------- transcript commitments
+
+const vtt = (body) => `WEBVTT\n\n00:00:00.000 --> 00:00:08.000\n${body}\n`
+const runVtt = (body) => {
+  const input = { name: 't.vtt', text: vtt(body), docId: 'd', kind: 'vtt', buffer: null, mime: '' }
+  return pickParser(input).parse(input)
+}
+
+test('a commitment that names nothing does not become a task', () => {
+  // "Legal wants the residency note signed off first. I'll own that." matched
+  // the commitment pattern and produced a task called "own that" - a card on
+  // somebody's board that cannot be done, because the thing it means was in
+  // the sentence before and is not on the card.
+  const out = runVtt("<v Sam Ojo>Legal wants the residency note signed off first. I'll own that.")
+  const tasks = out.filter((e) => e.type === 'task')
+  assert.deepEqual(tasks.map((t) => t.title), [], `invented ${JSON.stringify(tasks.map((t) => t.title))}`)
+})
+
+test('a commitment that names something still becomes a task', () => {
+  // The guard must not swallow real commitments.
+  const out = runVtt("<v Priya Raman>I'll rewrite the rollback script this week.")
+  const tasks = out.filter((e) => e.type === 'task')
+  assert.equal(tasks.length, 1)
+  assert.match(tasks[0].title, /rewrite the rollback script/)
+})

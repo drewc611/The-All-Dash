@@ -43,6 +43,26 @@ export function transcriptToTurns(text) {
 const COMMITMENT =
   /\b(I(?:'| wi)ll|I can|we(?:'| wi)ll|let me|I'm going to|I am going to|going to)\s+([a-z][^.?!]{4,120})/i
 const ASSIGNMENT = /\b(?:can you|could you|please|would you)\s+([a-z][^.?!]{4,120})/i
+
+/**
+ * Whether a commitment actually names the thing being committed to.
+ *
+ * People speak in references: "Legal wants the residency note signed off
+ * first. I'll own that." The pattern matches, and the task it produces is
+ * called "own that" - which takes a place on somebody's board and can never be
+ * done, because the thing it means was in the previous sentence and is not on
+ * the card. Resolving the reference is guesswork; declining to invent a task
+ * is not, and a transcript that yields three real tasks beats one that yields
+ * five with two of them unreadable.
+ *
+ * A short phrase leaning on a demonstrative is the tell. Anything longer is
+ * carrying its own subject and is kept.
+ */
+function namesSomething(phrase) {
+  const words = String(phrase).trim().split(/\s+/)
+  if (words.length > 3) return true
+  return !words.some((w) => /^(?:that|it|this|these|those|them)[.,!?]?$/i.test(w))
+}
 const DECISION = /\b(?:we (?:decided|agreed)|let's go with|final answer is|the call is)\s+([^.?!]{4,140})/i
 const RISKY = /\b(?:blocked (?:on|by)|at risk|worried about|the risk is|concern(?:ed)? (?:about|is))\s+([^.?!]{4,140})/i
 
@@ -80,12 +100,12 @@ defineParser({
           continue
         }
         const commit = sentence.match(COMMITMENT)
-        if (commit) {
+        if (commit && namesSomething(commit[2])) {
           entities.push({ ...base, type: 'task', title: trim(commit[2]), status: 'open', confidence: 0.7 })
           continue
         }
         const ask = sentence.match(ASSIGNMENT)
-        if (ask) {
+        if (ask && namesSomething(ask[1])) {
           entities.push({ ...base, type: 'task', title: trim(ask[1]), status: 'open', confidence: 0.6 })
         }
       }
