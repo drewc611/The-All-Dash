@@ -103,9 +103,19 @@ export function extractFromText(text, source, refDate = new Date()) {
     }
 
     // Explicit markers beat section context.
+    //
+    // Tested without any list marker, because a bullet is decoration and not
+    // meaning: "- TODO: ship the thing" says exactly what "TODO: ship the
+    // thing" says. Every regex in MARKERS is anchored to the start of the
+    // line, so a leading "- " or "1. " silently defeated all of them, and
+    // people write meeting notes in lists. It cost every keyword line in every
+    // HTML import too, because htmlToText turns each <li> into "- " - so a
+    // changelog full of "Decided:" and "TODO:" lines imported as one note and
+    // nothing else.
+    const unmarked = line.replace(BULLET, '$1').replace(NUMBERED, '$1')
     let matched = false
     for (const marker of MARKERS) {
-      const m = line.match(marker.re)
+      const m = unmarked.match(marker.re)
       if (!m) continue
       entities.push(buildFromKind(marker.type, m[1], base, dateRef()))
       matched = true
