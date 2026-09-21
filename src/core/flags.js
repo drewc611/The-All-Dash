@@ -61,6 +61,11 @@ export const REGISTRY = {
     title: 'Glass in Focus',
     summary: 'Translucent surfaces over the wallpaper, inside the Focus view only.',
   },
+  rounds: {
+    maturity: 'alpha',
+    title: 'Rounds',
+    summary: 'Standing work: a question asked of the workspace on a cadence, answered with every finding traceable to the records behind it, and a ceiling checked before anything is spent.',
+  },
   'glass.app': {
     maturity: 'stable',
     title: 'Glass everywhere',

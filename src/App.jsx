@@ -52,6 +52,7 @@ const load = {
   stash: () => import('./ui/stash/Stash.jsx'),
   brain: () => import('./ui/views/Brain.jsx'),
   agents: () => import('./ui/views/Agents.jsx'),
+  rounds: () => import('./ui/views/Rounds.jsx'),
   settings: () => import('./ui/views/Settings.jsx'),
   assistant: () => import('./ui/Assistant.jsx'),
 }
@@ -65,6 +66,7 @@ const Focus = lazy(() => load.focus().then((m) => ({ default: m.Focus })))
 const Stash = lazy(() => load.stash().then((m) => ({ default: m.Stash })))
 const Brain = lazy(() => load.brain().then((m) => ({ default: m.Brain })))
 const Agents = lazy(() => load.agents().then((m) => ({ default: m.Agents })))
+const Rounds = lazy(() => load.rounds().then((m) => ({ default: m.Rounds })))
 const Settings = lazy(() => load.settings().then((m) => ({ default: m.Settings })))
 const Assistant = lazy(() => load.assistant().then((m) => ({ default: m.Assistant })))
 
@@ -87,6 +89,7 @@ const VIEWS = [
   { id: 'library', label: VIEW_LABELS.library, Icon: IconLibrary },
   { id: 'brain', label: VIEW_LABELS.brain, Icon: IconBrain },
   { id: 'agents', label: VIEW_LABELS.agents, Icon: IconSpark },
+  { id: 'rounds', label: VIEW_LABELS.rounds, Icon: IconClock, flag: 'rounds' },
   { id: 'settings', label: VIEW_LABELS.settings, Icon: IconSettings },
 ]
 
@@ -380,6 +383,8 @@ export default function App() {
             <Focus entities={allEntities} onOpen={setInspecting} />
           ) : view === 'agents' ? (
             <Agents state={state} entities={allEntities} onToast={toast} onOpen={setInspecting} />
+          ) : view === 'rounds' ? (
+            <Rounds state={state} entities={allEntities} onToast={toast} onOpen={setInspecting} />
           ) : (
             <Settings state={state} entities={state.entities} range={range} onToast={toast} />
           )}

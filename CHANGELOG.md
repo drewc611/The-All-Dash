@@ -13,7 +13,41 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Rounds** (`rounds`, alpha). Standing work: a question asked of this
+  workspace on a cadence, reported back with the records behind every answer.
+  Daily, weekdays, weekly or monthly.
+
+  Two things make it worth having rather than a reminder to ask the question
+  yourself.
+
+  **Every finding carries its sources, and the ones that do not are shown
+  anyway.** The Critic cuts claims that cite nothing, or cite something that
+  was never retrieved. Those cuts are the most interesting part of a brief -
+  they are where the answer wanted to say something it could not stand up - so
+  they are kept under their own heading rather than deleted on the way out. A
+  clean-looking report with the doubtful half removed is how these things come
+  to be believed.
+
+  **Nothing is spent without a ceiling.** A round with no ceiling reads the
+  workspace and does not call a model, which is what most of them should do:
+  retrieval and the Critic are local, so a standing question about your own
+  records costs nothing to ask every week. A round with a ceiling refuses
+  before the call rather than after, against the cap on the reply rather than
+  a guess at its length, because the worst case is the only number anyone can
+  promise.
+
+  A missed period is not a backlog. Away for a week, a daily round is owed
+  once on your return, not seven times: nobody wants seven briefs about a
+  Tuesday that is over.
+
+  **What it is not.** There is no server here, so a round runs the next time
+  you open the app after it comes due, not at nine o'clock while the laptop is
+  shut. The view says so rather than implying a schedule it cannot keep. And
+  with no model configured a finding is the passage it was retrieved from,
+  which is accurate and is not prose - the source chip opens the record where
+  the rest of it lives.
 
 ## [0.2.1] — 2026-09-15
 
