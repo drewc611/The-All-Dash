@@ -22,6 +22,7 @@ export const VIEW_LABELS = {
   library: 'Library',
   brain: 'Brain',
   agents: 'Agents',
+  rounds: 'Rounds',
   settings: 'Settings',
 }
 

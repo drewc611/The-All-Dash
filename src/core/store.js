@@ -8,6 +8,7 @@ import { normaliseRouter } from '../ai/router-schema.js'
 import { normaliseSettings } from './settings-schema.js'
 import { normaliseFlags } from './flags.js'
 import { normaliseFocus, emptyFocus } from '../focus/schema.js'
+import { normaliseRoundsState, emptyRounds } from '../rounds/schema.js'
 import { normaliseStudy, emptyStudy } from '../agents/study-schema.js'
 
 /**
@@ -92,6 +93,7 @@ const initialState = () => ({
   brain: emptyBrainState(),
   study: emptyStudy(),
   focus: emptyFocus(),
+  rounds: emptyRounds(),
   work: normaliseWork(null),
   router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
@@ -114,6 +116,7 @@ function load() {
       brain: normaliseBrainState(parsed.brain),
       study: normaliseStudy(parsed.study),
       focus: normaliseFocus(parsed.focus),
+      rounds: normaliseRoundsState(parsed.rounds),
       work: normaliseWork(parsed.work),
       router: normaliseRouter(parsed.router),
     }
