@@ -11,6 +11,7 @@ import { makeAutomation } from '../src/work/automations.js'
 import { makeColumn } from '../src/work/schema.js'
 import { cellValue, elapsed } from '../src/work/columns.js'
 import { TEMPLATES } from '../src/work/templates.js'
+import { seedSampleBoard } from '../src/work/sample.js'
 import { addDays, iso } from '../src/core/time.js'
 
 /**
@@ -189,4 +190,65 @@ test('an overdue board row is still a task everywhere else', () => {
     assert.equal(entity.source.kind, 'board')
     assert.ok(new Date(entity.due) < new Date())
   })
+})
+
+// ------------------------------------------------- the sample board
+
+/*
+ * Templates ship without rows on purpose. The sample project is the other
+ * job: it exists so somebody who has decided nothing can see the app working,
+ * and it used to fill Today, Triage, the Timeline and Analytics while leaving
+ * Boards - the largest surface here - completely empty. You clicked Project
+ * plan and got eight column headings and "0 items".
+ *
+ * These pin the rows against what each view actually needs, because the way
+ * this broke the first time was silent: the timeline was written as
+ * `timeline: {from, to}`, makeEntity dropped it without a word, the table
+ * still drew a Timeline heading over empty cells, and only the Timeline view
+ * said anything - "Nothing has dates yet", over ten rows that all had dates.
+ */
+
+test('the sample board fills every view its template ships with', () => {
+  const board = seedSampleBoard()
+  try {
+    const items = itemsOf(getState(), board.id)
+    assert.ok(items.length >= 8, `only ${items.length} rows`)
+
+    // Timeline: a row draws a bar from `at`/`end`. There is no timeline field;
+    // readCell derives the column from those two.
+    const timeline = board.columns.find((c) => c.kind === 'timeline')
+    const dated = items.filter((i) => cellValue(i, timeline, board))
+    assert.equal(dated.length, items.length, `${items.length - dated.length} rows would not draw`)
+    for (const i of items) assert.ok(i.at && i.end, `${i.title} has no start or end`)
+
+    // Workload: one bar per person, so more than one person has to own work.
+    const owners = new Set(items.flatMap((i) => i.people))
+    assert.ok(owners.size >= 3, `only ${owners.size} owner(s), so Workload is one row`)
+
+    // Kanban by status: an empty column teaches nothing about what it is for.
+    const status = board.columns.find((c) => c.kind === 'status')
+    const used = new Set(items.map((i) => cellValue(i, status, board)))
+    for (const label of status.labels) {
+      assert.ok(used.has(label.id), `no row is "${label.text}", so that column is empty`)
+    }
+
+    // Progress: all-zero teaches nothing either.
+    const progress = board.columns.find((c) => c.kind === 'progress')
+    const spread = new Set(items.map((i) => cellValue(i, progress, board)))
+    assert.ok(spread.size >= 3, 'every row has the same progress')
+
+    // The template's blurb promises a dependency chain, so there is one.
+    const dependency = board.columns.find((c) => c.kind === 'dependency')
+    const linked = items.filter((i) => (cellValue(i, dependency, board) || []).length)
+    assert.ok(linked.length >= 3, `only ${linked.length} row(s) depend on anything`)
+    // And every link points at a row on this board, not at a dangling id.
+    const ids = new Set(items.map((i) => i.id))
+    for (const i of linked) {
+      for (const on of cellValue(i, dependency, board)) {
+        assert.ok(ids.has(on), `${i.title} depends on ${on}, which is not on this board`)
+      }
+    }
+  } finally {
+    removeBoard(board.id)
+  }
 })
