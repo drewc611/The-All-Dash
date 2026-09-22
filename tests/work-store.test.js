@@ -237,6 +237,19 @@ test('the sample board fills every view its template ships with', () => {
     const spread = new Set(items.map((i) => cellValue(i, progress, board)))
     assert.ok(spread.size >= 3, 'every row has the same progress')
 
+    // Priority, checked through cellValue rather than through meta, because
+    // meta was exactly where the answer looked right. The entity field is a
+    // number, the column stores a label id, and cellValue trusts the label
+    // only while the two agree - so ten rows carrying four different labels
+    // and no number all read back as the same priority. A spread assertion is
+    // the cheapest thing that can tell the difference, and the reason the
+    // status column has one and this one did not was an oversight.
+    const priority = board.columns.find((c) => c.kind === 'priority')
+    const priorities = new Set(items.map((i) => cellValue(i, priority, board)))
+    assert.ok(priorities.size >= 3,
+      `${priorities.size} distinct priority value(s) across ${items.length} rows: ${[...priorities]}`)
+    assert.ok(priorities.has('critical'), 'nothing is critical, so the top of the scale is never shown')
+
     // The template's blurb promises a dependency chain, so there is one.
     const dependency = board.columns.find((c) => c.kind === 'dependency')
     const linked = items.filter((i) => (cellValue(i, dependency, board) || []).length)
