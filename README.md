@@ -1164,6 +1164,22 @@ boards go single-column, sheets slide up from the bottom, hit targets grow to
 | `g` then `t` `w` `r` `l` `a` `k` `m` `d` `b` `g` `s` | Today, Boards, Triage, Timeline, Analytics, Stash, Studio, Library, Brain, Agents, Settings |
 | `Esc` | Close whatever is open |
 
+## Screen readers
+
+Buttons are named for what they do, not for what they sit next to. That sounds
+obvious and it is easy to get wrong here: a board view called Timeline, the
+Timeline item in the rail and the sort button on a Timeline column all read as
+the word "Timeline" on their own. Visually those three are unmistakable. In a
+list of controls they are three identical rows, and nothing in any of them says
+which one sorts a table. So the tab is "Timeline view", the header is "Sort by
+Timeline", and the rail keeps the plain name because it is inside a navigation
+landmark that already says so.
+
+Sort direction is `aria-sort` on the column header rather than an arrow in the
+button's name — announced as state, not as a character the reader may have no
+word for. The content column is a real `<main>`, which also means the page has
+one banner instead of two and "skip to content" has somewhere to land.
+
 ## Layout
 
 ```

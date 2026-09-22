@@ -333,7 +333,15 @@ export default function App() {
         </div>
       </nav>
 
-      <div className="main">
+      {/*
+        * A real main landmark, and the reason is the header below it. A
+        * <header> that is not inside a sectioning element is a banner, so
+        * .topbar was one and the board's view tabs were a second - two
+        * unnamed banners on a page with no main at all. Inside <main> both
+        * are ordinary headers again, and "skip to content" has somewhere to
+        * go. The class does the styling and is unchanged.
+        */}
+      <main className="main">
         <header className="topbar">
           <div className="topbar__title">
             <h1>{active.label}</h1>
@@ -390,7 +398,7 @@ export default function App() {
           )}
           </Suspense>
         </div>
-      </div>
+      </main>
 
       {dragging && <DropHint />}
       <MiniPlayer />

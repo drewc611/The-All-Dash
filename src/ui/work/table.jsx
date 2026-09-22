@@ -42,6 +42,26 @@ export function TableView({ board, view, items, allItems = items, people, onOpen
   })
 
   const sort = view.config.sort
+
+  /**
+   * The header button's name is what it does, not what the column is called.
+   *
+   * A column named Timeline gave a button whose accessible name was
+   * "Timeline" - the same name as the Timeline tab above it and the Timeline
+   * item in the rail. Three buttons, one name, and nothing in the name saying
+   * which one sorts a table. Sighted use is unambiguous because the three sit
+   * in obviously different places; a list of links and buttons is three
+   * identical rows.
+   *
+   * The arrow in the label said which way it sorts, and an aria-label hides
+   * it, so the direction moves to aria-sort on the columnheader where a screen
+   * reader announces it as state rather than reading a character it may not
+   * have a word for. `title` stays for the sighted tooltip: with an aria-label
+   * present it becomes the description, not the name.
+   */
+  const ariaSort = (columnId) =>
+    sort?.columnId === columnId ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+
   const setSort = (columnId) => updateView(board.id, view.id, {
     config: {
       sort: sort?.columnId === columnId ? (sort.dir === 'asc' ? { columnId, dir: 'desc' } : null) : { columnId, dir: 'asc' },
@@ -126,14 +146,31 @@ export function TableView({ board, view, items, allItems = items, people, onOpen
               <div className="wtable" role="table" aria-label={`${board.name}: ${group.name}`}>
                 <div className="wtable__row wtable__row--head" role="row">
                   <span className="wtable__pick" role="columnheader"><span className="visually-hidden">Select</span></span>
-                  <span className="wtable__title" role="columnheader">
-                    <button type="button" className="wtable__sort" onClick={() => setSort('title')}>
+                  <span className="wtable__title" role="columnheader" aria-sort={ariaSort('title')}>
+                    <button
+                      type="button"
+                      className="wtable__sort"
+                      aria-label={`Sort by ${board.itemNoun}`}
+                      onClick={() => setSort('title')}
+                    >
                       {board.itemNoun}{sort?.columnId === 'title' ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                     </button>
                   </span>
                   {columns.map((column) => (
-                    <span key={column.id} className="wtable__cell" role="columnheader" style={{ width: column.width }}>
-                      <button type="button" className="wtable__sort truncate" onClick={() => setSort(column.id)} title={`Sort by ${column.name}`}>
+                    <span
+                      key={column.id}
+                      className="wtable__cell"
+                      role="columnheader"
+                      aria-sort={ariaSort(column.id)}
+                      style={{ width: column.width }}
+                    >
+                      <button
+                        type="button"
+                        className="wtable__sort truncate"
+                        aria-label={`Sort by ${column.name}`}
+                        title={`Sort by ${column.name}`}
+                        onClick={() => setSort(column.id)}
+                      >
                         {column.name}{sort?.columnId === column.id ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                       </button>
                     </span>

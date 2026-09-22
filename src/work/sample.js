@@ -111,7 +111,8 @@ export function seedSampleBoard() {
   const board = createBoard(template.build())
   const idOf = (kind) => columnOfKind(board, kind)?.id
   const statusColumn = columnOfKind(board, 'status')
-  const priority = idOf('priority')
+  const priorityColumn = columnOfKind(board, 'priority')
+  const priority = priorityColumn?.id
   const progress = idOf('progress')
   const dependency = idOf('dependency')
   const notes = idOf('longtext')
@@ -144,6 +145,14 @@ export function seedSampleBoard() {
       // board with two labels mapping to the same app status still shows the
       // one that was chosen.
       status: statusColumn?.labels?.find((l) => l.id === row.status)?.maps || 'open',
+      // Priority is the same trap wearing different clothes, and it survived
+      // the first pass because the table still showed a priority - just the
+      // wrong one, on all ten rows. The entity field is a number and the
+      // column stores a label id, so cellValue trusts the label only while
+      // the two agree. Ten labels against a default of 0 all disagreed, and
+      // every row fell back to the last label worth 0: Medium. The number
+      // comes off the label, the way writeCell does it.
+      priority: priorityColumn?.labels?.find((l) => l.id === row.priority)?.value ?? 0,
       at: dayKey(addDays(new Date(), row.from)),
       end: dayKey(addDays(new Date(), row.to)),
       meta: {

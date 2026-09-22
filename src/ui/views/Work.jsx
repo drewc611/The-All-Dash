@@ -104,7 +104,18 @@ export function Work({ state, onToast, onOpenEntity }) {
       </aside>
 
       <div className="wmain">
-        <header className="wtabs">
+        {/*
+          * A view is named for what it shows, so a board with a Timeline view
+          * gave a tab whose accessible name was "Timeline" - identical to the
+          * Timeline item in the rail and to the Timeline column's sort button
+          * in the table below it. The label says which of the three this is.
+          *
+          * The row is a labelled group rather than a bare <header>, because a
+          * header inside <main> is generic and an aria-label on a generic
+          * element is ignored - the name would have been written and never
+          * announced.
+          */}
+        <header className="wtabs" role="group" aria-label={`${board.name} views`}>
           {board.views.map((v) => {
             const Icon = VIEW_ICON[v.kind] || IconGrid
             return (
@@ -112,6 +123,7 @@ export function Work({ state, onToast, onOpenEntity }) {
                 key={v.id}
                 type="button"
                 className="wtab"
+                aria-label={`${v.name} view`}
                 aria-current={v.id === view?.id}
                 onClick={() => { setViewId(v.id); setEditingForm(false) }}
               >
