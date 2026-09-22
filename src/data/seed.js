@@ -1,6 +1,7 @@
 import { ingestText } from '../ingest/index.js'
 import { updateSettings } from '../core/store.js'
 import { addDays, dayKey } from '../core/time.js'
+import { seedSampleBoard } from '../work/sample.js'
 
 /**
  * The sample project is not fixture data - it is four real documents run
@@ -166,5 +167,10 @@ export async function seedWorkspace() {
   await ingestText(CALENDAR, 'Atlas calendar.ics')
   await ingestText(sheet(), 'Atlas migration metrics.csv')
   await ingestText(BACKLOG, 'Atlas backlog.csv')
+  // And a board, because Boards is the largest surface here and the one-click
+  // sample used to leave it empty: you clicked Project plan and got eight
+  // column headings and no rows. Templates still carry none, deliberately -
+  // this is the demo, which is a different job.
+  seedSampleBoard()
   updateSettings({ seeded: true })
 }

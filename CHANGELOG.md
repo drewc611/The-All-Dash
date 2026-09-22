@@ -15,6 +15,21 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ### Added
 
+- **The sample project now comes with a board.** "Load a sample project" filled
+  Today, Triage, the Timeline and Analytics and left Boards completely empty:
+  you clicked **Project plan** and got eight column headings and "0 items".
+  Boards is the largest surface in the app - seven view kinds over the same
+  rows, typed columns, rules - and the one-click demo never showed any of it.
+
+  Ten rows across four groups, shaped so each view says something: four owners
+  so Workload has more than one bar, every status used so no kanban column is
+  empty, timelines from three weeks back to five weeks out so the Gantt has
+  bars either side of today, a real dependency chain because the template's own
+  blurb promises one, and progress values that are not all 0%.
+
+  Templates still ship with no rows. That is a different job and a deliberate
+  one: an empty board you understand beats a full one you have to clear out.
+
 - **Rounds** (`rounds`, alpha). Standing work: a question asked of this
   workspace on a cadence, reported back with the records behind every answer.
   Daily, weekdays, weekly or monthly.
