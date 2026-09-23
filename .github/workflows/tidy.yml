@@ -107,3 +107,28 @@ jobs:
           echo
           echo "$gone deleted, $kept kept" >> "$GITHUB_STEP_SUMMARY"
           echo "$gone deleted, $kept kept"
+
+  releases:
+    # The same problem wearing different clothes: editing a published release
+    # needs the credential this job has and a terminal here does not.
+    #
+    # v0.2.0's notes advertise `ghcr.io/drewc611/all-dash:0.2.0` and `:latest`.
+    # Neither existed. The image build was cancelled at 29m41s by the timeout
+    # that stops a wedged build holding a finished release hostage, and the
+    # release published thirteen seconds later with all eight installers and no
+    # image. The notes had been written before the run finished, which is the
+    # actual mistake - describing a build nobody had watched succeed.
+    #
+    # A release page telling people to pull a tag that 404s is worth correcting
+    # rather than explaining.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct the container lines in v0.2.0's notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        # Idempotent by construction: each replacement fires only while its
+        # exact text is still there, and the script exits without a request
+        # when nothing matches - so re-running the workflow is free.
+        run: python3 .github/scripts/correct-v020-notes.py

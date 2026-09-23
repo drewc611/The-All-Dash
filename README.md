@@ -115,7 +115,11 @@ branch and anything with an open pull request are never touched, and
 
 It runs there rather than from a terminal because deleting a ref needs a
 credential most working setups are not given — `git push origin --delete`
-answers 403 where pushing the same branch succeeds.
+answers 403 where pushing the same branch succeeds. The same job corrects
+v0.2.0's release notes for the same reason: they advertise a container tag
+that was never published, because they were written before the image build
+finished and that build was cancelled at 29m41s by its timeout. The correction
+is idempotent, so re-running the workflow costs nothing.
 
 ## Focus
 

@@ -574,3 +574,30 @@ test('the tidy job can be started at all', () => {
   assert.match(TIDY, /branches: \[main\]/, 'it would run from any branch, including one it is about to act on')
   assert.match(TIDY, /dry_run/, 'there is no way to see what it would do before it does it')
 })
+
+test('the v0.2.0 notes correction is wired up and safe to re-run', () => {
+  // A script in .github/scripts that no workflow invokes is litter, which is
+  // the opposite of what this workflow is for.
+  assert.match(TIDY, /python3 \.github\/scripts\/correct-v020-notes\.py/,
+    'the correction script is in the repository but nothing runs it')
+  assert.ok(existsSync(join(ROOT, '.github/scripts/correct-v020-notes.py')),
+    'the workflow runs a script that is not here')
+
+  const fix = read('.github/scripts/correct-v020-notes.py')
+
+  // Re-running the workflow must not keep editing the release. Each
+  // replacement is guarded by its own text still being present, and a run that
+  // matches nothing exits before making a request.
+  assert.match(fix, /if old in body/, 'a replacement fires whether or not its text is there')
+  assert.match(fix, /body\.replace\(old, new, 1\)/, 'an unbounded replace would rewrite corrected text')
+  assert.match(fix, /if not changed:[\s\S]{0,120}sys\.exit\(0\)/,
+    'a run with nothing to do still PATCHes the release')
+
+  // A missing release is not an error worth failing the job over.
+  assert.match(fix, /e\.code == 404/, 'a deleted release would fail the whole tidy run')
+
+  // What it writes has to stay true. :0.2.0 does not exist and never will;
+  // :latest does, and points at v0.2.1.
+  assert.match(fix, /does not exist/, 'the correction no longer says the tag is missing')
+  assert.match(fix, /0\.2\.1/, 'the correction does not say where to go instead')
+})
