@@ -103,6 +103,20 @@ it is in your way.
 
 Entry and exit criteria per phase: [docs/RELEASING.md](docs/RELEASING.md).
 
+Branches clean themselves up. A release started by pushing `release/v<version>`
+deletes that branch once the release exists, because the tag is the permanent
+record and the branch carries nothing main does not already have — eight of
+them piled up getting v0.2.0 out. The `Tidy` workflow does the same for the
+rest, and re-derives what is safe each time rather than working from a list:
+a branch goes only if a pull request from it merged, or if it is a `release/*`
+branch and a tag points at the same commit. The default branch, a protected
+branch and anything with an open pull request are never touched, and
+`dry_run` shows what it would do first.
+
+It runs there rather than from a terminal because deleting a ref needs a
+credential most working setups are not given — `git push origin --delete`
+answers 403 where pushing the same branch succeeds.
+
 ## Focus
 
 A Pomodoro timer that records its minutes against the task you ran it on, so

@@ -433,3 +433,19 @@ jobs:
           prerelease: ${{ needs.verify.outputs.prerelease }}
           files: artifacts/*
           fail_on_unmatched_files: false
+
+      - name: Remove the trigger branch
+        # A release started by pushing `release/v<version>` leaves that branch
+        # behind, and the branch has done its entire job the moment the release
+        # exists. It carries no commits that are not already on main, and the
+        # tag is the permanent record of what was released. Left alone they
+        # accumulate one per release - eight of them piled up getting v0.2.0
+        # out - and nothing outside Actions can clear them, because the
+        # credential that pushes a branch is routinely refused deleting one.
+        # The job that created the release is the one place that can, so it
+        # does, rather than leaving litter for somebody else to notice.
+        #
+        # Never on a dry run, and never for a tag: deleting a tag would delete
+        # the release's own anchor.
+        if: ${{ github.event_name == 'push' && github.ref_type == 'branch' && startsWith(github.ref_name, 'release/v') && !inputs.dry_run }}
+        run: git push origin --delete "${{ github.ref_name }}"

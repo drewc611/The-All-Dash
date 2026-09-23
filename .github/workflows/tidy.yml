@@ -1,0 +1,109 @@
+name: Tidy
+
+# Delete branches whose work is already on main.
+#
+# This exists because of where it runs, not because of what it does. Deleting a
+# branch needs a credential that is allowed to delete a ref, and the one this
+# repository is worked on with is not: `git push origin --delete` comes back
+# 403 while pushing the same branch succeeds. Inside Actions the job token can,
+# so the cleanup lives here rather than in somebody's terminal.
+#
+# Nothing is hardcoded. A list of branch names would be right once, on the day
+# it was written, and quietly wrong every day after - so the job re-derives
+# what is safe each time it runs and can be run again whenever they pile up.
+#
+# Two things make a branch safe to delete, and a branch needs only one:
+#
+#   - a merged pull request from it, which means main has the work
+#   - it is a release/* branch and a tag points at the same commit, which
+#     means the commit is anchored whatever happens to the branch
+#
+# Everything else is left alone, including anything with an open pull request.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would go without deleting anything
+        type: boolean
+        default: false
+  # Pushing this file is what first ran it, and is the honest reason the
+  # trigger is here: workflow_dispatch through the API is refused the same way
+  # the delete is, so a workflow that can only be dispatched could not be
+  # started at all. Scoped to this one path so ordinary work never trips it.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/tidy.yml']
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Work out what is safe to delete, and delete it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          default=$(gh repo view "$REPO" --json defaultBranchRef -q .defaultBranchRef.name)
+          echo "default branch: $default"
+
+          # Head branches of merged pull requests. A branch named here has had
+          # its work land on the base, whether by merge, squash or rebase -
+          # which matters, because a squash leaves the branch tip unreachable
+          # from main and `--merged` therefore calls it unmerged.
+          gh pr list --repo "$REPO" --state merged --limit 500 \
+            --json headRefName -q '.[].headRefName' | sort -u > merged.txt
+
+          # A branch with a pull request still open is somebody's work in
+          # progress, no matter what else is true of it.
+          gh pr list --repo "$REPO" --state open --limit 500 \
+            --json headRefName -q '.[].headRefName' | sort -u > open.txt
+
+          # Commits carrying a tag. An annotated tag points at a tag object
+          # rather than at the commit, so ^{} dereferences it; a lightweight
+          # one is already the commit and is unaffected.
+          gh api "repos/$REPO/git/refs/tags" --paginate \
+            -q '.[] | select(.object.type == "commit") | .object.sha' > tagged.txt
+          gh api "repos/$REPO/git/refs/tags" --paginate \
+            -q '.[] | select(.object.type == "tag") | .object.url' \
+            | while read -r url; do gh api "$url" -q .object.sha; done >> tagged.txt
+          sort -u -o tagged.txt tagged.txt
+
+          gh api "repos/$REPO/branches" --paginate \
+            -q '.[] | "\(.name)\t\(.commit.sha)\t\(.protected)"' > branches.txt
+
+          kept=0; gone=0
+          while IFS=$'\t' read -r name sha protected; do
+            if [ "$name" = "$default" ]; then reason="the default branch"
+            elif [ "$protected" = "true" ]; then reason="protected"
+            elif grep -qxF "$name" open.txt; then reason="has an open pull request"
+            elif grep -qxF "$name" merged.txt; then reason=""
+            elif case "$name" in release/v*) true ;; *) false ;; esac && grep -qxF "$sha" tagged.txt; then reason=""
+            else reason="no merged pull request, and nothing else vouches for it"
+            fi
+
+            if [ -n "$reason" ]; then
+              printf 'keep    %-46s %s\n' "$name" "$reason"
+              kept=$((kept + 1))
+              continue
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              printf 'would delete %-41s %s\n' "$name" "${sha:0:7}"
+            else
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$name"
+              printf 'deleted %-46s %s\n' "$name" "${sha:0:7}"
+            fi
+            gone=$((gone + 1))
+          done < branches.txt
+
+          echo
+          echo "$gone deleted, $kept kept" >> "$GITHUB_STEP_SUMMARY"
+          echo "$gone deleted, $kept kept"
