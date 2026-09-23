@@ -17,6 +17,7 @@ import { seedWorkspace } from '../../data/seed.js'
 import { downloadText } from '../download.js'
 import { AssistantSettings } from './AssistantSettings.jsx'
 import { PlatformSettings } from './PlatformSettings.jsx'
+import { TelamateSettings } from './TelamateSettings.jsx'
 import { MediaSettings } from './MediaSettings.jsx'
 import { Router } from '../router/Router.jsx'
 
@@ -31,6 +32,7 @@ export function Settings({ state, entities, range, onToast }) {
         <div className="board__cell" data-size="xl"><MetricBuilder state={state} entities={entities} range={range} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><PlatformSettings state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><MediaSettings onToast={onToast} /></div>
+        <div className="board__cell" data-size="md"><TelamateSettings state={state} onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Data onToast={onToast} /></div>
         <div className="board__cell" data-size="md"><Harness /></div>
       </div>

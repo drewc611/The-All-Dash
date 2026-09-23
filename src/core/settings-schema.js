@@ -8,6 +8,7 @@
  *   settings.platform.url      where the platform API key is sent
  *   settings.assistant.baseUrl where the model API key is sent
  *   settings.media.*           consent to talk to Google, and to download 32MB
+ *   settings.telamate.url      where the Telamate bearer token is sent
  *
  * The first two decide the destination of a secret, and the transport check
  * in ai/transport.js cannot help: it asks whether the URL is https, not whose
@@ -32,6 +33,7 @@ const NOT_FROM_A_FILE = {
   platformUrl: '',
   assistantBaseUrl: '',
   media: { youtube: false, ffmpeg: false },
+  telamateUrl: '',
 }
 
 /**
@@ -56,6 +58,7 @@ export function normaliseSettings(incoming, base, { trusted = true } = {}) {
     platform: { ...(base.platform || {}), ...(from.platform || {}) },
     assistant: { ...(base.assistant || {}), ...(from.assistant || {}) },
     media: { ...(base.media || {}), ...(from.media || {}) },
+    telamate: { ...(base.telamate || {}), ...(from.telamate || {}) },
   }
   const dropped = unknownFlags.map((id) => `the unknown flag "${id}"`)
   if (trusted) return { settings, dropped }
@@ -71,6 +74,10 @@ export function normaliseSettings(incoming, base, { trusted = true } = {}) {
   if (from.media?.youtube || from.media?.ffmpeg) {
     settings.media = { ...settings.media, ...NOT_FROM_A_FILE.media }
     dropped.push('the media permissions')
+  }
+  if (String(from.telamate?.url || '').trim()) {
+    settings.telamate = { ...settings.telamate, url: NOT_FROM_A_FILE.telamateUrl }
+    dropped.push('the Telamate URL')
   }
   return { settings, dropped }
 }
