@@ -473,6 +473,24 @@ test('the multi-arch build does not run Node under emulation', () => {
   )
 })
 
+test('a release cleans up the branch that started it', () => {
+  // Pushing `release/v<version>` is one of the three ways in, and it leaves the
+  // branch behind. Eight of them accumulated getting v0.2.0 out, and nothing
+  // outside Actions can remove one: the credential that is allowed to push a
+  // branch is routinely refused deleting it. The job that made the release is
+  // the only thing that can, so it does.
+  const job = RELEASE.slice(RELEASE.indexOf('  publish:'))
+  const step = job.indexOf('name: Remove the trigger branch')
+  assert.ok(step > 0, 'a release-branch trigger is left behind on every release')
+  assert.ok(step > job.indexOf('action-gh-release'), 'the branch is deleted before the release is published from it')
+  // To the end of the job: the step explains itself at length before its `if:`,
+  // and a fixed window landed inside the comment.
+  const guard = job.slice(step)
+  assert.match(guard, /startsWith\(github\.ref_name, 'release\/v'\)/, 'the delete is not restricted to release branches')
+  assert.match(guard, /github\.ref_type == 'branch'/, 'nothing stops this deleting a tag, which would orphan the release')
+  assert.match(guard, /!inputs\.dry_run/, 'a dry run would delete the branch it was only meant to rehearse')
+})
+
 test('an existing tag is never moved', () => {
   // A tag people may already have fetched is not rewritten - the same rule
   // scripts/release.mjs enforces locally.
@@ -511,4 +529,75 @@ test('the photographs are excluded from the code licence, not silently covered b
   assert.match(notice, /public domain/i)
   assert.match(notice, /17 U\.S\.C\./)
   assert.match(notice, /CREDITS\.md/)
+})
+
+/* ------------------------------------------------------------ the tidy job */
+
+/*
+ * Removing a branch needs a credential allowed to write a ref, and the one
+ * this repository is worked on with is not: `git push origin --delete` comes
+ * back 403 while pushing the same branch succeeds. So the cleanup runs inside
+ * Actions, where the job token can, and these pin the guards that stop it
+ * taking something it should not - the one kind of mistake here that cannot be
+ * undone by running it again.
+ */
+
+const TIDY = read('.github/workflows/tidy.yml')
+
+test('the tidy job only touches branches something vouches for', () => {
+  assert.match(TIDY, /permissions:\s*\n\s*contents: write/,
+    'the job needs contents: write, and saying so keeps the rest of the token small')
+
+  // The two ways a branch qualifies, and no third.
+  assert.match(TIDY, /--state merged/, 'nothing establishes that the work landed')
+  assert.match(TIDY, /select\(\.object\.type == "tag"\)/,
+    'an annotated tag points at a tag object, so a release branch anchored by one would look untagged')
+
+  // The refusals. Each names a branch that has to survive.
+  assert.match(TIDY, /\$name" = "\$default"/, 'nothing exempts the default branch')
+  assert.match(TIDY, /"\$protected" = "true"/, 'a protected branch is not exempt')
+  assert.match(TIDY, /--state open/, 'work in progress is not exempt')
+
+  // Order matters: a branch with an open pull request that also has a merged
+  // one is reopened work, and the open check has to be reached first.
+  assert.ok(TIDY.indexOf('--state open') < TIDY.indexOf('grep -qxF "$name" merged.txt'),
+    'reopened work loses its branch because an earlier pull request merged')
+})
+
+test('the tidy job can be started at all', () => {
+  // workflow_dispatch through the API is refused the same way the ref write
+  // is, so a workflow that could only be dispatched could never be run from
+  // here. The push trigger is what actually starts it, and it is scoped to
+  // this one file so ordinary work never trips it.
+  assert.match(TIDY, /paths: \['\.github\/workflows\/tidy\.yml'\]/,
+    'the push trigger is unscoped, so every push to main would start this job')
+  assert.match(TIDY, /branches: \[main\]/, 'it would run from any branch, including one it is about to act on')
+  assert.match(TIDY, /dry_run/, 'there is no way to see what it would do before it does it')
+})
+
+test('the v0.2.0 notes correction is wired up and safe to re-run', () => {
+  // A script in .github/scripts that no workflow invokes is litter, which is
+  // the opposite of what this workflow is for.
+  assert.match(TIDY, /python3 \.github\/scripts\/correct-v020-notes\.py/,
+    'the correction script is in the repository but nothing runs it')
+  assert.ok(existsSync(join(ROOT, '.github/scripts/correct-v020-notes.py')),
+    'the workflow runs a script that is not here')
+
+  const fix = read('.github/scripts/correct-v020-notes.py')
+
+  // Re-running the workflow must not keep editing the release. Each
+  // replacement is guarded by its own text still being present, and a run that
+  // matches nothing exits before making a request.
+  assert.match(fix, /if old in body/, 'a replacement fires whether or not its text is there')
+  assert.match(fix, /body\.replace\(old, new, 1\)/, 'an unbounded replace would rewrite corrected text')
+  assert.match(fix, /if not changed:[\s\S]{0,120}sys\.exit\(0\)/,
+    'a run with nothing to do still PATCHes the release')
+
+  // A missing release is not an error worth failing the job over.
+  assert.match(fix, /e\.code == 404/, 'a deleted release would fail the whole tidy run')
+
+  // What it writes has to stay true. :0.2.0 does not exist and never will;
+  // :latest does, and points at v0.2.1.
+  assert.match(fix, /does not exist/, 'the correction no longer says the tag is missing')
+  assert.match(fix, /0\.2\.1/, 'the correction does not say where to go instead')
 })
