@@ -14,7 +14,8 @@ import { REGISTRY } from '../src/core/flags.js'
 import { addDays, iso, dayKey, rangeFor } from '../src/core/time.js'
 
 const at = (offset) => iso(addDays(new Date(), offset))
-const noon = (offset) => `${dayKey(addDays(new Date(), offset))}T12:00:00Z`
+// Daily counters sit at local noon, as readExport re-stamps them from meta.date.
+const noon = (offset) => { const d = addDays(new Date(), offset); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).toISOString() }
 
 const source = { name: 'Telamate', kind: 'telamate', url: 'https://desk.example/api/alldash/entities' }
 const tm = (kind, extra) => ({ tags: ['telamate'], people: [], source, confidence: 1, ...extra, meta: { origin: 'telamate', kind, ...(extra.meta || {}) } })
@@ -174,4 +175,15 @@ test('settings default to a five-minute pull and a restored file cannot set the 
   assert.ok(untrusted.dropped.includes('the Telamate URL'))
   const trusted = normaliseSettings(hostile, base, { trusted: true })
   assert.equal(trusted.settings.telamate.url, 'https://evil.example/entities')
+})
+
+test('a daily counter lands on the day the front desk meant, whatever the viewer timezone', () => {
+  const text = JSON.stringify([
+    { id: 'tm-m-chat-2026-09-10', type: 'metric', title: 'Telamate chat 2026-09-10', series: 'Telamate chat', at: '2026-09-10T12:00:00Z', value: 3, tags: ['telamate'], meta: { origin: 'telamate', kind: 'metric', date: '2026-09-10' } },
+    { id: 'tm-ct-1', type: 'person', title: 'Dana Ruiz', tags: ['telamate'], meta: { origin: 'telamate', kind: 'contact' } },
+  ])
+  const [metric, person] = readExport(text, { docId: 'd' })
+  assert.equal(dayKey(metric.at), '2026-09-10')
+  assert.equal(new Date(metric.at).getHours(), 12)
+  assert.equal(person.at, undefined)
 })

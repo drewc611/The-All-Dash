@@ -52,7 +52,20 @@ export function readExport(text, source = {}) {
   if (!Array.isArray(data)) return []
   return data
     .filter((r) => r && typeof r === 'object' && r.meta?.origin === 'telamate')
-    .map((r) => ({ ...r, source: { ...(r.source || {}), ...source } }))
+    .map((r) => ({ ...r, ...(r.meta?.kind === 'metric' && r.meta.date ? { at: localNoon(r.meta.date) } : {}), source: { ...(r.source || {}), ...source } }))
+}
+
+/*
+ * A daily counter means "this many on that calendar day at the business";
+ * the export stamps it at noon UTC with the day in meta.date. Bucketing is
+ * by the viewer's local day, so in Auckland noon UTC is tomorrow. Re-stamp
+ * it at local noon of that date and the day the chart shows is the day the
+ * front desk meant.
+ */
+function localNoon(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date))
+  if (!m) return undefined
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12).toISOString()
 }
 
 defineParser({
