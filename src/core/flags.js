@@ -71,6 +71,11 @@ export const REGISTRY = {
     title: 'Glass everywhere',
     summary: 'Carries the wallpaper and glass past Focus into the rest of the app. Dense tables keep solid backing regardless.',
   },
+  telamate: {
+    maturity: 'beta',
+    title: 'Telamate',
+    summary: 'Reads a Telamate front-desk export and pulls it live: callbacks due, conversations by channel, and three metrics.',
+  },
 }
 
 export const FLAG_IDS = Object.freeze(Object.keys(REGISTRY))

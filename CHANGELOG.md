@@ -15,6 +15,23 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ### Added
 
+- **Telamate** (`telamate`, beta). A self-hosted AI front desk that exports
+  All Dash entities directly: callbacks as tasks, conversations as notes,
+  contacts as people, daily counters as metrics. The Library now names its
+  export, Settings → *Telamate* takes a URL, an admin token and a pull
+  interval, and the same pull is a command. Three widgets - *Callbacks due*,
+  *Conversations by channel*, *Front desk today* - and three metrics (open
+  callbacks, conversations, callbacks closed) sit behind the flag.
+
+  The token is kept with the other keys, never in a workspace export, and a
+  restored file may not set the Telamate URL, for the reason the platform URL
+  is refused: it decides where a secret is sent.
+
+- **Plugins can ingest and draw.** `AllDash.ingestFile` and
+  `AllDash.ingestText` run a plugin's own records through the same path a
+  dropped file takes, and `AllDash.h` (React's `createElement`) lets a
+  `<script>`-tag widget return an element without a build step.
+
 - **The sample project now comes with a board.** "Load a sample project" filled
   Today, Triage, the Timeline and Analytics and left Boards completely empty:
   you clicked **Project plan** and got eight column headings and "0 items".

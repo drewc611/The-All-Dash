@@ -96,4 +96,14 @@ export async function ingestFiles(files) {
   return results
 }
 
+/*
+ * The ingest path for a plugin. A <script>-tag plugin that pulls records
+ * from its own server has no way to fold them in except through here, and
+ * a synthetic File through ingestFile() gets the same document identity,
+ * parser choice and merge rules a dropped file gets.
+ */
+if (typeof window !== 'undefined') {
+  window.AllDash = Object.assign(window.AllDash || {}, { ingestFile, ingestText })
+}
+
 const extensionOf = (name) => (String(name).match(/\.([a-z0-9]+)$/i)?.[1] || 'txt').toLowerCase()

@@ -735,6 +735,19 @@ becomes an open task titled "Draft the launch brief", owned by Sam, tagged
 `launch`, urgent, due this Friday at 17:00 — with a link back to the file and
 line it came from.
 
+### Telamate
+
+Telamate is a self-hosted AI front desk
+(web chat, SMS, voice, email, one record per person, a callback queue), and it
+speaks this app's shape natively: `GET /api/alldash/entities` is an entity
+array, so a callback arrives as a task, a conversation as a note, a contact as
+a person and each day of each counter as a metric. Drop the downloaded file in
+and the Library names it; give Settings → *Telamate* the URL and an admin
+token and it is pulled on load and every five minutes. Three widgets
+(*Callbacks due*, *Conversations by channel*, *Front desk today*), three
+metrics and a *Pull from Telamate now* command come with it, behind the
+`telamate` flag (beta).
+
 ## The harness
 
 Four registries, exposed on `window.AllDash`, so a plugin can be a single

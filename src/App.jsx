@@ -28,6 +28,8 @@ import {
 
 import './ui/widgets/index.js'
 import './ui/commands.js'
+import './integrations/telamate-widgets.jsx'
+import { startTelamateSync } from './integrations/telamate.js'
 
 /*
  * Everything past Today is fetched when it is first opened.
@@ -159,7 +161,9 @@ export default function App() {
     // the person is actually doing.
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200))
     idle(() => { Object.values(load).reduce((chain, next) => chain.then(next).catch(() => {}), Promise.resolve()) })
-    return () => clearInterval(beat)
+    // Telamate, when a URL is set: pull now and on its own timer.
+    const stopTelamate = startTelamateSync()
+    return () => { clearInterval(beat); stopTelamate() }
   }, [])
   useBrainSync(state)
 

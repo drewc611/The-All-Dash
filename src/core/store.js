@@ -75,6 +75,10 @@ const initialState = () => ({
     // Media. Both of these are off until asked for: one reaches a Google
     // server, the other downloads 32MB from a CDN.
     media: { youtube: false, ffmpeg: false },
+    // Telamate (Settings → Telamate). The URL is where the bearer token is
+    // sent, so like the platform URL it is workspace state a restored file
+    // may not set; the token itself lives with the keys, never here.
+    telamate: { url: '', everyMinutes: 5 },
     // Feature flag overrides, by id. Empty means "whatever this channel does
     // by default" - see core/flags.js. Only ids this build knows survive.
     flags: {},
@@ -336,6 +340,10 @@ export function updateAssistantSettings(patch) {
     the ffmpeg setting down with it. */
 export function updateMediaSettings(patch) {
   set((s) => ({ ...s, settings: { ...s.settings, media: { ...(s.settings.media || {}), ...patch } } }))
+}
+
+export function updateTelamateSettings(patch) {
+  set((s) => ({ ...s, settings: { ...s.settings, telamate: { ...(s.settings.telamate || {}), ...patch } } }))
 }
 
 /**
