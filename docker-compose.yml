@@ -11,9 +11,10 @@ name: alldash
 
 x-backend-env: &backend-env
   ALLDASH_ENVIRONMENT: ${ALLDASH_ENVIRONMENT:-local}
-  ALLDASH_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-alldash}:${POSTGRES_PASSWORD:-alldash}@postgres:5432/${POSTGRES_DB:-alldash}
+  # Secrets have no default: compose stops with the message below until .env sets them.
+  ALLDASH_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-alldash}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (cp .env.example .env)}@postgres:5432/${POSTGRES_DB:-alldash}
   ALLDASH_REDIS_URL: redis://redis:6379/0
-  ALLDASH_API_KEYS: ${ALLDASH_API_KEYS:-dev-key-change-me}
+  ALLDASH_API_KEYS: ${ALLDASH_API_KEYS:?set ALLDASH_API_KEYS in .env (cp .env.example .env)}
   ALLDASH_CORS_ORIGINS: http://localhost:3000
   ALLDASH_TIMEZONE: ${ALLDASH_TIMEZONE:-UTC}
   ALLDASH_DAILY_BRIEF_HOUR: ${ALLDASH_DAILY_BRIEF_HOUR:-4}
@@ -30,7 +31,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alldash}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alldash}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (cp .env.example .env)}
       POSTGRES_DB: ${POSTGRES_DB:-alldash}
       POSTGRES_INITDB_ARGS: --data-checksums
     volumes:
@@ -117,11 +118,11 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       # One key, not the comma-separated list the API accepts.
-      BACKEND_API_KEY: ${BACKEND_API_KEY:-${ALLDASH_API_KEYS:-dev-key-change-me}}
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-${ALLDASH_API_KEYS:?set ALLDASH_API_KEYS in .env (cp .env.example .env)}}
       # The workspace login. The image runs in production mode, which
       # refuses to serve without a user and password.
       FRONTEND_AUTH_USER: ${FRONTEND_AUTH_USER:-admin}
-      FRONTEND_AUTH_PASSWORD: ${FRONTEND_AUTH_PASSWORD:-dev-password-change-me}
+      FRONTEND_AUTH_PASSWORD: ${FRONTEND_AUTH_PASSWORD:?set FRONTEND_AUTH_PASSWORD in .env (cp .env.example .env)}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
