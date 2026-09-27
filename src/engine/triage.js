@@ -1,5 +1,5 @@
 import { q, anomalies } from '../core/query.js'
-import { addDays, relative, formatDate, MS } from '../core/time.js'
+import { addDays, relative, formatDate, startOfDay, MS } from '../core/time.js'
 import { availableMetrics, evaluate } from './metrics.js'
 import { format } from '../core/format.js'
 
@@ -91,7 +91,11 @@ const ACT = {
   assign: { id: 'assign', label: 'Assign' },
 }
 
-const daysBetween = (a, b) => Math.floor((new Date(b) - new Date(a)) / MS.day)
+// Calendar days, like addDays: a DST change inside the window makes the span
+// an hour short of a whole day, and flooring 24-hour blocks then reads a task
+// due nine days ago as eight days late. Rounding the midnight-to-midnight span
+// absorbs the hour either way.
+const daysBetween = (a, b) => Math.round((startOfDay(b) - startOfDay(a)) / MS.day)
 const owner = (e) => (e.people?.length ? ` (${e.people[0]})` : '')
 
 function overdueTasks(rows, now, add) {
