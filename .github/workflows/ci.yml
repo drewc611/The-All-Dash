@@ -67,7 +67,9 @@ jobs:
           ./kubectl kustomize k8s/ingress/nginx-letsencrypt > rendered-nginx.yaml
           ./kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.31.0 rendered.yaml rendered-nginx.yaml k8s/secrets.example.yaml
       - name: Compose file validates
-        run: docker compose -f docker-compose.yml config --quiet
+        # Secrets have no defaults in the compose file, so validation reads the
+        # committed example env; this also proves the example is complete.
+        run: docker compose -f docker-compose.yml --env-file .env.example config --quiet
       - name: Images build
         run: |
           docker build -q backend -t alldash-backend:ci
