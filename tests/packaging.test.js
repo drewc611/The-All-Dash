@@ -558,10 +558,11 @@ test('the tidy job only touches branches something vouches for', () => {
   assert.match(TIDY, /"\$protected" = "true"/, 'a protected branch is not exempt')
   assert.match(TIDY, /--state open/, 'work in progress is not exempt')
 
-  // Order matters: a branch with an open pull request that also has a merged
-  // one is reopened work, and the open check has to be reached first.
-  assert.ok(TIDY.indexOf('--state open') < TIDY.indexOf('grep -qxF "$name" merged.txt'),
-    'reopened work loses its branch because an earlier pull request merged')
+  // Not the name alone. A merged branch restarted under the same name would be
+  // deleted with its new commits on it. That is proved by running the script in
+  // tests/tidy.test.js; this keeps the ask that makes it possible from being
+  // edited away without that test being the first to notice.
+  assert.match(TIDY, /headRefOid/, 'merged pull requests are matched by branch name alone')
 })
 
 test('the tidy job can be started at all', () => {
@@ -573,6 +574,26 @@ test('the tidy job can be started at all', () => {
     'the push trigger is unscoped, so every push to main would start this job')
   assert.match(TIDY, /branches: \[main\]/, 'it would run from any branch, including one it is about to act on')
   assert.match(TIDY, /dry_run/, 'there is no way to see what it would do before it does it')
+})
+
+test('the tidy job runs weekly, one run at a time, and does not repeat its one-off repair', () => {
+  const cron = TIDY.match(/schedule:\s*\n\s*- cron: '([^']+)'/)
+  assert.ok(cron, 'nothing schedules it, so branches accumulate until somebody remembers')
+  const [minute, hour, dom, month, dow] = cron[1].split(/\s+/)
+  assert.ok(dow !== '*' && dom === '*' && month === '*', `not weekly: ${cron[1]}`)
+  assert.ok(/^\d+$/.test(minute) && /^\d+$/.test(hour), `not a single fixed time: ${cron[1]}`)
+  assert.notEqual(minute, '0', 'the top of the hour is where every other scheduled job queues')
+
+  // A push and the cron can coincide and both go for the same ref; the second
+  // delete would fail the job for having succeeded. Queued, not cancelled: a
+  // cancelled run leaves its branches for next week.
+  assert.match(TIDY, /concurrency:\s*\n\s*group: tidy\s*\n\s*cancel-in-progress: false/,
+    'two runs can race to delete the same branch')
+
+  // The release-notes correction is a repair. It has nothing to do after it has
+  // run once, so it must not be part of the weekly schedule.
+  const releases = TIDY.slice(TIDY.indexOf('  releases:'))
+  assert.match(releases, /if: github\.event_name != 'schedule'/, 'the one-off repair would run every week for ever')
 })
 
 test('the v0.2.0 notes correction is wired up and safe to re-run', () => {

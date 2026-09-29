@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { defineWidget } from '../../core/registry.js'
 import { q } from '../../core/query.js'
-import { addDays, startOfWeek, dayKey } from '../../core/time.js'
+import { addDays, startOfWeek, dayKey, toDate } from '../../core/time.js'
 import { Empty } from '../components.jsx'
 import { HBars, SERIES } from '../viz/charts.jsx'
 
@@ -219,7 +219,7 @@ function buildLoad(entityList, weeks) {
   ]
   const bucket = (t) => {
     if (!t.due) return 'undated'
-    const d = new Date(t.due)
+    const d = toDate(t.due)
     if (d < now) return 'overdue'
     const col = columns.find((c) => c.start && d >= c.start && d < c.end)
     return col ? col.key : null
@@ -290,7 +290,7 @@ function rank(entityList, range, by) {
     .map(([label, list]) => ({
       label,
       value: by === 'meetings'
-        ? Math.round(list.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0) * 10) / 10
+        ? Math.round(list.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (toDate(e.end) - toDate(e.at)) / 3600000 : 0.5), 0) * 10) / 10
         : list.length,
     }))
     .filter((r) => r.value > 0)

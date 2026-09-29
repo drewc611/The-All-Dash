@@ -125,3 +125,30 @@ export interface Page<T> {
   limit: number
   offset: number
 }
+
+export type ProposalState = 'proposed' | 'applied' | 'failed' | 'stale' | 'declined'
+
+/**
+ * A change the worker thinks should happen and only a person can make.
+ *
+ * `blocked_because` is computed by the API per request, not stored: whether a
+ * proposal still applies is a fact about the task now. `observed` is what the
+ * task read back as after an apply, which is not necessarily what was sent.
+ */
+export interface Proposal {
+  id: string
+  task_id: string
+  task_title: string
+  rule: string
+  field: 'status' | 'priority'
+  from_value: string
+  to_value: string
+  reason: string
+  state: ProposalState
+  created_at: string
+  decided_at: string | null
+  decided_by: string
+  outcome_ok: boolean | null
+  observed: string
+  blocked_because: string | null
+}

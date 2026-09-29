@@ -37,3 +37,8 @@ id_ed25519
 secrets.json
 credentials.json
 service-account*.json
+
+# Playwright (frontend end-to-end tests)
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.state/

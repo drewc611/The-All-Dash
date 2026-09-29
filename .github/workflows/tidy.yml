@@ -34,6 +34,22 @@ on:
   push:
     branches: [main]
     paths: ['.github/workflows/tidy.yml']
+  # Weekly, so branches stop accumulating without anybody having to remember.
+  # Monday at 06:17 UTC: off the hour on purpose, since everything else that
+  # schedules itself lands at :00 and the queue is longest then. Scheduled runs
+  # act rather than rehearse, which is safe because the rules below are tested
+  # against the script itself (tests/tidy.test.js), including the case that
+  # matters most: a merged branch restarted under the same name is kept.
+  schedule:
+    - cron: '17 6 * * 1'
+
+# One run at a time. A push and the cron can coincide, and both would go for the
+# same ref: the second delete answers "reference does not exist" and fails the
+# job for having succeeded. Queued rather than cancelled, because a cancelled
+# run would leave its branches for next week.
+concurrency:
+  group: tidy
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -54,12 +70,22 @@ jobs:
           default=$(gh repo view "$REPO" --json defaultBranchRef -q .defaultBranchRef.name)
           echo "default branch: $default"
 
-          # Head branches of merged pull requests. A branch named here has had
-          # its work land on the base, whether by merge, squash or rebase -
-          # which matters, because a squash leaves the branch tip unreachable
-          # from main and `--merged` therefore calls it unmerged.
+          # Head branches of merged pull requests, with the commit each one had
+          # when it merged. A branch that matches has had its work land on the
+          # base, whether by merge, squash or rebase - which matters, because a
+          # squash leaves the branch tip unreachable from main and `--merged`
+          # therefore calls it unmerged.
+          #
+          # The commit is the point, and the name alone is not enough. A merged
+          # branch is routinely restarted from main under the same name for
+          # follow-up work, and for the minutes before that work has a pull
+          # request the only one GitHub knows for the name is the merged one.
+          # Judging by name deleted the new, unmerged commits with nobody told.
+          # Judging by whether the branch is still where it was when it merged
+          # cannot: anything pushed since has moved it.
           gh pr list --repo "$REPO" --state merged --limit 500 \
-            --json headRefName -q '.[].headRefName' | sort -u > merged.txt
+            --json headRefName,headRefOid \
+            -q '.[] | "\(.headRefName)\t\(.headRefOid)"' | sort -u > merged.txt
 
           # A branch with a pull request still open is somebody's work in
           # progress, no matter what else is true of it.
@@ -84,7 +110,8 @@ jobs:
             if [ "$name" = "$default" ]; then reason="the default branch"
             elif [ "$protected" = "true" ]; then reason="protected"
             elif grep -qxF "$name" open.txt; then reason="has an open pull request"
-            elif grep -qxF "$name" merged.txt; then reason=""
+            elif grep -qxF -- "$(printf '%s\t%s' "$name" "$sha")" merged.txt; then reason=""
+            elif cut -f1 merged.txt | grep -qxF -- "$name"; then reason="has commits its merged pull request did not"
             elif case "$name" in release/v*) true ;; *) false ;; esac && grep -qxF "$sha" tagged.txt; then reason=""
             else reason="no merged pull request, and nothing else vouches for it"
             fi
@@ -109,6 +136,9 @@ jobs:
           echo "$gone deleted, $kept kept"
 
   releases:
+    # A repair, not housekeeping: it corrects one published page and then has
+    # nothing left to do, so it runs when this file changes and not every week.
+    if: github.event_name != 'schedule'
     # The same problem wearing different clothes: editing a published release
     # needs the credential this job has and a terminal here does not.
     #

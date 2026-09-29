@@ -107,11 +107,17 @@ Branches clean themselves up. A release started by pushing `release/v<version>`
 deletes that branch once the release exists, because the tag is the permanent
 record and the branch carries nothing main does not already have — eight of
 them piled up getting v0.2.0 out. The `Tidy` workflow does the same for the
-rest, and re-derives what is safe each time rather than working from a list:
-a branch goes only if a pull request from it merged, or if it is a `release/*`
-branch and a tag points at the same commit. The default branch, a protected
-branch and anything with an open pull request are never touched, and
-`dry_run` shows what it would do first.
+rest, every Monday, and re-derives what is safe each time rather than working
+from a list: a branch goes only if a pull request from it merged *and the branch
+is still where it was when it merged*, or if it is a `release/*` branch and a
+tag points at the same commit. The commit matters as much as the name. A merged
+branch is often restarted from main under the same name for follow-up work, and
+for the minutes before that work has a pull request the only one GitHub knows
+for the name is the merged one; judging by name would delete the new commits.
+The default branch, a protected branch and anything with an open pull request
+are never touched, and `dry_run` shows what it would do first. The decision is
+tested by running the workflow's own script against a stand-in `gh`
+(`tests/tidy.test.js`), not by reading it.
 
 It runs there rather than from a terminal because deleting a ref needs a
 credential most working setups are not given — `git push origin --delete`
@@ -1093,6 +1099,15 @@ sent. Every decision, including the refusals, lands in the hash-chained audit
 ledger with the rule, both values and the outcome, so "who approved this and
 did it take" is answerable months later.
 
+The Next.js workspace shows the queue above the daily tasks whenever
+something is waiting, with Apply and Decline on each row and the API's
+`blocked_because` shown *before* the button is pressed. Nothing on that screen
+is optimistic: the row changes when the API reports what the task reads now,
+and the words say which outcome it was — applied and read back, expired because
+the task moved, declined, or did not take. Applying refreshes the page so the
+checklist shows the new priority without a reload. There is no bulk action, in
+the API or the screen.
+
 A partial unique index allows one live proposal per task and field while
 keeping the decided ones as history. A beat that fires twice, or a worker
 retried after a lost acknowledgement, cannot double the queue.
@@ -1351,6 +1366,7 @@ The-All-Dash/
 │   ├── app/api/                Route handlers that carry the key so the browser never sees it
 │   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
 │   ├── lib/                    Typed API client (server-only), types mirroring schemas.py, formatting
+│   ├── e2e/                    Playwright specs: proposals queue, workspace, proxy security
 │   └── Dockerfile              Standalone output, three-stage alpine, uid 10001
 ├── mcp/                        MCP server (Node 20): stdio and Streamable HTTP, workspace and platform adapters
 ├── k8s/
@@ -1452,6 +1468,15 @@ pip install -r requirements-dev.txt && pytest`, then `uvicorn app.main:app`
 with `ALLDASH_DATABASE_URL` pointing at a Postgres (or `sqlite+aiosqlite:///dev.db`
 for a quick look), `celery -A app.worker worker -B`, and `cd frontend && npm
 install && BACKEND_URL=http://localhost:8000 BACKEND_API_KEY=... npm run dev`.
+
+**End-to-end tests.** `cd frontend && npm run e2e` builds the frontend and runs
+the Playwright suite against the real thing: the FastAPI app on a fresh SQLite
+database built by the real migrations, and the production Next.js build, twice
+(once with login off to drive the workspace, once with it on to test the proxy).
+Nothing is mocked, because the failure the suite is there to catch is a page
+that renders on the server and never hydrates. It needs the backend's Python
+dependencies (`backend/.venv` is picked up automatically, or set `E2E_PYTHON`)
+and a browser: `npx playwright install chromium`. CI runs it as the `e2e` job.
 
 ### Build, tag and push to ECR
 

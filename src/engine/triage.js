@@ -1,5 +1,5 @@
 import { q, anomalies } from '../core/query.js'
-import { addDays, relative, formatDate, startOfDay, MS } from '../core/time.js'
+import { addDays, relative, formatDate, startOfDay, MS, toDate } from '../core/time.js'
 import { availableMetrics, evaluate } from './metrics.js'
 import { format } from '../core/format.js'
 
@@ -75,7 +75,7 @@ function applyBrain(signals, brain) {
     if (tag) reasons.push(`#${tag} usually slips`)
     const person = t.people.find((x) => people.has(x))
     if (person) reasons.push(`${person} is overloaded`)
-    if (t.due && days.has(new Date(t.due).getDay())) reasons.push(`due on your busiest meeting day (${WEEKDAY[new Date(t.due).getDay()]})`)
+    if (t.due && days.has(toDate(t.due).getDay())) reasons.push(`due on your busiest meeting day (${WEEKDAY[toDate(t.due).getDay()]})`)
     if (!reasons.length) continue
     s.severity = PROMOTE[s.severity] || s.severity
     s.why = `${s.why} Raised by your brain: ${reasons.join('; ')}.`
@@ -122,7 +122,7 @@ function overdueTasks(rows, now, add) {
       title: t.title,
       why: `Due ${formatDate(t.due)}, ${late === 0 ? 'today' : `${late} ${late === 1 ? 'day' : 'days'} late`}${owner(t)}.`,
       entity: t,
-      when: new Date(t.due).getTime(),
+      when: toDate(t.due).getTime(),
       actions: [ACT.done, ACT.push, ACT.mute],
     })
   }
@@ -138,7 +138,7 @@ function dueSoon(rows, now, add) {
       title: t.title,
       why: `Due ${relative(t.due, now)}${owner(t)}.`,
       entity: t,
-      when: new Date(t.due).getTime(),
+      when: toDate(t.due).getTime(),
       actions: [ACT.done, ACT.push, ACT.mute],
     })
   }
@@ -226,7 +226,7 @@ function unownedUrgent(rows, add) {
       title: t.title,
       why: 'Marked urgent but nobody owns it.',
       entity: t,
-      when: t.due ? new Date(t.due).getTime() : null,
+      when: t.due ? toDate(t.due).getTime() : null,
       actions: [ACT.assign, ACT.mute],
     })
   }
@@ -244,8 +244,8 @@ function meetingClashes(rows, now, add) {
     for (let j = i + 1; j < events.length; j++) {
       const a = events[i]
       const b = events[j]
-      if (new Date(b.at) >= new Date(a.end)) break
-      if (new Date(a.end) < now) continue
+      if (toDate(b.at) >= toDate(a.end)) break
+      if (toDate(a.end) < now) continue
       const [x, y] = [a, b].sort((p, r) => p.id.localeCompare(r.id))
       add({
         id: `clash:${x.id}:${y.id}`,
@@ -255,7 +255,7 @@ function meetingClashes(rows, now, add) {
         why: `${formatDate(a.at, { weekday: 'short' })}: both are on the calendar at the same time.`,
         entity: a,
         entities: [a, b],
-        when: new Date(a.at).getTime(),
+        when: toDate(a.at).getTime(),
         actions: [ACT.mute],
       })
     }

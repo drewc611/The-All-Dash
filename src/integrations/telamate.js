@@ -2,7 +2,7 @@ import { defineParser, defineMetric, defineCommand } from '../core/registry.js'
 import { getState } from '../core/store.js'
 import { ingestFile } from '../ingest/index.js'
 import { q, daily } from '../core/query.js'
-import { addDays, dayKey, startOfDay } from '../core/time.js'
+import { addDays, dayKey, startOfDay, toDate } from '../core/time.js'
 import { isOn } from '../core/flags.js'
 import { CHANNEL } from '../core/build.js'
 import { getKey } from '../ai/keys.js'
@@ -89,7 +89,7 @@ export function openCallbacks(entities) {
 
 export function overdueCallbacks(entities, now = new Date()) {
   const t = now.getTime()
-  return openCallbacks(entities).filter((e) => e.due && new Date(e.due).getTime() < t)
+  return openCallbacks(entities).filter((e) => e.due && toDate(e.due).getTime() < t)
 }
 
 /** Conversations today: the `Telamate conversations` point for today, or the
