@@ -16,8 +16,8 @@ jobs:
   test-and-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -30,8 +30,8 @@ jobs:
   platform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
@@ -42,7 +42,7 @@ jobs:
           pip install -r requirements-dev.txt
           ruff check app tests scripts alembic
           pytest -q
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: MCP server tests
@@ -61,8 +61,15 @@ jobs:
           npm run build
       - name: Kubernetes manifests render and validate
         run: |
-          curl -sSLo kubectl https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubectl && chmod +x kubectl
-          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          # Digests are the ones the projects publish for these exact versions
+          # (dl.k8s.io/.../kubectl.sha256, the kubeconform release CHECKSUMS).
+          # Bumping a version means replacing its digest with the new published one.
+          curl -sSLo kubectl https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubectl
+          echo "298e19e9c6c17199011404278f0ff8168a7eca4217edad9097af577023a5620f  kubectl" | sha256sum --check --strict
+          chmod +x kubectl
+          curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          echo "95f14e87aa28c09d5941f11bd024c1d02fdc0303ccaa23f61cef67bc92619d73  kubeconform.tar.gz" | sha256sum --check --strict
+          tar -xzf kubeconform.tar.gz kubeconform
           ./kubectl kustomize k8s/overlays/prod > rendered.yaml
           ./kubectl kustomize k8s/ingress/nginx-letsencrypt > rendered-nginx.yaml
           ./kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.31.0 rendered.yaml rendered-nginx.yaml k8s/secrets.example.yaml
