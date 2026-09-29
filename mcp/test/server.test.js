@@ -73,6 +73,18 @@ function stubPlatform() {
       if (path === '/ai-audit-logs/verify') return send(200, { ok: true, checked: 3, first_bad_seq: null })
       if (path === '/ai-audit-logs' && req.method === 'POST') return send(201, { id: 'a9', seq: 4, hash: 'h', ...JSON.parse(body) })
       if (path === '/ai-audit-logs') return send(200, { items: [], total: 0 })
+      // Only the read. There is no route here for applying or declining, on
+      // purpose: if a tool ever tried, the stub would 404 it and the test that
+      // checks what was actually requested would show the attempt.
+      if (path === '/proposals' && req.method === 'GET') {
+        const wanted = new URL(req.url, 'http://x').searchParams.get('state')
+        const rows = [
+          { id: 'pr1', task_id: 't1', task_title: 'Board deck', rule: 'overdue-unstarted', field: 'priority', from_value: 'P3', to_value: 'P2', reason: 'Due 11 days ago and still not started.', state: 'proposed', blocked_because: null },
+          { id: 'pr2', task_id: 't9', task_title: 'Rotate the key', rule: 'overdue-unstarted', field: 'priority', from_value: 'P3', to_value: 'P2', reason: 'Due 5 days ago and still not started.', state: 'proposed', blocked_because: 'the task changed after this was proposed - it now reads P1' },
+          { id: 'pr3', task_id: 't2', task_title: 'Old thing', rule: 'doing-but-silent', field: 'status', from_value: 'doing', to_value: 'open', reason: 'x', state: 'applied', blocked_because: 'this was already applied' },
+        ].filter((r) => !wanted || r.state === wanted)
+        return send(200, { items: rows, total: rows.length, limit: 100, offset: 0 })
+      }
       if (path === '/web/capabilities') return send(200, { native: ['scrape', 'map', 'crawl', 'batch'], firecrawl: false, search: false, render: false, screenshot: false, model: null, extract: false, agent: false, limits: { max_pages: 200, sync_max_pages: 25 } })
       if (path === '/web/scrape') return send(200, { url: JSON.parse(body).url, final_url: JSON.parse(body).url, status: 200, title: 'Pricing', markdown: '# Pricing\n\n' + 'x'.repeat(30000), html: '<html>big</html>', engine: 'native', metadata: {} })
       if (path === '/web/crawl' && req.url.includes('async=true')) return send(200, { id: 'job1', kind: 'crawl', status: 'queued' })
@@ -652,5 +664,71 @@ test('the image does not copy source trees the server never imports', () => {
   for (const copied of copiedByImage()) {
     const used = [...needed].some((file) => file === copied || file.startsWith(`${copied}/`))
     assert.ok(used, `mcp/Dockerfile copies ${copied}, which nothing imports`)
+  }
+})
+
+
+test('platform mode: an assistant can read what is waiting and cannot decide any of it', async () => {
+  /*
+   * The worker files proposed changes overnight and a person clears them. An
+   * assistant that could apply them through this server would turn that queue
+   * into an auto-approve with extra steps, so the read is offered and the
+   * decision is not - at the adapter, where there is no method to call, as well
+   * as at the tool list.
+   *
+   * agents_apply is a different object and is left alone: it applies the
+   * Planner's suggestions from a conversation the person is in. This is the
+   * unattended queue, and the person is not in the room.
+   */
+  const stub = await stubPlatform()
+  const { client, server } = await connect({ workspaceFile: '', apiUrl: stub.url, apiKey: 'k', publicUrl: '' })
+  try {
+    const names = (await client.listTools()).tools.map((t) => t.name)
+    assert.deepEqual(names.filter((n) => /proposal/.test(n)), ['platform_proposals'],
+      'the only tool that touches the worker\'s queue is the read')
+    assert.ok(!names.some((n) => /(apply|decline|approve|reject|accept|dismiss).*(proposal|change)|(proposal|change).*(apply|decline|approve|reject|accept|dismiss)/.test(n)),
+      'a tool for deciding a proposal exists')
+
+    const waiting = parse(await client.callTool({ name: 'platform_proposals', arguments: {} }))
+    assert.equal(waiting.items.length, 2, 'defaults to what is waiting, not the whole history')
+    assert.ok(waiting.items.every((r) => r.state === 'proposed'))
+    // The reason and whether it still applies come straight from the API, so
+    // an assistant can tell you a proposal has expired instead of guessing.
+    const stale = waiting.items.find((r) => r.id === 'pr2')
+    assert.match(stale.blocked_because, /it now reads P1/)
+    assert.match(waiting.items[0].reason, /11 days ago/)
+
+    const history = parse(await client.callTool({ name: 'platform_proposals', arguments: { state: 'applied' } }))
+    assert.deepEqual(history.items.map((r) => r.id), ['pr3'])
+
+    // What actually went over the wire: reads, and nothing else.
+    const touched = stub.seen.filter((r) => r.url.startsWith('/proposals'))
+    assert.ok(touched.length >= 2)
+    assert.ok(touched.every((r) => r.method === 'GET'), `something other than a read reached /proposals: ${JSON.stringify(touched.map((r) => r.method))}`)
+    assert.ok(touched.every((r) => r.key === 'k'), 'the read carried the key')
+  } finally {
+    await server.close()
+    stub.server.close()
+  }
+})
+
+test('the platform adapter has no way to apply or decline a proposal', async () => {
+  // The strongest form of the guarantee: not a tool that refuses, but no method
+  // that could be called. Adding one is a deliberate act that fails this test.
+  const { PlatformAdapter } = await import('../src/adapters/platform.js')
+  const methods = Object.getOwnPropertyNames(PlatformAdapter.prototype)
+  assert.ok(methods.includes('proposals'), 'the read is on the adapter')
+  const writers = methods.filter((m) => /proposal/i.test(m) && m !== 'proposals')
+  assert.deepEqual(writers, [], `the adapter can decide a proposal: ${writers}`)
+})
+
+test('without the platform there is no proposals tool at all', async () => {
+  const { file } = await fixtureWorkspace()
+  const { client, server } = await connect({ workspaceFile: file, apiUrl: '', apiKey: '', publicUrl: '' })
+  try {
+    const names = (await client.listTools()).tools.map((t) => t.name)
+    assert.ok(!names.includes('platform_proposals'), 'the queue lives on the server, so it is only offered with one')
+  } finally {
+    await server.close()
   }
 })

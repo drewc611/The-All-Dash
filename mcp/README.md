@@ -9,11 +9,20 @@ Two sources, either or both:
 | Source | Env | What you get |
 |---|---|---|
 | Workspace export | `ALLDASH_WORKSPACE_FILE=/path/to/all-dash-2026-09-08.json` | `workspace_*` tools: overview, triage, status update, search, add and update tasks, and `workspace_brain` (what the app learned about the user, as Markdown; rules only, no model). Read with the browser app's own engines, so "late" means what the Triage view means. Writes go into the file; re-import it in the app. |
-| Platform API | `ALLDASH_API_URL=http://localhost:8000` + `ALLDASH_API_KEY` | `platform_*` tools: brief, pipelines, today's checklist, tasks, invoices, expenses, finance summary, audit log, verify, log a decision, run the daily engine. `web_*` tools: scrape, map, crawl, batch, job, search, extract, agent, capabilities (the platform's web tier; search needs Firecrawl there, extract and agent need a model). |
+| Platform API | `ALLDASH_API_URL=http://localhost:8000` + `ALLDASH_API_KEY` | `platform_*` tools: brief, pipelines, today's checklist, tasks, invoices, expenses, finance summary, audit log, verify, log a decision, run the daily engine, and `platform_proposals` (what the nightly worker suggested and nobody has decided; read-only). `web_*` tools: scrape, map, crawl, batch, job, search, extract, agent, capabilities (the platform's web tier; search needs Firecrawl there, extract and agent need a model). |
 
 `search` and `fetch` span both and follow the shape ChatGPT requires
 (`{results:[{id,title,url}]}` and `{id,title,text,url,metadata}`), with ids
 prefixed `ws:` or `pf:`.
+
+`platform_proposals` is read-only on purpose. The worker files suggested task
+changes overnight and a person clears them in the workspace; an assistant that
+could apply them here would turn that queue into an auto-approve with extra
+steps. So the server can tell you what is waiting, and why, and which ones have
+expired because the task moved on, and it cannot decide any of them. That holds
+at the adapter, which has no method to apply or decline, and a test fails if one
+is added. `agents_apply` is a different thing: it applies the Planner's
+suggestions from a conversation you are in, not the unattended queue.
 
 Every judgement an agent makes for the user belongs in the ledger:
 `platform_log_decision` appends it with a confidence score, as actor

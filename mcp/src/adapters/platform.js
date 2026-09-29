@@ -43,6 +43,11 @@ export class PlatformAdapter {
   finance(params) { return this.call('/finance/summary', { params }) }
   auditLogs(params) { return this.call('/ai-audit-logs', { params }) }
   auditVerify() { return this.call('/ai-audit-logs/verify') }
+  // What the worker has filed for a person to decide. There is deliberately no
+  // method here to apply or decline one: the queue exists so a person reads it,
+  // and a method on this class is one an assistant could call unattended. A test
+  // fails if one is added, so adding it is a decision and not an accident.
+  proposals(params) { return this.call('/proposals', { params }) }
   logDecision(body) { return this.call('/ai-audit-logs', { method: 'POST', body: { actor: 'assistant', ...body } }) }
 
   // The web tier. Native scrape, map, crawl and batch; search, rendering and
