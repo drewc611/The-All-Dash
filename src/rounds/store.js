@@ -65,3 +65,47 @@ export const briefsFor = (roundId, state = getState()) =>
   roundsState(state).briefs.filter((b) => b.roundId === roundId)
 
 export const latestBrief = (roundId, state = getState()) => briefsFor(roundId, state)[0] || null
+
+/*
+ * The move ledger.
+ *
+ * Every decision is kept, including the declines. A queue that forgets what
+ * you said no to is a queue that asks again tomorrow, and a queue that asks
+ * again tomorrow trains you to clear it without reading - at which point the
+ * one proposal that mattered goes out with the rest.
+ */
+
+const MAX_MOVES = 200
+
+export const movesState = (state = getState()) => roundsState(state).moves || []
+
+/** File proposals. Returns the ones that were actually new. */
+export function addMoves(list) {
+  const moves = (Array.isArray(list) ? list : []).filter(Boolean)
+  if (!moves.length) return []
+  const current = movesState()
+  const known = new Set(current.map((m) => m.id))
+  const fresh = moves.filter((m) => !known.has(m.id))
+  if (!fresh.length) return []
+  write({ moves: [...fresh, ...current].slice(0, MAX_MOVES) })
+  return fresh
+}
+
+/**
+ * Replace one move with the result of deciding it.
+ *
+ * The decision functions are pure and return a new move; this is the only
+ * thing that writes one back, so there is one place where the ledger changes
+ * and the acting and the recording cannot drift apart.
+ */
+export function recordDecision(next) {
+  if (!next?.id) return null
+  write({ moves: movesState().map((m) => (m.id === next.id ? next : m)) })
+  return next
+}
+
+export const pendingMoves = (state = getState()) =>
+  movesState(state).filter((m) => m.state === 'proposed')
+
+export const movesForBrief = (briefId, state = getState()) =>
+  movesState(state).filter((m) => m.briefId === briefId)

@@ -8,6 +8,8 @@ import { runRound, summarise, priceRun } from '../../rounds/run.js'
 import { isVerified } from '../../rounds/schema.js'
 import { relative, formatDate } from '../../core/time.js'
 import { Card, Empty, Segmented } from '../components.jsx'
+import { MovesQueue } from '../rounds/Moves.jsx'
+import { movesState } from '../../rounds/store.js'
 
 /**
  * Rounds: standing work.
@@ -81,6 +83,13 @@ export function Rounds({ state, entities = [], onOpen, onToast }) {
           laptop is shut.
         </p>
       </Card>
+
+      <MovesQueue
+        state={state}
+        moves={movesState(state)}
+        onOpen={onOpen}
+        onToast={onToast}
+      />
 
       {drafting && <Draft onCancel={() => setDrafting(false)} onSave={(r) => { addRound(r); setDrafting(false) }} />}
 
