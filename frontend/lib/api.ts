@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { AuditLog, AuditVerification, DailyBrief, FinanceSummary, Page, ProjectPipeline, Task } from './types'
+import type { AuditLog, AuditVerification, DailyBrief, FinanceSummary, Page, ProjectPipeline, Proposal, Task } from './types'
 
 /**
  * Server-side client for the platform API.
@@ -50,15 +50,22 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 /** Read everything the workspace needs, in parallel, tolerating a missing brief. */
 export async function loadWorkspace(context: 'work' | 'personal' | 'all') {
   const ctx = context === 'all' ? '' : `?context=${context}`
-  const [pipeline, checklist, audit, verification, finance, brief] = await Promise.all([
+  const [pipeline, checklist, audit, verification, finance, brief, proposals] = await Promise.all([
     call<ProjectPipeline[]>(`/projects/pipeline${ctx}`),
     call<Task[]>(`/tasks/today${ctx}`),
     call<Page<AuditLog>>('/ai-audit-logs?limit=40'),
     call<AuditVerification>('/ai-audit-logs/verify'),
     call<FinanceSummary>('/finance/summary'),
     call<DailyBrief>('/daily/latest').catch((e: unknown) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
+    // Only a 404 is tolerated: a backend that predates the proposals table
+    // during a rolling deploy should not take the whole workspace down. Any
+    // other failure is real and surfaces, because a queue that quietly shows
+    // empty when the API is unwell is worse than an error.
+    call<Page<Proposal>>('/proposals?state=proposed&limit=50').catch((e: unknown) =>
+      e instanceof ApiError && e.status === 404 ? null : Promise.reject(e),
+    ),
   ])
-  return { pipeline, checklist, audit: audit.items, verification, finance, brief }
+  return { pipeline, checklist, audit: audit.items, verification, finance, brief, proposals: proposals?.items ?? [] }
 }
 
 export const toggleTask = (id: string) => call<Task>(`/tasks/${encodeURIComponent(id)}/toggle`, { method: 'POST' })
@@ -67,3 +74,7 @@ export const createTask = (body: { title: string; context: 'work' | 'personal'; 
   call<Task>('/tasks', { method: 'POST', body: JSON.stringify(body) })
 
 export const runDaily = () => call<{ status: string; brief_date: string }>('/daily/run?sync=true', { method: 'POST' })
+
+export const applyProposal = (id: string) => call<Proposal>(`/proposals/${encodeURIComponent(id)}/apply`, { method: 'POST' })
+
+export const declineProposal = (id: string) => call<Proposal>(`/proposals/${encodeURIComponent(id)}/decline`, { method: 'POST' })
