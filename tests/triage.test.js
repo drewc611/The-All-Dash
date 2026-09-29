@@ -118,3 +118,34 @@ test('a custom metric with an unreachable target is flagged when a range is give
   assert.ok(off)
   assert.match(off.why, /1,000/)
 })
+
+test('lateness is counted in calendar days, across a daylight-saving change', () => {
+  /*
+   * This was wrong in two ways at once and only showed up in the zone CI runs.
+   *
+   * daysBetween floored a millisecond difference, which counts 24-hour blocks
+   * rather than days. New Zealand enters daylight saving on the last Sunday in
+   * September, making that day 23 hours long - so a task due nine calendar
+   * days earlier measured 8.96 and was reported as eight days late. The zone
+   * the suite runs in turned it red the week the boundary was crossed, and it
+   * would have gone quiet again a week later without being fixed.
+   *
+   * The clock is pinned rather than taken from today, so this keeps testing
+   * the boundary instead of testing whatever date it happens to be run on.
+   */
+  const now = new Date(2026, 8, 29, 9, 0)   // 29 September, after the change
+  const rows = [makeEntity({ type: 'task', title: 'Nine days late', status: 'open', due: '2026-09-20' })]
+  const [signal] = buildTriage(map(rows), { now }).filter((s) => s.kind === 'overdue')
+  assert.match(signal.why, /9 days late/)
+  assert.equal(signal.severity, 'critical', 'a week late is critical, and 9 is more than 7')
+})
+
+test('a bare due date is a local calendar day, not UTC midnight', () => {
+  // `new Date("2026-09-20")` is UTC midnight, which is the evening of the 19th
+  // across the Americas. Reading a due date that way makes every task one day
+  // later than it is for half the world.
+  const now = new Date(2026, 8, 21, 9, 0)
+  const rows = [makeEntity({ type: 'task', title: 'A day late', status: 'open', due: '2026-09-20' })]
+  const [signal] = buildTriage(map(rows), { now }).filter((s) => s.kind === 'overdue')
+  assert.match(signal.why, /1 day late/)
+})
