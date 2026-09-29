@@ -259,6 +259,20 @@ export function registerAll(server, { workspace, platform, agents = null, public
       guard(async () => text(await platform.auditVerify()))
     )
     server.registerTool(
+      'platform_proposals',
+      {
+        title: 'Changes waiting for a person to decide',
+        description:
+          'What the nightly worker suggested and nobody has decided yet: each with the rule, the reason (arithmetic over the task, not an opinion) and `blocked_because`, which says why it can no longer be applied if the task has changed since. Read-only. Applying or declining is done by a person in the workspace, not through this server, so tell them what is waiting rather than trying to act on it. Defaults to what is waiting; pass a state for history.',
+        inputSchema: {
+          state: z.enum(['proposed', 'applied', 'failed', 'stale', 'declined']).optional().describe('Defaults to proposed'),
+          limit: z.number().int().min(1).max(200).optional(),
+        },
+        annotations: { readOnlyHint: true },
+      },
+      guard(async ({ state = 'proposed', limit }) => text(await platform.proposals({ state, limit })))
+    )
+    server.registerTool(
       'platform_log_decision',
       {
         title: 'Log a decision to the ledger',
