@@ -1,6 +1,6 @@
 import { defineMetric, getMetric, listMetrics } from '../core/registry.js'
 import { q, daily, trend, momentum, forecast } from '../core/query.js'
-import { addDays, startOfDay, endOfDay } from '../core/time.js'
+import { addDays, startOfDay, endOfDay, toDate } from '../core/time.js'
 import { OPEN_STATUSES } from '../data/schema.js'
 
 /**
@@ -50,7 +50,7 @@ defineMetric({
     const rows = q(entities).type('event').between(range.from, range.to, 'at').where((e) => !e.meta?.allDay).all()
     const hours = rows.map((e) => ({
       ...e,
-      value: e.end ? Math.max(0, (new Date(e.end) - new Date(e.at)) / 3600000) : 0.5,
+      value: e.end ? Math.max(0, (toDate(e.end) - toDate(e.at)) / 3600000) : 0.5,
     }))
     return {
       value: round(hours.reduce((a, e) => a + e.value, 0)),

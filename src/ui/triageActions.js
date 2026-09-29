@@ -1,5 +1,5 @@
 import { updateEntity, muteSignal, recordUsage } from '../core/store.js'
-import { addDays } from '../core/time.js'
+import { addDays, toDate } from '../core/time.js'
 
 /**
  * What the buttons on a triage row do. Shared by the full view and the
@@ -18,7 +18,7 @@ export function runTriageAction(actionId, signal, { now = new Date() } = {}) {
     return `Marked "${e.title}" done.`
   }
   if (actionId === 'push') {
-    const from = e.due && new Date(e.due) > now ? new Date(e.due) : now
+    const from = e.due && toDate(e.due) > now ? toDate(e.due) : now
     updateEntity(e.id, { due: addDays(from, 7).toISOString(), status: e.status === 'done' ? 'open' : e.status })
     return `Moved "${e.title}" out a week.`
   }

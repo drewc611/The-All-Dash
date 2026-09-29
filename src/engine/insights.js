@@ -1,5 +1,5 @@
 import { q, daily, trend, momentum, anomalies, streak, correlation } from '../core/query.js'
-import { addDays, dayKey, relative } from '../core/time.js'
+import { addDays, dayKey, relative, toDate } from '../core/time.js'
 import { availableMetrics, evaluate } from './metrics.js'
 import { format } from '../core/format.js'
 
@@ -84,7 +84,7 @@ function ownerConcentration(entities, add) {
 function meetingPressure(entities, range, now, add) {
   const week = q(entities).type('event').between(now, addDays(now, 7), 'at').where((e) => e.status !== 'cancelled' && !e.meta?.allDay).all()
   if (week.length < 3) return
-  const hours = week.reduce((a, e) => a + (e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0)
+  const hours = week.reduce((a, e) => a + (e.end ? (toDate(e.end) - toDate(e.at)) / 3600000 : 0.5), 0)
   const byDay = q(week).groupBy((e) => dayKey(e.at))
   const heaviest = [...byDay.entries()].sort((a, b) => b[1].length - a[1].length)[0]
   if (hours < 12) return

@@ -81,6 +81,24 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   which is accurate and is not prose - the source chip opens the record where
   the rest of it lives.
 
+### Fixed
+
+- **A task made on a board was a day out for anyone west of Greenwich, and half
+  a day out in Auckland.** The Date column and the timeline cells store a bare
+  calendar day, and about thirty-five places read that with `new Date()`, which
+  takes it as midnight UTC: the previous evening in the Americas, midday the
+  same day in New Zealand. Overdue, due-soon, weekday reasons ("due on your
+  busiest meeting day"), lead-time learning and the widgets all used it. They
+  now read a day as that day where you are, through the one function in
+  `core/time.js` that knows the difference, and a test fails if a new call
+  reads a `due`, `at` or `end` any other way. Full timestamps, which is what an
+  imported calendar gives, mean exactly what they did.
+
+- **Triage counted days in 24-hour blocks.** The day a zone enters daylight
+  saving is 23 hours long, so a task nine days late measured 8.96 and was
+  reported as eight. New Zealand changed on the last Sunday in September, which
+  is how the test suite noticed: it runs in Auckland and went red on `main`.
+
 ## [0.2.1] — 2026-09-15
 
 A patch for one thing: v0.2.0 shipped without its container image.

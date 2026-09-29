@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { cycleTaskStatus, nextTaskStatus } from '../core/store.js'
-import { formatDate, formatTime, relative } from '../core/time.js'
+import { formatDate, formatTime, relative, toDate } from '../core/time.js'
 import { format } from '../core/format.js'
 import { IconCheck, IconClose, IconDash } from './icons.jsx'
 
@@ -64,7 +64,7 @@ const STATUS_WORD = { open: 'open', doing: 'in progress', done: 'done' }
 
 export function TaskRow({ entity, onOpen, showDate = true }) {
   const Mark = STATUS_MARK[entity.status]
-  const overdue = entity.due && entity.status !== 'done' && new Date(entity.due) < new Date()
+  const overdue = entity.due && entity.status !== 'done' && toDate(entity.due) < new Date()
   const next = STATUS_WORD[nextTaskStatus(entity.status)]
   return (
     <div className={`list__item list__item--interactive${entity.status === 'done' ? ' done' : ''}`}>
@@ -95,12 +95,12 @@ export function TaskRow({ entity, onOpen, showDate = true }) {
 }
 
 export function EventRow({ entity, onOpen }) {
-  const soon = new Date(entity.at) - Date.now()
+  const soon = toDate(entity.at) - Date.now()
   return (
     <button type="button" className="list__item list__item--interactive" onClick={() => onOpen?.(entity)}>
       <span className="list__side tabular" style={{ width: 58, flexDirection: 'column', alignItems: 'flex-start', gap: 0, whiteSpace: 'nowrap' }}>
         <strong style={{ color: 'var(--ink)', fontSize: 'var(--t-sm)' }}>{formatTime(entity.at)}</strong>
-        <span>{entity.end ? `${Math.round((new Date(entity.end) - new Date(entity.at)) / 60000)}m` : ''}</span>
+        <span>{entity.end ? `${Math.round((toDate(entity.end) - toDate(entity.at)) / 60000)}m` : ''}</span>
       </span>
       <span className="list__main">
         <span className="list__title">{entity.title}</span>
