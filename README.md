@@ -1366,6 +1366,7 @@ The-All-Dash/
 │   ├── app/api/                Route handlers that carry the key so the browser never sees it
 │   ├── components/             ProjectPipelines, DailyTasks, AuditStream, MarginRibbon, Header
 │   ├── lib/                    Typed API client (server-only), types mirroring schemas.py, formatting
+│   ├── e2e/                    Playwright specs: proposals queue, workspace, proxy security
 │   └── Dockerfile              Standalone output, three-stage alpine, uid 10001
 ├── mcp/                        MCP server (Node 20): stdio and Streamable HTTP, workspace and platform adapters
 ├── k8s/
@@ -1467,6 +1468,15 @@ pip install -r requirements-dev.txt && pytest`, then `uvicorn app.main:app`
 with `ALLDASH_DATABASE_URL` pointing at a Postgres (or `sqlite+aiosqlite:///dev.db`
 for a quick look), `celery -A app.worker worker -B`, and `cd frontend && npm
 install && BACKEND_URL=http://localhost:8000 BACKEND_API_KEY=... npm run dev`.
+
+**End-to-end tests.** `cd frontend && npm run e2e` builds the frontend and runs
+the Playwright suite against the real thing: the FastAPI app on a fresh SQLite
+database built by the real migrations, and the production Next.js build, twice
+(once with login off to drive the workspace, once with it on to test the proxy).
+Nothing is mocked, because the failure the suite is there to catch is a page
+that renders on the server and never hydrates. It needs the backend's Python
+dependencies (`backend/.venv` is picked up automatically, or set `E2E_PYTHON`)
+and a browser: `npx playwright install chromium`. CI runs it as the `e2e` job.
 
 ### Build, tag and push to ECR
 
