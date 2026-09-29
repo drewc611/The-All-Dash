@@ -81,6 +81,29 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   which is accurate and is not prose - the source chip opens the record where
   the rest of it lives.
 
+- **Rounds can now propose changes, and never apply them** (`rounds`, alpha).
+  Under **Proposed changes** on the Rounds view, *Look for changes* reads your
+  tasks' own dates and statuses and suggests two kinds of edit: raise the
+  priority of a task that is past its date and not started, and mark a task you
+  called *doing* as *blocked* when nothing has touched it for ten days. It
+  spends nothing and calls no model, and each row says why in plain terms with
+  the record one click away.
+
+  **A proposal expires when the task moves.** If you change the task yourself
+  after it was suggested, the row says *Cannot apply: the record changed after
+  this was proposed - it now reads Urgent* and the button is disabled, rather
+  than overwriting what you decided. **Applying is followed by looking:** the
+  record is read back, and the confirmation reports what it actually says. Undo
+  puts the value back, and refuses if something else has changed it since.
+
+  **Declines are remembered.** A proposal you said no to is not raised again
+  tomorrow; a queue that re-asks every morning teaches you to clear it without
+  reading. There is no *apply all*, and no setting that adds one.
+
+  The platform tier does the same overnight while the laptop is shut: its
+  worker files proposals on a schedule and applies nothing, and the workspace
+  shows them for you to decide. This entry is only the browser app.
+
 ### Fixed
 
 - **A task made on a board was a day out for anyone west of Greenwich, and half
