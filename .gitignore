@@ -17,3 +17,8 @@ frontend/tsconfig.tsbuildinfo
 
 # Rust build output for the desktop shell
 src-tauri/target/
+
+# Playwright (frontend end-to-end tests)
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.state/
