@@ -28,6 +28,7 @@ from .db import make_engine
 from .models import WebJob, utcnow
 from .services import daily as daily_service
 from .services import finance
+from .services import proposals as proposal_service
 from .web.factory import build_web_service
 
 log = logging.getLogger("alldash.worker")
@@ -52,6 +53,13 @@ celery_app.conf.update(
         },
         "mark-overdue-invoices": {"task": "alldash.mark_overdue_invoices", "schedule": crontab(minute=15)},
         "compute-burn-rate": {"task": "alldash.compute_burn_rate", "schedule": crontab(minute=30, hour="*/6")},
+        # Just before the brief, so the morning's queue is already filled when
+        # somebody reads it. Nothing it files changes a task: a person decides
+        # each row through the API, and the worker has no path that applies one.
+        "propose-task-changes": {
+            "task": "alldash.propose_task_changes",
+            "schedule": crontab(hour=settings.daily_brief_hour, minute=0),
+        },
     },
 )
 
@@ -128,6 +136,21 @@ def compute_burn_rate() -> dict[str, Any]:
         return rate.model_dump()
 
     return run_async(_work)
+
+
+@celery_app.task(name="alldash.propose_task_changes")
+def propose_task_changes() -> dict[str, Any]:
+    """File what the rules find. Apply nothing.
+
+    This is the whole difference from the products that run your company
+    overnight. They act on a schedule and then tell you to go and check
+    whether it worked; this writes rows a person decides in the morning, and
+    there is no setting that turns the second half off.
+    """
+    made = run_async(lambda s: proposal_service.propose(s, today_local(), actor="worker"))
+    out = proposal_service.summarise(made)
+    log.info("changes proposed", extra=out)
+    return out
 
 
 @celery_app.task(name="alldash.web_job", bind=True, max_retries=5, acks_late=False)

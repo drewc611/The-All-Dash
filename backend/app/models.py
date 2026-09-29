@@ -24,6 +24,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -221,6 +222,75 @@ class DailyBrief(Base):
     triggered_by: Mapped[str] = mapped_column(String(32), default="api", nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+PROPOSAL_STATES = ("proposed", "applied", "failed", "stale", "declined")
+PROPOSAL_FIELDS = ("status", "priority")
+
+
+class TaskProposal(Base):
+    """A change the worker thinks should happen, that only a person can make.
+
+    The point of this table is the half the autonomous-agent products skip.
+    They connect your accounts, act on a schedule without asking, and then ship
+    sentences like "has not confirmed the result - check it before making
+    another request": fired into the world, lost track of. Firing is the easy
+    half; the hard halves are knowing you should, and knowing afterwards that
+    you did.
+
+    So the worker writes rows here and never touches a task. Four columns carry
+    the weight:
+
+    `reason` is why, in words, and it is arithmetic over the task rather than a
+    model's opinion - so it can be checked rather than trusted.
+
+    `from_value` is what the task said when this was proposed. A proposal is an
+    opinion about a state of the world and the world keeps moving; if the task
+    has changed since, applying would overwrite whatever replaced it, so it is
+    refused as stale instead. An agent that acts the moment it decides cannot
+    represent this case at all.
+
+    `outcome_ok` and `observed` are filled by reading the task back after the
+    write. "The update was issued" and "the row now says what we wanted" are
+    different facts and only the second is worth recording.
+
+    Every decision also lands in the audit ledger, which is where a reader goes
+    to find out who approved what and whether it took.
+    """
+
+    __tablename__ = "task_proposals"
+    __table_args__ = (
+        CheckConstraint(_in("state", PROPOSAL_STATES), name="ck_task_proposals_state"),
+        CheckConstraint(_in("field", PROPOSAL_FIELDS), name="ck_task_proposals_field"),
+        Index("ix_task_proposals_state_created", "state", "created_at"),
+        # One live proposal per task and field. Without it a beat that fires
+        # twice, or a worker retried after a lost ack, quietly doubles the
+        # queue - and a queue that repeats itself is one nobody reads.
+        Index(
+            "uq_task_proposals_open",
+            "task_id",
+            "field",
+            unique=True,
+            postgresql_where=text("state = 'proposed'"),
+            sqlite_where=text("state = 'proposed'"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    rule: Mapped[str] = mapped_column(String(48), nullable=False)
+    field: Mapped[str] = mapped_column(String(16), nullable=False)
+    from_value: Mapped[str] = mapped_column(String(32), nullable=False)
+    to_value: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(String(240), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), default="proposed", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    outcome_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    observed: Mapped[str] = mapped_column(String(120), default="", nullable=False)
+
+    task: Mapped[Task] = relationship()
 
 
 class WebJob(Base):

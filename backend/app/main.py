@@ -151,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(routers.expenses.router)
     app.include_router(routers.audit_logs.router)
     app.include_router(routers.daily.router)
+    app.include_router(routers.proposals.router)
     app.include_router(routers.finance.router)
     app.include_router(routers.web.router)
     return app

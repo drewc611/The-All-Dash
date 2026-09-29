@@ -1075,6 +1075,28 @@ Nothing here spends money or calls a model. The rules are arithmetic over dates
 and statuses the workspace already holds, in local time, so the justification
 is a fact about your records rather than a sentence about a sentence.
 
+### While the laptop is shut
+
+The browser app has no server, so a round comes due and runs the next time you
+open it. The platform tier does have one, and it runs the same idea on a
+schedule: a Celery beat job scans your tasks each morning, just before the
+brief, and files what the rules find. It applies nothing. There is no task,
+scheduled or callable, that can — applying lives behind an authenticated
+request to `POST /proposals/{id}/apply` and nowhere else, and the test suite
+pins that absence rather than trusting it.
+
+`GET /proposals` returns each row with a `blocked_because` computed per
+request, because whether a proposal still applies is a fact about the task
+*now*, not about the moment the row was written. Applying re-reads the task
+afterwards and records `observed` — what the row says, rather than what was
+sent. Every decision, including the refusals, lands in the hash-chained audit
+ledger with the rule, both values and the outcome, so "who approved this and
+did it take" is answerable months later.
+
+A partial unique index allows one live proposal per task and field while
+keeping the decided ones as history. A beat that fires twice, or a worker
+retried after a lost acknowledgement, cannot double the queue.
+
 ## The agents
 
 Five of them, over a memory that has to earn its place. The whole thing runs
@@ -1318,8 +1340,8 @@ The-All-Dash/
 │   │   ├── audit.py            The ledger: SHA-256 over row + previous hash, advisory-locked appends, verify
 │   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /web /healthz /readyz
 │   │   ├── web/                guard (SSRF), fetch (robots, limits), html→Markdown, sitemap, firecrawl, llm, service
-│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin)
-│   │   └── worker.py           Celery app, beat schedule, three periodic decisions
+│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin), proposals.py (what the worker suggests)
+│   │   └── worker.py           Celery app, beat schedule, four periodic decisions
 │   ├── alembic/                Migrations; 0001 also installs the append-only trigger on ai_audit_logs
 │   ├── scripts/seed.py         Sample workspace, idempotent
 │   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief
