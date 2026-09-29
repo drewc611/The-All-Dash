@@ -1,5 +1,6 @@
 import { CADENCES } from './due.js'
 import { iso } from '../core/time.js'
+import { normaliseMoves } from './moves-schema.js'
 
 /**
  * A round, and the brief a run of one produces.
@@ -130,7 +131,10 @@ export function makeBrief(raw) {
 /** How many briefs to keep. Old ones are history, not an archive. */
 const MAX_BRIEFS = 60
 
-export const emptyRounds = () => ({ rounds: [], briefs: [] })
+export const emptyRounds = () => ({ rounds: [], briefs: [], moves: [] })
+
+/** How many moves to keep. The ledger is a record of decisions, not an archive. */
+const MAX_MOVES = 200
 
 /**
  * The stored slice.
@@ -148,5 +152,10 @@ export function normaliseRoundsState(incoming) {
   return {
     rounds: normaliseRounds(from.rounds),
     briefs: briefs.slice(0, MAX_BRIEFS),
+    // Newest first, same as briefs, so the cap drops the oldest decisions
+    // rather than whichever happened to sit at the end of the array.
+    moves: normaliseMoves(from.moves)
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+      .slice(0, MAX_MOVES),
   }
 }

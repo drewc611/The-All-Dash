@@ -1037,6 +1037,66 @@ you turn that off in Settings. The store keeps only what cannot be recomputed:
 your name, role and focus, your notes, which opinions you accepted or
 dismissed, and the usage counters. *Reset the brain* clears exactly that.
 
+## Rounds, and proposed changes
+
+A round is a question asked of this workspace on a cadence, and every finding
+it returns carries the records behind it. The category it sits in sells
+something louder: autonomous systems that connect your accounts, act without
+asking, and run your company overnight. One of them ships this sentence to its
+users — *"has not confirmed the result. Check the result before making another
+request. This action will not be repeated automatically."* That is an agent
+telling you it did something to your account and lost track of it.
+
+Firing is the easy half. The hard halves are knowing you should, and knowing
+afterwards that you did. So a round proposes; it never applies.
+
+Every proposal states what changes, in the record's own words; why, as
+arithmetic over that record, with the record one click away; and whether it
+still applies at all. Four rules decide what is offered:
+
+- **No evidence, no proposal.** An untraceable *finding* is kept and marked
+  here, because a passage you cannot place is still worth reading. An
+  untraceable *edit* is not the same object and is never offered.
+- **A proposal expires when the world moves.** It remembers what the record
+  said when it was formed and refuses to apply if that has changed since,
+  naming what the record reads now. A queue of opinions about a workspace that
+  kept moving is worse than no queue.
+- **Applying is followed by looking.** The record is read back and the outcome
+  records what it actually says. "The write was sent" and "the record says what
+  we wanted" are different facts, and only the second is reported.
+- **Every decision is kept, including the declines**, and a declined proposal
+  is not raised again. A queue that re-asks every morning trains you to clear
+  it without reading, and then the one that mattered goes through with the rest.
+
+There is no *apply all*, and no setting that adds one. That is the feature: a
+review queue with an approve-everything button is a queue nobody reads.
+
+Nothing here spends money or calls a model. The rules are arithmetic over dates
+and statuses the workspace already holds, in local time, so the justification
+is a fact about your records rather than a sentence about a sentence.
+
+### While the laptop is shut
+
+The browser app has no server, so a round comes due and runs the next time you
+open it. The platform tier does have one, and it runs the same idea on a
+schedule: a Celery beat job scans your tasks each morning, just before the
+brief, and files what the rules find. It applies nothing. There is no task,
+scheduled or callable, that can — applying lives behind an authenticated
+request to `POST /proposals/{id}/apply` and nowhere else, and the test suite
+pins that absence rather than trusting it.
+
+`GET /proposals` returns each row with a `blocked_because` computed per
+request, because whether a proposal still applies is a fact about the task
+*now*, not about the moment the row was written. Applying re-reads the task
+afterwards and records `observed` — what the row says, rather than what was
+sent. Every decision, including the refusals, lands in the hash-chained audit
+ledger with the rule, both values and the outcome, so "who approved this and
+did it take" is answerable months later.
+
+A partial unique index allows one live proposal per task and field while
+keeping the decided ones as history. A beat that fires twice, or a worker
+retried after a lost acknowledgement, cannot double the queue.
+
 ## The agents
 
 Five of them, over a memory that has to earn its place. The whole thing runs
@@ -1280,8 +1340,8 @@ The-All-Dash/
 │   │   ├── audit.py            The ledger: SHA-256 over row + previous hash, advisory-locked appends, verify
 │   │   ├── routers/            /projects /tasks /invoices /expenses /ai-audit-logs /daily /finance /web /healthz /readyz
 │   │   ├── web/                guard (SSRF), fetch (robots, limits), html→Markdown, sitemap, firecrawl, llm, service
-│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin)
-│   │   └── worker.py           Celery app, beat schedule, three periodic decisions
+│   │   ├── services/           daily.py (the daily update engine), finance.py (burn rate, margin), proposals.py (what the worker suggests)
+│   │   └── worker.py           Celery app, beat schedule, four periodic decisions
 │   ├── alembic/                Migrations; 0001 also installs the append-only trigger on ai_audit_logs
 │   ├── scripts/seed.py         Sample workspace, idempotent
 │   ├── tests/                  pytest: auth, CRUD, pipeline, checklist, invoices, finance, chain, brief

@@ -91,10 +91,24 @@ const ACT = {
   assign: { id: 'assign', label: 'Assign' },
 }
 
-// Calendar days, like addDays: a DST change inside the window makes the span
-// an hour short of a whole day, and flooring 24-hour blocks then reads a task
-// due nine days ago as eight days late. Rounding the midnight-to-midnight span
-// absorbs the hour either way.
+/**
+ * Whole calendar days between two moments.
+ *
+ * Both ends are taken to local midnight first, and the result is rounded
+ * rather than floored, because neither shortcut survives contact with a real
+ * calendar:
+ *
+ * `new Date("2026-09-20")` is UTC midnight, which is the previous evening
+ * anywhere west of Greenwich - so a bare due date read this way is a day late
+ * across the Americas. startOfDay goes through toDate, which is the one place
+ * in this app that knows a day key is a local calendar day.
+ *
+ * And flooring a millisecond difference counts 24-hour blocks, not days. The
+ * day a zone enters daylight saving is 23 hours long, so nine days across that
+ * boundary is 8.96 and floors to eight. New Zealand changes on the last Sunday
+ * in September, which is how this surfaced: the same task was nine days late
+ * in UTC and eight in Auckland.
+ */
 const daysBetween = (a, b) => Math.round((startOfDay(b) - startOfDay(a)) / MS.day)
 const owner = (e) => (e.people?.length ? ` (${e.people[0]})` : '')
 

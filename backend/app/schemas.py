@@ -13,6 +13,8 @@ ProjectStage = Literal["idea", "planning", "in_progress", "review", "done"]
 ProjectStatus = Literal["active", "paused", "done"]
 TaskPriority = Literal["P1", "P2", "P3"]
 TaskStatus = Literal["open", "doing", "done"]
+ProposalState = Literal["proposed", "applied", "failed", "stale", "declined"]
+ProposalField = Literal["status", "priority"]
 InvoiceStatus = Literal["draft", "sent", "paid", "overdue", "void"]
 AuditActor = Literal["system", "worker", "user", "assistant"]
 
@@ -112,6 +114,40 @@ class TaskOut(OrmModel):
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+# ----------------------------------------------------------------- proposals
+
+
+class ProposalOut(OrmModel):
+    """A change the worker thinks should happen, and what became of it.
+
+    `blocked_because` is computed per request rather than stored, because
+    whether a proposal still applies is a fact about the task right now, not
+    about the moment the row was written. A queue that cached it would offer
+    an Apply button that fails.
+
+    `outcome_ok` and `observed` are filled from reading the task back after a
+    write. They are the difference between "the update was issued" and "the
+    row says what we wanted", which is the distinction the agents that act
+    unattended keep having to apologise for.
+    """
+
+    id: str
+    task_id: str
+    task_title: str
+    rule: str
+    field: ProposalField
+    from_value: str
+    to_value: str
+    reason: str
+    state: ProposalState
+    created_at: datetime
+    decided_at: datetime | None
+    decided_by: str
+    outcome_ok: bool | None
+    observed: str
+    blocked_because: str | None
 
 
 # ------------------------------------------------------------------ invoices
