@@ -11,7 +11,7 @@ export const BACKEND_DIR = resolve(FRONTEND_DIR, '..', 'backend')
 export const STATE_DIR = join(FRONTEND_DIR, 'e2e', '.state')
 
 export const PORTS = { backend: 8710, open: 3710, guarded: 3711 } as const
-export const API_KEY = 'e2e-key'
+export const API_KEY = 'e2e-key' // allow-placeholder throwaway key for the loopback-only e2e stack (temp database, never deployed)
 export const AUTH = { user: 'e2e-user', password: 'e2e-password' } as const
 
 export const API_URL = `http://127.0.0.1:${PORTS.backend}`

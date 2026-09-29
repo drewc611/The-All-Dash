@@ -64,24 +64,28 @@ jobs:
       channel: ${{ steps.tag.outputs.channel }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
 
       - name: Work out the version and its channel
         id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           in_tree=$(node -p "require('./package.json').version")
           # Three ways in, three shapes of ref. Stripping a leading "v" off a
           # branch called release/v0.2.0 leaves "release/v0.2.0", which then
           # fails the check below with a message about package.json: true,
           # useless, and pointing at the wrong file.
-          case "${{ github.event_name }}:${{ github.ref_type }}" in
+          case "${EVENT_NAME}:${REF_TYPE}" in
             push:tag)    version="${GITHUB_REF_NAME#v}" ;;
             push:branch) version="${GITHUB_REF_NAME#release/v}" ;;
-            *)           version="${{ inputs.version }}"
+            *)           version="$INPUT_VERSION"
                          [ -n "$version" ] || version="$in_tree" ;;
           esac
 
@@ -101,12 +105,14 @@ jobs:
           else
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "::notice::$version on the $channel channel (via ${{ github.event_name }})"
+          echo "::notice::$version on the $channel channel (via $EVENT_NAME)"
 
       - name: The changelog must describe this version
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          grep -q "## \[${{ steps.tag.outputs.version }}\]" CHANGELOG.md || {
-            echo "::error::CHANGELOG.md has no section for ${{ steps.tag.outputs.version }}"
+          grep -q "## \[$VERSION\]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no section for $VERSION"
             exit 1
           }
 
@@ -126,15 +132,18 @@ jobs:
         # Both tagless ways in. A tag push already has its tag, and there
         # `inputs.dry_run` is null, which is falsey, so the guard still holds.
         if: ${{ (github.event_name == 'workflow_dispatch' || github.ref_type == 'branch') && !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          CHANNEL: ${{ steps.tag.outputs.channel }}
         run: |
-          tag="v${{ steps.tag.outputs.version }}"
+          tag="v$VERSION"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
             echo "::notice::$tag already exists; leaving it where it is"
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" -m "${{ steps.tag.outputs.version }} (${{ steps.tag.outputs.channel }})"
+          git tag -a "$tag" -m "$VERSION ($CHANNEL)"
           git push origin "refs/tags/$tag"
           echo "::notice::created $tag"
 
@@ -146,8 +155,8 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
@@ -158,7 +167,7 @@ jobs:
           pip install -r requirements-dev.txt
           ruff check app tests scripts alembic
           pytest -q
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: MCP server tests
@@ -172,14 +181,16 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
       - name: Pack the build
-        run: tar -czf "the-all-dash-web-${{ needs.verify.outputs.version }}.tar.gz" -C dist .
-      - uses: actions/upload-artifact@v4
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: tar -czf "the-all-dash-web-$VERSION.tar.gz" -C dist .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web
           path: the-all-dash-web-*.tar.gz
@@ -199,16 +210,16 @@ jobs:
     # and the release goes out without it after that.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         env:
           # Otherwise this action uploads a `*.dockerbuild` build record as a
           # workflow artifact, which `publish` then tries to download along
@@ -254,13 +265,14 @@ jobs:
             label: windows-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri -> target
           key: ${{ matrix.target }}
@@ -299,7 +311,7 @@ jobs:
 
       - name: Build and bundle, signed
         if: steps.signing.outputs.apple == 'yes'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -314,11 +326,11 @@ jobs:
 
       - name: Build and bundle, unsigned
         if: steps.signing.outputs.apple != 'yes'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         with:
           args: --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-${{ matrix.label }}
           path: |
@@ -340,8 +352,8 @@ jobs:
     if: ${{ always() && needs.verify.result == 'success' && needs.web.result == 'success' && needs.platform.result != 'failure' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
           # Name what the release carries rather than taking whatever the run
@@ -387,10 +399,14 @@ jobs:
           ls -1 artifacts
 
       - name: Cut the release notes from the changelog
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           # The section for this version, up to the next heading. The notes
           # were written before the tag existed, which is the point.
-          awk -v v="## [${{ needs.verify.outputs.version }}]" '
+          awk -v v="## [$VERSION]" '
             index($0, v) == 1 { on = 1; next }
             on && /^## \[/    { exit }
             on                { print }
@@ -414,16 +430,16 @@ jobs:
               esac
             done
             echo ""
-            echo "Container: \`ghcr.io/${{ github.repository_owner }}/all-dash:${{ needs.verify.outputs.version }}\`"
+            echo "Container: \`ghcr.io/$OWNER/all-dash:$VERSION\`"
             echo ""
             echo "---"
-            echo "Channel: \`${{ needs.verify.outputs.channel }}\`. What that promises: [docs/RELEASING.md](docs/RELEASING.md)."
+            echo "Channel: \`$CHANNEL\`. What that promises: [docs/RELEASING.md](docs/RELEASING.md)."
           } >> notes.md
-          if [ "${{ needs.verify.outputs.channel }}" != "stable" ]; then
+          if [ "$CHANNEL" != "stable" ]; then
             echo "::warning::desktop installers may be unsigned; the OS will warn on first open"
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         # A dry run proves the whole thing builds and publishes nothing.
         if: ${{ github.event_name == 'push' || !inputs.dry_run }}
         with:
@@ -448,4 +464,6 @@ jobs:
         # Never on a dry run, and never for a tag: deleting a tag would delete
         # the release's own anchor.
         if: ${{ github.event_name == 'push' && github.ref_type == 'branch' && startsWith(github.ref_name, 'release/v') && !inputs.dry_run }}
-        run: git push origin --delete "${{ github.ref_name }}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: git push origin --delete "$REF_NAME"

@@ -284,7 +284,7 @@ test('the desktop build has the npm script the release workflow invokes', () => 
   const pkg = JSON.parse(read('package.json'))
   assert.equal(pkg.scripts.tauri, 'tauri', 'tauri-action runs `npm run tauri` and there is no such script')
   assert.ok(pkg.devDependencies['@tauri-apps/cli'], 'the script needs the CLI that provides the binary')
-  assert.match(RELEASE, /tauri-apps\/tauri-action@v0/, 'if the workflow stopped using tauri-action, this test is checking the wrong thing')
+  assert.match(RELEASE, /tauri-apps\/tauri-action@[0-9a-f]{40}/, 'if the workflow stopped using tauri-action, this test is checking the wrong thing')
 })
 
 test('the crate cannot be published to crates.io', () => {
