@@ -4,6 +4,7 @@ import { DailyTasks } from '@/components/DailyTasks'
 import { Header } from '@/components/Header'
 import { MarginRibbon } from '@/components/MarginRibbon'
 import { ProjectPipelines } from '@/components/ProjectPipelines'
+import { Proposals } from '@/components/Proposals'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,15 +37,21 @@ export default async function Workspace(props: { searchParams: Promise<Record<st
       </main>
     )
   }
+  const checklistSignature = data.checklist.map((t) => `${t.id}.${t.priority}.${t.status}`).join('|')
   return (
     <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-4 px-4 pb-32 pt-4 md:px-6">
       <Header context={context} brief={data.brief} />
+      {data.proposals.length > 0 && <Proposals initial={data.proposals} />}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <section className="lg:col-span-3" aria-label="Project pipelines">
           <ProjectPipelines rows={data.pipeline} />
         </section>
         <section className="lg:col-span-5" aria-label="Daily tasks">
-          <DailyTasks key={context} initial={data.checklist} context={context} />
+          {/* Keyed on what is in it as well as the context. DailyTasks keeps its
+              own copy of the list from its first render, so applying a proposal
+              (which refreshes this page) would otherwise leave the old priority
+              on screen until a reload. */}
+          <DailyTasks key={`${context}:${checklistSignature}`} initial={data.checklist} context={context} />
         </section>
         <section className="lg:col-span-4" aria-label="AI audit log">
           <AuditStream entries={data.audit} verification={data.verification} />

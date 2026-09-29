@@ -1093,6 +1093,15 @@ sent. Every decision, including the refusals, lands in the hash-chained audit
 ledger with the rule, both values and the outcome, so "who approved this and
 did it take" is answerable months later.
 
+The Next.js workspace shows the queue above the daily tasks whenever
+something is waiting, with Apply and Decline on each row and the API's
+`blocked_because` shown *before* the button is pressed. Nothing on that screen
+is optimistic: the row changes when the API reports what the task reads now,
+and the words say which outcome it was — applied and read back, expired because
+the task moved, declined, or did not take. Applying refreshes the page so the
+checklist shows the new priority without a reload. There is no bulk action, in
+the API or the screen.
+
 A partial unique index allows one live proposal per task and field while
 keeping the decided ones as history. A beat that fires twice, or a worker
 retried after a lost acknowledgement, cannot double the queue.
