@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { defineWidget } from '../core/registry.js'
-import { relative, formatDate } from '../core/time.js'
+import { relative, formatDate, toDate } from '../core/time.js'
 import { compact } from '../core/format.js'
 import { StatTile, SERIES } from '../ui/viz/charts.jsx'
 import { Empty } from '../ui/components.jsx'
@@ -30,7 +30,7 @@ defineWidget({
     return (
       <div className="list" style={{ margin: 'calc(var(--gap-4) * -1)' }}>
         {shown.map((e) => {
-          const late = e.due && new Date(e.due).getTime() < now
+          const late = e.due && toDate(e.due).getTime() < now
           return (
             <button key={e.id} type="button" className="list__item list__item--interactive list__open" onClick={() => onOpen?.(e)}>
               <div className="list__main">

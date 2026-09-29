@@ -72,7 +72,7 @@ class Query {
   due({ before, after } = {}) {
     return this.where((e) => {
       if (!e.due) return false
-      const t = new Date(e.due).getTime()
+      const t = toDate(e.due).getTime()
       if (before && t > new Date(before).getTime()) return false
       if (after && t < new Date(after).getTime()) return false
       return true

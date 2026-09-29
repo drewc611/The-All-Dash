@@ -1,5 +1,5 @@
 import { q } from '../core/query.js'
-import { addDays, endOfDay, MS } from '../core/time.js'
+import { addDays, endOfDay, MS, toDate } from '../core/time.js'
 import { labelOfView } from '../core/views.js'
 
 /**
@@ -58,7 +58,10 @@ export function normaliseBrainState(raw) {
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const daysBetween = (a, b) => (new Date(b) - new Date(a)) / MS.day
+// Fractional on purpose (a median lead time of 1.5 days is a finding), but read
+// through toDate: two of the three callers pass a task's due, which a board
+// writes as a bare day key, and new Date() reads that as UTC midnight.
+const daysBetween = (a, b) => (toDate(b) - toDate(a)) / MS.day
 const median = (values) => {
   if (!values.length) return null
   const sorted = [...values].sort((a, b) => a - b)
@@ -86,7 +89,7 @@ export function buildBrain(state, { now = new Date() } = {}) {
   const dated = tasks.filter((t) => t.due && t.createdAt)
   const horizons = dated.map((t) => daysBetween(t.createdAt, t.due)).filter((d) => d >= 0)
   const openDated = tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled' && t.due)
-  const overdueOpen = openDated.filter((t) => new Date(t.due) < now)
+  const overdueOpen = openDated.filter((t) => toDate(t.due) < now)
 
   const people = peopleFacts(rows, tasks, events, finished, late, now)
   const topics = topicFacts(rows, tasks, finished, late, now)
@@ -169,7 +172,7 @@ function peopleFacts(rows, tasks, events, finished, late, now) {
         if (e.status === 'done') p.done += 1
         else if (e.status !== 'cancelled') {
           p.open += 1
-          if (e.due && new Date(e.due) < now) p.overdue += 1
+          if (e.due && toDate(e.due) < now) p.overdue += 1
           p.items.push(e)
         }
         if (finishedIds.has(e.id)) p.finished += 1
@@ -193,7 +196,7 @@ function peopleFacts(rows, tasks, events, finished, late, now) {
       tags: top(p.tags).map(([tag]) => tag),
       with: top(p.with).map(([name]) => name),
       documents: p.docs.size,
-      items: p.items.sort((a, b) => new Date(a.due || 0) - new Date(b.due || 0)).slice(0, 8),
+      items: p.items.sort((a, b) => toDate(a.due || 0) - toDate(b.due || 0)).slice(0, 8),
     }))
     .sort((a, b) => b.open + b.done + b.meetings - (a.open + a.done + a.meetings) || a.name.localeCompare(b.name))
 }
@@ -227,7 +230,7 @@ function topicFacts(rows, tasks, finished, late, now) {
       else if (e.status !== 'cancelled') {
         t.open += 1
         if (!e.people?.length) t.unowned += 1
-        if (e.due && new Date(e.due) < now) t.overdue += 1
+        if (e.due && toDate(e.due) < now) t.overdue += 1
         t.items.push(e)
       }
       if (finishedIds.has(e.id)) t.finished += 1
@@ -249,7 +252,7 @@ function topicFacts(rows, tasks, finished, late, now) {
       documents: t.docs.size,
       people: top(t.people).map(([name]) => name),
       lastActive: t.lastActive,
-      items: t.items.sort((a, b) => new Date(a.due || 0) - new Date(b.due || 0)).slice(0, 8),
+      items: t.items.sort((a, b) => toDate(a.due || 0) - toDate(b.due || 0)).slice(0, 8),
     }))
     .sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag))
 }
@@ -270,7 +273,7 @@ function rhythmFacts(finished, events, usage, now) {
   let meetings = 0
   for (const e of events) {
     if (!e.at) continue
-    const d = new Date(e.at)
+    const d = toDate(e.at)
     if (d < from || d > to) continue
     meetingsByWeekday[d.getDay()] += 1
     meetings += 1
@@ -419,7 +422,7 @@ function buildOpinions({ people, topics, habits, rhythm, usage, tasks, events },
         id: `meeting-day:${day}`,
         kind: 'meeting-day',
         text: `${WEEKDAYS[day]}s hold ${pct(rhythm.meetingsByWeekday[day], rhythm.meetings)}% of your meetings. Tasks due that day get less time; triage will raise them a step earlier.`,
-        evidence: events.filter((e) => e.at && new Date(e.at).getDay() === day).slice(0, 8).map((e) => e.id),
+        evidence: events.filter((e) => e.at && toDate(e.at).getDay() === day).slice(0, 8).map((e) => e.id),
         effect: { kind: 'meeting-day', weekday: day },
         strength: share,
       })

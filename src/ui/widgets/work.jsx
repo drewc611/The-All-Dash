@@ -1,6 +1,6 @@
 import { defineWidget } from '../../core/registry.js'
 import { q } from '../../core/query.js'
-import { addDays, startOfDay, endOfDay, formatDate, relative, dayKey } from '../../core/time.js'
+import { addDays, startOfDay, endOfDay, formatDate, relative, dayKey, toDate } from '../../core/time.js'
 import { snoozeReminder, dismissReminder, addEntity } from '../../core/store.js'
 import { buildReminders } from '../../engine/reminders.js'
 import { strip } from '../../ingest/extract.js'
@@ -28,7 +28,7 @@ defineWidget({
     if (!events.length) {
       return <Empty title="No meetings today" hint="Drop a .ics export in and this fills itself." />
     }
-    const busy = events.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (new Date(e.end) - new Date(e.at)) / 3600000 : 0.5), 0)
+    const busy = events.reduce((a, e) => a + (e.meta?.allDay ? 0 : e.end ? (toDate(e.end) - toDate(e.at)) / 3600000 : 0.5), 0)
     return (
       <>
         <div className="list" style={{ margin: 'calc(var(--gap-4) * -1)' }}>
@@ -77,7 +77,7 @@ defineWidget({
 function focusScore(task, now) {
   let score = task.priority * 20
   if (task.due) {
-    const days = (new Date(task.due) - now) / 86400000
+    const days = (toDate(task.due) - now) / 86400000
     score += days < 0 ? 100 + Math.min(50, -days) : Math.max(0, 40 - days * 6)
   }
   if (task.status === 'doing') score += 25
@@ -255,7 +255,7 @@ defineWidget({
     const rows = q(entityList).type('milestone').where((e) => e.due || e.at).sort('due').all()
     if (!rows.length) return <Empty title="No milestones yet" hint='Add a "## Timeline" section to a note with dated rows.' />
 
-    const dates = rows.map((r) => new Date(r.due || r.at).getTime())
+    const dates = rows.map((r) => toDate(r.due || r.at).getTime())
     const min = Math.min(...dates, Date.now())
     const max = Math.max(...dates, Date.now())
     const span = Math.max(1, max - min)
@@ -264,7 +264,7 @@ defineWidget({
     return (
       <div className="gantt">
         {rows.slice(0, 12).map((m) => {
-          const t = new Date(m.due || m.at).getTime()
+          const t = toDate(m.due || m.at).getTime()
           const past = t < Date.now()
           return (
             <div className="gantt__row" key={m.id}>
