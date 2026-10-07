@@ -6,6 +6,9 @@
   grid-template-columns: var(--rail) minmax(0, 1fr);
   height: 100dvh;
   background: var(--plane);
+  /* The rail sits directly on the plane and the page is a panel inset in it.
+     No gutter on the left: the rail's own padding is the margin there. */
+  padding: var(--inset) var(--inset) var(--inset) 0;
 }
 
 /* ------------------------------------------------------------------ rail */
@@ -13,10 +16,8 @@
 .rail {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-5);
-  padding: var(--gap-4) var(--gap-3) var(--gap-3);
-  border-right: 1px solid var(--line);
-  background: var(--surface-sunken);
+  gap: var(--gap-4);
+  padding: var(--gap-2) var(--gap-3) var(--gap-1);
   overflow-y: auto;
 }
 
@@ -24,20 +25,18 @@
   display: flex;
   align-items: center;
   gap: var(--gap-3);
-  padding: var(--gap-1) var(--gap-2) var(--gap-4);
-  border-bottom: 1px solid var(--line);
-  margin-bottom: calc(var(--gap-5) * -1 + var(--gap-2));
+  padding: var(--gap-1) var(--gap-2);
 }
 
 .rail__mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
   background: var(--action);
   color: var(--action-ink);
   display: grid;
   place-items: center;
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
   font-weight: var(--w-bold);
   letter-spacing: 0.02em;
   flex: none;
@@ -51,68 +50,97 @@
   min-width: 0;
 }
 
+/* Search is the front door, so it looks like a field and shows its key. */
+.rail__search {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  height: 32px;
+  padding: 0 var(--gap-2) 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: var(--t-md);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--fast), color var(--fast);
+}
+
+.rail__search:hover { border-color: var(--line-strong); color: var(--ink-2); }
+.rail__search span:first-of-type { flex: 1; text-align: left; }
+
+.rail__views {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+}
+
+.rail__section,
 .rail__group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
+/* Section names are signposts, not headings: small, quiet, sentence case. */
 .rail__label {
   font-size: var(--t-xs);
-  font-weight: var(--w-bold);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--w-medium);
+  letter-spacing: 0.01em;
   color: var(--ink-muted);
-  padding: 0 var(--gap-2) var(--gap-2);
+  padding: 0 var(--gap-2) var(--gap-1);
 }
 
-/* The active view is marked by a bar in the gutter rather than a filled
-   block: it reads at a glance without turning a third of the rail into a
-   field of colour. */
+/* The current view is a raised chip on the plane: it reads at a glance, and
+   the accent shows up only on its icon, so it is marked without a field of
+   colour. */
 .rail__item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--gap-3);
+  gap: 10px;
   width: 100%;
-  padding: 8px var(--gap-2) 8px var(--gap-3);
-  border-radius: var(--r-sm);
+  height: 32px;
+  padding: 0 var(--gap-2);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
   color: var(--ink-2);
   font-size: var(--t-md);
   font-weight: var(--w-medium);
   text-align: left;
-  transition: background var(--fast), color var(--fast);
-}
-
-.rail__item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 0;
-  border-radius: 0 var(--r-full) var(--r-full) 0;
-  background: var(--accent);
-  transform: translateY(-50%);
-  transition: height var(--fast);
+  transition: background var(--fast), color var(--fast), box-shadow var(--fast);
 }
 
 .rail__item:hover { background: var(--surface-hover); color: var(--ink); }
-.rail__item[aria-current='true'] { background: var(--surface-active); color: var(--ink); font-weight: var(--w-bold); }
-.rail__item[aria-current='true']::before { height: 17px; }
-.rail__item svg { flex: none; opacity: 0.65; transition: opacity var(--fast); }
-.rail__item:hover svg,
-.rail__item[aria-current='true'] svg { opacity: 1; }
+.rail__item:active { background: var(--surface-active); }
+/* On a tinted rail a flat grey hover can vanish, so where the browser can mix
+   colours it uses a wash of the ink instead. The lines above are the fallback. */
+@supports (background: color-mix(in srgb, red, blue)) {
+  .rail__item:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .rail__item:active { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+}
+.rail__item[aria-current='true'] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: var(--w-bold);
+  box-shadow: var(--shadow-xs);
+}
+.rail__item svg { flex: none; opacity: 0.7; transition: opacity var(--fast), color var(--fast); }
+.rail__item:hover svg { opacity: 1; }
+.rail__item[aria-current='true'] svg { opacity: 1; color: var(--accent); }
 
 .rail__count {
   margin-left: auto;
   font-size: var(--t-xs);
   font-weight: var(--w-medium);
   color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
 }
 
-.rail__count--urgent { color: var(--critical); font-weight: var(--w-bold); }
+.rail__count--urgent {
+  color: var(--critical);
+  font-weight: var(--w-bold);
+}
 
 .rail__spacer { flex: 1; }
 
@@ -123,6 +151,10 @@
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
 }
 
 .topbar {
@@ -144,7 +176,7 @@
 }
 
 .topbar__title h1 { font-size: var(--t-lg); }
-.topbar__sub { font-size: var(--t-xs); color: var(--ink-muted); }
+.topbar__sub { font-size: var(--t-sm); color: var(--ink-muted); }
 
 .topbar__actions {
   margin-left: auto;
@@ -153,14 +185,16 @@
   gap: var(--gap-2);
 }
 
-/* The page scrolls full-bleed; the content inside it is constrained, so a
-   dashboard on a 27-inch monitor is still something you can read across. */
+/* The page scrolls full-bleed on a faintly tinted floor, so white cards lift
+   off it with a hairline and nothing else. The content inside is constrained,
+   so a dashboard on a 27-inch monitor is still something you can read across. */
 .scroller {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--gap-5);
   padding-bottom: var(--gap-8);
+  background: var(--surface-2);
   scroll-behavior: smooth;
 }
 
@@ -179,7 +213,7 @@
   align-items: center;
   gap: var(--gap-1);
   padding: var(--gap-2) var(--gap-5);
-  min-height: 42px;
+  min-height: 44px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
   overflow-x: auto;
@@ -200,13 +234,14 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: var(--gap-4);
-  align-items: stretch;
+  align-items: start;
 }
 
-/* Inside a board every card fills its row and scrolls internally past a
-   point, so one long widget cannot leave a hole beside a short one. */
-.board .card { height: 100%; }
-.board .card__body { flex: 1; overflow: auto; max-height: 420px; }
+/* A card is as tall as what is in it and no taller. Stretching a two-row
+   agenda to match the long list beside it put a hole inside the card; leaving
+   the floor showing beneath it is quieter. A long widget scrolls inside itself
+   past a point, so it cannot push its neighbours down either. */
+.board .card__body { overflow: auto; max-height: 420px; }
 
 .board__cell { min-width: 0; }
 .board__cell[data-size='sm'] { grid-column: span 3; }
@@ -232,7 +267,11 @@
        allowed to set the width of the whole page. */
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
+    padding: 0;
   }
+
+  /* The inset panel is a desktop idea. On a phone the page is the screen. */
+  .main { border: 0; border-radius: 0; box-shadow: none; }
 
   .rail {
     grid-row: 2;
@@ -250,14 +289,17 @@
   }
 
   .rail__brand,
+  .rail__search,
   .rail__label,
   .rail__spacer,
   .rail__group--desktop { display: none; }
 
-  /* Eight views do not fit a phone at a readable size, so the bar scrolls
-     rather than squeezing the last label off the edge. */
-  .rail__group {
+  /* Twelve views do not fit a phone at a readable size, so the bar scrolls
+     rather than squeezing the last label off the edge. The sections dissolve
+     into one row: grouping is for a column you read, not a strip you swipe. */
+  .rail__views {
     flex-direction: row;
+    gap: 0;
     flex: 1;
     min-width: 0;
     justify-content: flex-start;
@@ -265,7 +307,8 @@
     scrollbar-width: none;
     scroll-snap-type: x proximity;
   }
-  .rail__group::-webkit-scrollbar { display: none; }
+  .rail__views::-webkit-scrollbar { display: none; }
+  .rail__section { display: contents; }
 
   .rail__item {
     /* The desktop rail is a full-width column; on a phone each item is a
@@ -280,12 +323,13 @@
     padding: var(--gap-1);
     font-size: var(--t-xs);
     border-radius: var(--r-md);
+    border-color: transparent;
+    box-shadow: none;
     scroll-snap-align: center;
   }
 
   /* The gutter bar reads as "current row" in a vertical rail and as nothing
      at all in a horizontal tab strip, so the tab marks itself in colour. */
-  .rail__item::before { display: none; }
   .rail__item[aria-current='true'] { background: var(--accent-soft); color: var(--accent); }
   .rail__item[aria-current='true'] svg { opacity: 1; }
   .rail__count { display: none; }

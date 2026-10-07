@@ -22,7 +22,7 @@ import { Segmented } from './ui/components.jsx'
 import { FilterBar, applyFilters } from './ui/FilterBar.jsx'
 import {
   IconToday, IconTimeline, IconChart, IconLibrary, IconSettings,
-  IconSearch, IconUpload, IconBell, IconCommand, IconPulse, IconSpark, IconBrain, IconGrid,
+  IconSearch, IconUpload, IconBell, IconPulse, IconSpark, IconBrain, IconGrid,
   IconDoc, IconLink, IconPlay, IconVideo, IconInbox, IconClock,
 } from './ui/icons.jsx'
 
@@ -93,6 +93,21 @@ const VIEWS = [
   { id: 'agents', label: VIEW_LABELS.agents, Icon: IconSpark },
   { id: 'rounds', label: VIEW_LABELS.rounds, Icon: IconClock, flag: 'rounds' },
   { id: 'settings', label: VIEW_LABELS.settings, Icon: IconSettings },
+]
+
+/*
+ * How the rail groups its views. A flat list of eleven is a list you have to
+ * read; three labelled groups is a list you can scan. The grouping is by what
+ * you are doing, not by what the code calls the thing: Work is what is on your
+ * plate, Collect is what comes in, Think is what the app has worked out.
+ * Settings stands alone at the end. A view not named here is not lost, it is
+ * appended to the last group, so a plugin view never disappears from the rail.
+ */
+const RAIL_GROUPS = [
+  { key: 'work', title: 'Work', views: ['today', 'work', 'triage', 'timeline', 'analytics', 'focus'] },
+  { key: 'collect', title: 'Collect', views: ['stash', 'library', 'studio'] },
+  { key: 'think', title: 'Think', views: ['brain', 'agents', 'rounds'] },
+  { key: 'system', title: null, views: ['settings'] },
 ]
 
 /*
@@ -272,6 +287,19 @@ export default function App() {
     [state.settings.flags],
   )
   const active = views.find((v) => v.id === view) || views[0]
+  // The rail's sections, from the views this build offers. A view no group
+  // names goes on the end of the last group rather than off the rail.
+  const railSections = useMemo(() => {
+    const named = new Set(RAIL_GROUPS.flatMap((g) => g.views))
+    const strays = views.filter((v) => !named.has(v.id))
+    return RAIL_GROUPS
+      .map((g, i) => ({
+        key: g.key,
+        title: g.title,
+        items: [...g.views.map((id) => views.find((v) => v.id === id)).filter(Boolean), ...(i === RAIL_GROUPS.length - 2 ? strays : [])],
+      }))
+      .filter((g) => g.items.length)
+  }, [views])
   const dueNow = reminders.filter((r) => r.urgency === 'overdue' || r.urgency === 'now').length
   const empty = allEntities.length === 0
 
@@ -296,31 +324,39 @@ export default function App() {
           <span className="rail__name truncate">{state.workspace.name}</span>
         </div>
 
-        <div className="rail__group">
-          {views.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              className="rail__item"
-              aria-current={id === view}
-              onClick={() => navigate(id)}
-            >
-              <Icon />
-              <span>{label}</span>
-              {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
-              {id === 'work' && unreadWork > 0 && <span className="rail__count">{unreadWork}</span>}
-              {id === 'triage' && urgent > 0 && <span className="rail__count rail__count--urgent">{urgent}</span>}
-            </button>
+        {/* Search is the front door, so it looks like one: a field, with the
+            key that opens it. It used to be a row at the bottom of the rail. */}
+        <button className="rail__search" onClick={() => setPalette(true)} aria-label="Search and commands">
+          <IconSearch width={14} height={14} />
+          <span>Search</span>
+          <span className="kbd">{isMac() ? '⌘' : 'Ctrl'}K</span>
+        </button>
+
+        <div className="rail__views">
+          {railSections.map((section) => (
+            <div className="rail__section" key={section.key} role="group" aria-label={section.title || undefined}>
+              {section.title && <span className="rail__label" aria-hidden="true">{section.title}</span>}
+              {section.items.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  className="rail__item"
+                  aria-current={id === view}
+                  onClick={() => navigate(id)}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                  {id === 'today' && dueNow > 0 && <span className="rail__count">{dueNow}</span>}
+                  {id === 'work' && unreadWork > 0 && <span className="rail__count">{unreadWork}</span>}
+                  {id === 'triage' && urgent > 0 && <span className="rail__count rail__count--urgent">{urgent}</span>}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
 
         <div className="rail__spacer" />
 
         <div className="rail__group rail__group--desktop">
-          <button className="rail__item" onClick={() => setPalette(true)}>
-            <IconCommand />
-            <span>Command bar</span>
-            <span className="rail__count"><span className="kbd">{isMac() ? '⌘' : 'Ctrl'}K</span></span>
-          </button>
           <button className="rail__item" onClick={() => setAsking({})}>
             <IconSpark />
             <span>Assistant</span>

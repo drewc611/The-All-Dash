@@ -1380,6 +1380,20 @@ for colour, spacing, type and motion; light values sit on bare `:root`, dark
 redefines only what changes under both the OS media query and an explicit theme
 stamp, so the in-app toggle wins in both directions.
 
+Six decisions, written at the top of that file so the next change extends them
+instead of inventing alongside: compact data inside generous structure; Inter
+(bundled, 48KB, works offline) on a 1.25 scale in three weights with tabular
+numerals; a 4px spacing rhythm; cool neutrals so a coloured thing reads as
+coloured, with ink for the primary action and one indigo accent for selection and
+focus only; radii that step with the surface (6, 8, 12, 16) and two-layer shadows
+lit from above; and surfaces that nest, so a page is a panel inset in the plane
+the rail sits on, with cards on the panel and each step up marked by a hairline
+and a shadow instead of a different colour. The rail is grouped (Work, Collect,
+Think), search is a field at the top of it, and cards are as tall as their
+content. Every text pair in both themes was checked against WCAG 2.2 AA (4.5:1).
+
+Inter is SIL OFL 1.1; the licence is `src/assets/fonts/Inter-OFL.txt`.
+
 Charts are hand-drawn SVG. Series colours are a validated categorical palette:
 adjacent-pair CVD ΔE ≥ 8, normal-vision ΔE ≥ 15. Marks are thin, the grid
 recedes, there is exactly one y-axis, hover is on by default, and text always
