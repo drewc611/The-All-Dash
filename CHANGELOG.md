@@ -15,6 +15,22 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ### Added
 
+- **Suggested layout** (`layout`, alpha). A small transformer reads fifteen facts
+  about your day (what is late, what is booked, the hour, the views you open)
+  and proposes a Today board. **Suggest** in the Today toolbar shows the
+  difference as a list, with how sure the model is and which inputs counted
+  most; nothing changes until you press Apply, and **Undo suggestion** puts the
+  previous board back exactly. A widget you configured is never removed, and
+  asking twice gives the same answer.
+
+  The shipped weights are trained on a simulator, not on real people's boards,
+  so the model is a smoothed copy of written rules: 88.6% agreement with a
+  noise-free teacher on situations it had not seen, against 73.7% for a board
+  that never changes. **Teach it your taste** fine-tunes a copy in your browser
+  on the boards you arranged yourself; nothing is uploaded, and the copy is
+  refused if it gets worse at ordinary situations. Method, numbers and limits are
+  in the README.
+
 - **Telamate** (`telamate`, beta). A self-hosted AI front desk that exports
   All Dash entities directly: callbacks as tasks, conversations as notes,
   contacts as people, daily counters as metrics. The Library now names its
@@ -105,6 +121,16 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
   shows them for you to decide. This entry is only the browser app.
 
 ### Fixed
+
+- **Sheets opened from the top bar were squashed into it.** *Add widget* opened
+  a panel 59px tall instead of the full height of the window, because the glass
+  top bar makes itself the reference frame for anything fixed inside it. Sheets
+  and dialogs now render at the end of the page, so where they are declared no
+  longer decides where they appear.
+- **A browser store could silently not be created.** The shared IndexedDB helper
+  only created its object store when the caller also passed an upgrade step;
+  every existing caller did, so nothing noticed, and the first one that did not
+  failed with "object store not found".
 
 - **A task made on a board was a day out for anyone west of Greenwich, and half
   a day out in Auckland.** The Date column and the timeline cells store a bare

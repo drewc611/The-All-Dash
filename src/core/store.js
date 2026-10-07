@@ -10,6 +10,7 @@ import { normaliseFlags } from './flags.js'
 import { normaliseFocus, emptyFocus } from '../focus/schema.js'
 import { normaliseRoundsState, emptyRounds } from '../rounds/schema.js'
 import { normaliseStudy, emptyStudy } from '../agents/study-schema.js'
+import { normaliseLayout, emptyLayout } from '../layout/schema.js'
 
 /**
  * The whole application state, in one object, persisted to localStorage.
@@ -98,6 +99,7 @@ const initialState = () => ({
   study: emptyStudy(),
   focus: emptyFocus(),
   rounds: emptyRounds(),
+  layout: emptyLayout(),
   work: normaliseWork(null),
   router: normaliseRouter(null),
   ui: { range: '30d', filterTags: [], filterPeople: [], query: '' },
@@ -121,6 +123,7 @@ function load() {
       study: normaliseStudy(parsed.study),
       focus: normaliseFocus(parsed.focus),
       rounds: normaliseRoundsState(parsed.rounds),
+      layout: normaliseLayout(parsed.layout),
       work: normaliseWork(parsed.work),
       router: normaliseRouter(parsed.router),
     }
@@ -536,6 +539,9 @@ export function importWorkspace(json, { merge = false } = {}) {
         brain: normaliseBrainState(incoming.brain),
         study: normaliseStudy(incoming.study),
         work: normaliseWork(incoming.work),
+        // What the last suggestion replaced belongs to the board it replaced,
+        // not to whichever workspace is restored over it.
+        layout: { ...normaliseLayout(incoming.layout), undo: null },
         // A restored file is untrusted: it may not carry an endpoint that a
         // provider key would then be sent to.
         router: normaliseRouter(incoming.router, { trusted: false }),

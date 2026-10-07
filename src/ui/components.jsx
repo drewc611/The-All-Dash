@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { cycleTaskStatus, nextTaskStatus } from '../core/store.js'
 import { formatDate, formatTime, relative, toDate } from '../core/time.js'
 import { format } from '../core/format.js'
@@ -190,12 +191,19 @@ export function Overlay({ onClose, children, className = 'sheet', labelledBy, la
     }
   }, [])
 
-  return (
+  // Rendered into <body>, not where it was declared. A sheet opened from the
+  // topbar (Add widget, Suggested layout) used to be a child of it, and with
+  // the glass topbar's backdrop-filter that makes the topbar the containing
+  // block for `position: fixed`: the sheet was laid out inside a 59px strip
+  // instead of the viewport. Nothing declared inside a filtered ancestor can
+  // be trusted to be fixed to the screen, so none of them are.
+  return createPortal(
     <>
       <div className="scrim" onClick={onClose} />
       <div className={className} ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={label} tabIndex={-1}>
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   )
 }

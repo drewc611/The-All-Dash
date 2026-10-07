@@ -14,6 +14,7 @@ import './styles/agents.css'
 import './styles/focus.css'
 import './styles/glass-app.css'
 import './styles/router.css'
+import './styles/arrange.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

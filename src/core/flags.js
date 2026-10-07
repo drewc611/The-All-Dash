@@ -66,6 +66,11 @@ export const REGISTRY = {
     title: 'Rounds',
     summary: 'Standing work: a question asked of the workspace on a cadence, answered with every finding traceable to the records behind it, and a ceiling checked before anything is spent.',
   },
+  layout: {
+    maturity: 'alpha',
+    title: 'Suggested layout',
+    summary: 'A small transformer reads your day (what is late, what is booked, the hour, the views you open) and proposes a Today board. You preview the changes and apply them; it never rearranges anything on its own.',
+  },
   'glass.app': {
     maturity: 'stable',
     title: 'Glass everywhere',
