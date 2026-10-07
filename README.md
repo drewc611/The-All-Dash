@@ -15,7 +15,7 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin_marketplace-d97757?logo=anthropic&logoColor=white)](#install-the-claude-plugin)
 [![Release](https://img.shields.io/github/v/release/drewc611/The-All-Dash?include_prereleases&sort=semver&label=release&color=2a78d6)](https://github.com/drewc611/The-All-Dash/releases)
 [![Channels](https://img.shields.io/badge/channels-alpha_·_beta_·_rc_·_stable-2a78d6)](docs/RELEASING.md)
-[![Tests](https://img.shields.io/badge/tests-541_node%3Atest-1baf7a)](tests/)
+[![Tests](https://img.shields.io/badge/tests-691_node%3Atest-1baf7a)](tests/)
 [![Desktop](https://img.shields.io/badge/desktop-macOS_·_Windows_·_Linux-111111?logo=tauri&logoColor=ffc131)](docs/PACKAGING.md)
 [![Installer size](https://img.shields.io/badge/Linux_.deb-4.2MB-1baf7a)](docs/PACKAGING.md#why-tauri-and-not-electron)
 [![Container](https://img.shields.io/badge/container-ghcr.io-2496ed?logo=docker&logoColor=white)](docs/PACKAGING.md)
@@ -1112,6 +1112,134 @@ A partial unique index allows one live proposal per task and field while
 keeping the decided ones as history. A beat that fires twice, or a worker
 retried after a lost acknowledgement, cannot double the queue.
 
+## Suggested layout
+
+Today can be arranged by a small transformer. It is the `layout` flag, alpha, so
+it is off on a stable build until you switch it on in Settings → Build. With it
+on, the Today toolbar has a **Suggest** button. Press it and the model reads your
+day, proposes a board, and shows you the difference as a list: this widget added,
+that one removed, this one resized, each with how sure the model is and which
+inputs moved the answer most. Nothing changes until you press **Apply**, and
+**Undo suggestion** puts the previous board back exactly. It is the same rule as
+the rounds: it proposes, you decide.
+
+### What it reads
+
+Fifteen facts and nothing else, each one a count or a bucket you could check by
+looking: the hour and the weekday, how many tasks are late and how many are due
+today, meetings today, open risks, open questions, urgent triage signals, focus
+minutes so far today, the two kinds of view you open most, the size of the
+workspace, how many boards you have, whether Telamate is connected, and how long
+you have been using the app. The sheet lists the ones that applied before it
+shows any answer, so "what did it see" has a plain reply.
+
+### The model
+
+An encoder transformer (Vaswani et al., 2017): two blocks, four attention heads,
+32 dimensions, 22,693 parameters, pre-LayerNorm (Xiong et al., 2020), GELU
+(Hendrycks & Gimpel, 2016). The input is a set with no order, so there is no
+positional encoding, the same shape of problem as Lee et al. (2019). The set holds
+the fifteen facts and one token per candidate widget, and each widget token
+comes out as one of five answers: not on the board, small, medium, large, full
+width. Widgets attend to the facts and to each other, which is what lets it
+spend a budget instead of scoring each widget alone.
+
+A widget it has never met, say one from a plugin, is placed by its category and
+default size. The weights are 121 KB and are fetched only when you press
+Suggest.
+
+It is plain JavaScript with a hand-written backward pass (`src/layout/nn.js`),
+not a PyTorch export, for one reason: the code that trained the shipped weights
+is the code that can keep training in your browser. The backward pass is
+checked against finite differences for every tensor, and the check was shown to
+fail when a sign in the attention backward or a divisor in LayerNorm is broken.
+
+### Where the training data comes from, and what that means
+
+There is no corpus of good Today boards, and this app does not collect one. The
+shipped weights are trained on a simulator (`src/layout/teacher.js`): invented
+people with a hidden working style, a situation drawn the way real ones tend to
+come, and the board a sensible person in that spot would want, written as rules
+with noise on top. **So the shipped model is a smoothed copy of rules I wrote,
+and no wiser than they are.** What it adds over the rules is that it reads the
+whole situation at once, it places widgets it was not trained on, and it can be
+taught.
+
+Held-out results on 2,000 simulated situations it never saw, from
+`node scripts/train-layout.mjs`:
+
+| | accuracy | visibility F1 | size agreement |
+|---|---|---|---|
+| the transformer | 88.6% | 76.4% | 84.4% |
+| the teacher without its noise (ceiling) | 89.9% | 83.7% | 83.3% |
+| most common answer per widget | 81.1% | 47.1% | 82.2% |
+| the default Today board, never changing | 73.7% | 53.2% | 68.8% |
+| the transformer, given someone else's situation | 77.2% | 49.1% | 66.5% |
+
+The last row is the control: with the situation swapped for another day's, it is
+worse by eleven points, so the answer does depend on the day. On widgets it had
+never seen it is right on 90.2% of slots, but it is cautious: of the 162 the
+teacher would show, it showed 46. These numbers measure how well it learned the
+simulator. They say nothing about whether the simulator matches what you want,
+which is what the next part is for.
+
+### Teaching it
+
+Each time you finish arranging Today by hand (Arrange, change something, Done)
+the board and the day it was made on are saved. A board the model itself
+produced is not saved, because the model agreeing with itself is not a label.
+Under **Teach it your taste** in the Suggest sheet, with at least five saved
+boards, **Learn from N boards** fine-tunes a copy of the model in the browser:
+160 small steps, each mixing your boards with fresh simulated ones so it learns
+your habits without forgetting how to read a day, in about twenty seconds.
+Weights go to IndexedDB; nothing is uploaded and the shipped model is never
+overwritten. With ten or more boards it holds a fifth back and reports how well
+the new copy agrees with boards it did not train on; with fewer it says that
+the number is only a fit. It refuses to keep a copy that gets more than eight
+points worse on ordinary situations or no better on your boards.
+**Forget what it learned** removes the copy and the saved boards.
+
+### Rules it follows whatever the model says
+
+- A widget you configured is never removed by a suggestion.
+- A widget it was not asked about (a plugin that is not loaded, a flagged-off
+  widget) is left exactly where it is.
+- It changes an answer only when it is at least fifteen points surer of the new
+  one, so a board does not flip back and forth, and asking twice gives the same
+  answer.
+- Extra copies of a widget you added yourself stay while the widget does.
+
+### Retraining
+
+Changing the widget catalogue (`src/layout/catalogue.js`) or the teacher's rules
+changes what the weights mean. A test compares the catalogue fingerprint stored
+in `src/layout/weights.json` with the current one and fails until you rerun
+`node scripts/train-layout.mjs` (about ten minutes on a laptop, three thousand
+steps). Another test reads every `defineWidget` call in the source and fails if
+the catalogue disagrees with it.
+
+### References
+
+Hendrycks, D., & Gimpel, K. (2016). *Gaussian error linear units (GELUs)*
+(arXiv:1606.08415). https://arxiv.org/abs/1606.08415
+
+Lee, J., Lee, Y., Kim, J., Kosiorek, A., Choi, S., & Teh, Y. W. (2019). Set
+Transformer: A framework for attention-based permutation-invariant neural
+networks. *Proceedings of the 36th International Conference on Machine Learning*,
+*97*, 3744–3753. https://arxiv.org/abs/1810.00825
+
+Loshchilov, I., & Hutter, F. (2019). Decoupled weight decay regularization.
+*International Conference on Learning Representations*. https://arxiv.org/abs/1711.05101
+
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,
+Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. *Advances in
+Neural Information Processing Systems*, *30*. https://arxiv.org/abs/1706.03762
+
+Xiong, R., Yang, Y., He, D., Zheng, K., Zheng, S., Xing, C., Zhang, H., Lan, Y.,
+Wang, L., & Liu, T.-Y. (2020). On layer normalization in the Transformer
+architecture. *Proceedings of the 37th International Conference on Machine
+Learning*, *119*, 10524–10533. https://proceedings.mlr.press/v119/xiong20b.html
+
 ## The agents
 
 Five of them, over a memory that has to earn its place. The whole thing runs
@@ -1299,6 +1427,8 @@ src/
   work/       boards: column types, view queries, the rule engine, formulas, templates, CSV
   media/      blob storage, the two encoders, camera and recorder, the player, YouTube links
   stash/      the page archive, readability, the search index, the block diff
+  layout/     the Today layout transformer: its forward and backward pass, the situation it reads,
+              the training simulator, shipped weights, fine-tuning on your own boards
   ai/         providers (fetch + streaming), context builder, reply protocol, proposals, key storage
               router: provider catalogue, cost and budget, the plan, response grading, the grounded cache
   ui/         shell, dashboard, command bar, inspector, assistant, views, widgets, charts
@@ -1306,7 +1436,7 @@ src/
   ui/media/   camera, compressor, gallery, YouTube, the shell player
   ui/stash/   the saved list, the reader, highlights, the change view
   styles/     tokens, base, layout, components, viz, media, stash
-tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the router, the brain and the assistant protocol
+tests/        node:test cases over parsing, querying, analytics, triage, boards, media, the stash, the router, the brain, the layout model and the assistant protocol
 backend/ frontend/ mcp/ k8s/   the platform tier, described in its own section below
 ```
 

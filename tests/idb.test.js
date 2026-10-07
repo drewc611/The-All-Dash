@@ -62,6 +62,17 @@ test('a store is created with its indexes on first open', async () => {
   assert.deepEqual(stub.calls[2], { createIndex: 'at' })
 })
 
+test('a store is created even when the caller has no upgrade step', async () => {
+  // `upgrade?.(db.createObjectStore(...))` looks the same and is not: when
+  // `upgrade` is undefined the optional call short-circuits and its argument is
+  // never evaluated, so no store is made and the first read throws "object
+  // store not found". Every earlier caller passed an upgrade to add indexes,
+  // which is why it went unseen.
+  const stub = stubIndexedDB()
+  await withStub(stub, async () => { await make().open() })
+  assert.deepEqual(stub.calls[1], { createObjectStore: 'rows', options: { keyPath: 'id' } })
+})
+
 test('an existing store is left alone', async () => {
   const stub = stubIndexedDB({ existing: ['rows'] })
   await withStub(stub, async () => {

@@ -6,6 +6,7 @@ import { availableMetrics } from '../engine/metrics.js'
 import { q } from '../core/query.js'
 import { Card, Overlay, Empty } from './components.jsx'
 import { IconUp, IconDown, IconTrash, IconGrid, IconPlus, IconClose, IconSettings } from './icons.jsx'
+import { ArrangeControls } from './Arrange.jsx'
 
 const SIZES = [
   { value: 'sm', label: 'S' },
@@ -159,6 +160,7 @@ export function BoardControls({ view, editing, onToggleEditing }) {
           <button className="btn btn--sm" onClick={() => resetBoard(view)}>Reset</button>
         </>
       )}
+      <ArrangeControls view={view} editing={editing} />
       {picking && <WidgetPicker view={view} onClose={() => setPicking(false)} />}
     </>
   )

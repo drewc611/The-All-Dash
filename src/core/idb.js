@@ -47,7 +47,10 @@ export function database({ name, version = 1, store: storeName, keyPath = 'id', 
       req.onupgradeneeded = () => {
         const db = req.result
         if (!db.objectStoreNames.contains(storeName)) {
-          upgrade?.(db.createObjectStore(storeName, { keyPath }))
+          // Not `upgrade?.(db.createObjectStore(...))`: with no upgrade step the
+          // optional call skips evaluating its argument, and no store is made.
+          const created = db.createObjectStore(storeName, { keyPath })
+          upgrade?.(created)
         }
       }
       req.onsuccess = () => {
