@@ -15,6 +15,19 @@ Channels and how a feature graduates between them: [docs/RELEASING.md](docs/RELE
 
 ### Added
 
+- **A new look.** Same app, redrawn as one system. Inter replaces the system font
+  (bundled, so it looks the same everywhere and works offline), neutrals are
+  cooler, and the accent is a single indigo used only for selection and focus.
+  The page is now a panel set into the surface the rail sits on, the rail is
+  grouped into Work, Collect and Think, and search is a field at the top of it
+  with its shortcut showing. Cards are as tall as their content, so a short
+  agenda no longer stretches into a hole beside a long list. Triage tiles lose
+  the coloured top rule for a dot beside the name, row actions go quiet until you
+  reach for them, tags are squarer, and metric labels drop their capitals. Muted
+  text is darker than before: the old grey measured 3.6:1 on a card and the new one 5.8:1.
+  Dark mode and the phone tab bar follow the same rules. The design decisions
+  are written at the top of `tokens.css` and in the README.
+
 - **Suggested layout** (`layout`, alpha). A small transformer reads fifteen facts
   about your day (what is late, what is booked, the hour, the views you open)
   and proposes a Today board. **Suggest** in the Today toolbar shows the

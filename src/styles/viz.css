@@ -67,10 +67,9 @@
 }
 
 .stat__label {
-  font-size: var(--t-xs);
-  font-weight: var(--w-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--t-sm);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
   color: var(--ink-muted);
 }
 
@@ -79,6 +78,7 @@
   font-weight: var(--w-bold);
   letter-spacing: -0.03em;
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat__value--hero { font-size: var(--t-3xl); }
@@ -96,7 +96,7 @@
   border-radius: var(--r-lg);
   overflow: hidden;
   border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .stat-grid > * {

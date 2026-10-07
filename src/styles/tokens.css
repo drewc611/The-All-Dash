@@ -1,68 +1,76 @@
 /*
  * Design tokens.
  *
- * Five decisions, held everywhere:
+ * Six decisions, held everywhere:
  *
  * 1. Density is compact in the data and generous in the structure. Rows stay
  *    tight because this is a tool people scan; the containers around them get
  *    real air. That contrast is what makes the density read as chosen.
- * 2. Type is a 1.25 scale from a 14px base, in three weights. Nothing is set
- *    at 520 or 640 - a scale you can name is a scale you can extend.
+ * 2. Type is Inter, bundled (src/assets/fonts, SIL OFL), on a 1.25 scale from
+ *    a 14px base in three weights: 400, 500, 600. Numbers are tabular wherever
+ *    they line up. A scale you can name is a scale you can extend.
  * 3. Space is a 4px rhythm, named by use.
- * 4. Colour has one job each. Ink is the primary action. Accent is selection
- *    and focus, and nothing else. The series ramp is data. The status set is
- *    status. An accent on twelve things marks nothing, so it is on one.
- * 5. Radius steps with the size of the surface; shadows are two layers - a
- *    tight contact edge and a wide diffuse fall - from a light source above.
+ * 4. Colour has one job each. Neutrals carry the structure and are cool, with
+ *    a blue undertone, so a coloured thing reads as coloured. Ink is the
+ *    primary action. The accent is selection and focus, and nothing else; an
+ *    accent on twelve things marks nothing. The series ramp is data. The
+ *    status set is status.
+ * 5. Radius steps with the size of the surface (6, 8, 12, 16); shadows are two
+ *    layers, a tight contact edge and a wide diffuse fall, tinted with the
+ *    neutrals' own hue and lit from above.
+ * 6. Surfaces nest: the plane (the rail sits on it), the page panel inset in
+ *    it, and cards on the panel. Each step up is a border and a shadow, not a
+ *    different colour, which is what keeps a dense screen calm.
  *
  * Light values live on bare :root; dark redefines only what changes, under
  * both the OS media query and the explicit theme stamp so the in-app toggle
  * wins either way. Series colours are the validated categorical order from
  * the data-viz method (adjacent-pair CVD deltaE >= 8, normal-vision >= 15).
+ * Text pairs were checked against WCAG 2.2 AA (4.5:1) in both themes.
  */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces - warm paper, because the app is about documents */
-  --plane: #f1f0ec;
-  --surface: #fffffe;
-  --surface-2: #f8f7f3;
-  --surface-sunken: #ebeae4;
-  --surface-hover: #f3f2ed;
-  --surface-active: #e8e6df;
+  /* Surfaces */
+  --plane: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --surface-sunken: #eef0f3;
+  --surface-hover: #f3f4f7;
+  --surface-active: #e8ebf0;
 
-  /* Ink - warm near-black, never pure */
-  --ink: #171714;
-  --ink-2: #56554d;
-  --ink-muted: #8a887e;
-  --ink-inverse: #fffffe;
+  /* Ink - cool near-black, never pure */
+  --ink: #0e1116;
+  --ink-2: #4b5260;
+  --ink-muted: #5d6678;
+  --ink-inverse: #ffffff;
 
   /* Lines */
-  --line: #e4e2da;
-  --line-strong: #cbc8bd;
-  --ring: rgba(23, 23, 20, 0.09);
+  --line: #e6e8ec;
+  --line-strong: #d0d4db;
+  --ring: rgba(14, 17, 22, 0.08);
 
   /* Action - the primary button, and only that */
-  --action: #1c1c18;
-  --action-hover: #2e2e28;
-  --action-ink: #fdfdfb;
+  --action: #0e1116;
+  --action-hover: #232832;
+  --action-ink: #ffffff;
 
   /* Accent - selection, focus, the current view. Nothing else. */
-  --accent: #2b59c3;
-  --accent-hover: #24499f;
-  --accent-soft: #e7edfb;
+  --accent: #3f57e6;
+  --accent-hover: #3348c4;
+  --accent-soft: #eceffe;
   --accent-ink: #ffffff;
 
-  /* Status - fixed, never themed. Always paired with an icon or a label. */
-  --good: #0a8f0a;
-  --warning: #b07800;
-  --serious: #c85a2c;
-  --critical: #cc3535;
-  --good-soft: #e4f3e4;
-  --warning-soft: #fbf1da;
-  --serious-soft: #fbeee7;
-  --critical-soft: #fbe8e8;
+  /* Status - always paired with an icon or a label. */
+  --good: #0d7050;
+  --warning: #855400;
+  --serious: #b4481c;
+  --critical: #c42b2b;
+  --good-soft: #e3f5ec;
+  --warning-soft: #fbf0d9;
+  --serious-soft: #fbeae2;
+  --critical-soft: #fbe6e6;
 
   /* Categorical series - data, and only data */
   --series-1: #2a78d6;
@@ -75,8 +83,8 @@
   --series-8: #e34948;
 
   /* Chart chrome */
-  --grid: #e6e4dc;
-  --axis: #c3c2b7;
+  --grid: #e6e8ec;
+  --axis: #c3c8d1;
 
   /* Spacing - a 4px rhythm, named by use not by number */
   --gap-1: 4px;
@@ -89,15 +97,16 @@
   --gap-8: 64px;
 
   /* Radii - step with the size of the surface */
-  --r-sm: 7px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
   --r-full: 999px;
 
-  /* Type - 1.25 from a 14px base */
-  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  /* Type - 1.25 from a 14px base. Inter is bundled; the stack after it is what
+     shows for a script Inter's Latin file does not cover. */
+  --font: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   --t-2xs: 10px; /* badges and overlines only - below the scale on purpose */
   --t-xs: 11px;
   --t-sm: 12px;
@@ -113,18 +122,20 @@
   --w-bold: 600;
 
   /* Elevation - contact edge plus diffuse fall, light from above */
-  --shadow-sm: 0 1px 1px rgba(23, 23, 20, 0.04), 0 2px 6px rgba(23, 23, 20, 0.04);
-  --shadow-md: 0 1px 2px rgba(23, 23, 20, 0.05), 0 8px 24px -6px rgba(23, 23, 20, 0.1);
-  --shadow-lg: 0 2px 4px rgba(23, 23, 20, 0.06), 0 24px 56px -12px rgba(23, 23, 20, 0.22);
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 2px 4px -2px rgba(16, 24, 40, 0.06), 0 8px 20px -6px rgba(16, 24, 40, 0.1);
+  --shadow-lg: 0 4px 8px -4px rgba(16, 24, 40, 0.08), 0 24px 56px -12px rgba(16, 24, 40, 0.22);
 
   /* Motion */
-  --fast: 130ms cubic-bezier(0.32, 0.72, 0, 1);
-  --base: 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  --fast: 120ms cubic-bezier(0.32, 0.72, 0, 1);
+  --base: 220ms cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Layout */
-  --rail: 236px;
-  --topbar: 60px;
+  --rail: 244px;
+  --topbar: 56px;
   --tabbar: 60px;
+  --inset: 8px;
 }
 
 :root[data-density='compact'] {
@@ -134,46 +145,46 @@
   --gap-6: 24px;
   --t-md: 13px;
   --t-lg: 15px;
-  --topbar: 52px;
+  --topbar: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --plane: #100f0d;
-    --surface: #1a1a17;
-    --surface-2: #211f1c;
-    --surface-sunken: #151412;
-    --surface-hover: #262421;
-    --surface-active: #302e29;
+    --plane: #0b0c0f;
+    --surface: #14161a;
+    --surface-2: #101216;
+    --surface-sunken: #0e1013;
+    --surface-hover: #1b1e24;
+    --surface-active: #23272e;
 
-    --ink: #f7f6f2;
-    --ink-2: #b8b6ad;
-    --ink-muted: #85837a;
-    --ink-inverse: #14140f;
+    --ink: #f2f4f7;
+    --ink-2: #b4bac6;
+    --ink-muted: #8b93a1;
+    --ink-inverse: #0e1116;
 
-    --line: #2b2926;
-    --line-strong: #3d3b35;
-    --ring: rgba(247, 246, 242, 0.12);
+    --line: #23262d;
+    --line-strong: #343842;
+    --ring: rgba(242, 244, 247, 0.12);
 
-    --action: #f5f4ef;
+    --action: #f2f4f7;
     --action-hover: #ffffff;
-    --action-ink: #16160f;
+    --action-ink: #0e1116;
 
-    --accent: #7d97ff;
-    --accent-hover: #93a8ff;
-    --accent-soft: #1b2340;
-    --accent-ink: #10142a;
+    --accent: #8d9eff;
+    --accent-hover: #a5b2ff;
+    --accent-soft: #1b2145;
+    --accent-ink: #0c1030;
 
-    --good: #34c759;
-    --warning: #e0a32e;
-    --serious: #ef8354;
-    --critical: #ff6b6b;
-    --good-soft: #12240f;
+    --good: #3ccf91;
+    --warning: #e6b04a;
+    --serious: #f0895c;
+    --critical: #ff7b7b;
+    --good-soft: #0f2a20;
     --warning-soft: #2c2411;
-    --serious-soft: #2d1d15;
-    --critical-soft: #2c1414;
+    --serious-soft: #2e1c14;
+    --critical-soft: #2f1517;
 
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -184,51 +195,52 @@
     --series-7: #9085e9;
     --series-8: #e66767;
 
-    --grid: #2b2926;
-    --axis: #383530;
+    --grid: #23262d;
+    --axis: #343842;
 
-    --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25);
-    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -6px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 2px 4px -2px rgba(0, 0, 0, 0.5), 0 8px 20px -6px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 4px 8px -4px rgba(0, 0, 0, 0.6), 0 24px 56px -12px rgba(0, 0, 0, 0.75);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --plane: #100f0d;
-  --surface: #1a1a17;
-  --surface-2: #211f1c;
-  --surface-sunken: #151412;
-  --surface-hover: #262421;
-  --surface-active: #302e29;
+  --plane: #0b0c0f;
+  --surface: #14161a;
+  --surface-2: #101216;
+  --surface-sunken: #0e1013;
+  --surface-hover: #1b1e24;
+  --surface-active: #23272e;
 
-  --ink: #f7f6f2;
-  --ink-2: #b8b6ad;
-  --ink-muted: #85837a;
-  --ink-inverse: #14140f;
+  --ink: #f2f4f7;
+  --ink-2: #b4bac6;
+  --ink-muted: #8b93a1;
+  --ink-inverse: #0e1116;
 
-  --line: #2b2926;
-  --line-strong: #3d3b35;
-  --ring: rgba(247, 246, 242, 0.12);
+  --line: #23262d;
+  --line-strong: #343842;
+  --ring: rgba(242, 244, 247, 0.12);
 
-  --action: #f5f4ef;
+  --action: #f2f4f7;
   --action-hover: #ffffff;
-  --action-ink: #16160f;
+  --action-ink: #0e1116;
 
-  --accent: #7d97ff;
-  --accent-hover: #93a8ff;
-  --accent-soft: #1b2340;
-  --accent-ink: #10142a;
+  --accent: #8d9eff;
+  --accent-hover: #a5b2ff;
+  --accent-soft: #1b2145;
+  --accent-ink: #0c1030;
 
-  --good: #34c759;
-  --warning: #e0a32e;
-  --serious: #ef8354;
-  --critical: #ff6b6b;
-  --good-soft: #12240f;
+  --good: #3ccf91;
+  --warning: #e6b04a;
+  --serious: #f0895c;
+  --critical: #ff7b7b;
+  --good-soft: #0f2a20;
   --warning-soft: #2c2411;
-  --serious-soft: #2d1d15;
-  --critical-soft: #2c1414;
+  --serious-soft: #2e1c14;
+  --critical-soft: #2f1517;
 
   --series-1: #3987e5;
   --series-2: #d95926;
@@ -239,12 +251,13 @@
   --series-7: #9085e9;
   --series-8: #e66767;
 
-  --grid: #2b2926;
-  --axis: #383530;
+  --grid: #23262d;
+  --axis: #343842;
 
-  --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -6px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px -2px rgba(0, 0, 0, 0.5), 0 8px 20px -6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 8px -4px rgba(0, 0, 0, 0.6), 0 24px 56px -12px rgba(0, 0, 0, 0.75);
 }
 
 /*
@@ -274,14 +287,14 @@
      Kept light on purpose - at 0.7 it is a curtain, and a curtain over a
      photograph makes the whole feature pointless. Readability is bought by
      the card's own tint below, which covers the text and nothing else. */
-  --glass-scrim: rgba(241, 240, 236, 0.3);
-  --glass-scrim-strong: rgba(241, 240, 236, 0.72);
+  --glass-scrim: rgba(244, 245, 247, 0.3);
+  --glass-scrim-strong: rgba(244, 245, 247, 0.72);
 
   /* The glass itself - tint, edge, and the blur behind it. This is the layer
      that has to guarantee contrast, since it is the one text sits on. */
-  --glass: rgba(255, 255, 254, 0.74);
-  --glass-hover: rgba(255, 255, 254, 0.84);
-  --glass-line: rgba(23, 23, 20, 0.1);
+  --glass: rgba(255, 255, 255, 0.74);
+  --glass-hover: rgba(255, 255, 255, 0.84);
+  --glass-line: rgba(14, 17, 22, 0.1);
   --glass-blur: 20px;
   --glass-saturate: 1.3;
 
@@ -291,27 +304,27 @@
 
   /* Shadow under glass is softer than under paper - a floating pane does not
      have a hard contact edge with a photograph. */
-  --shadow-glass: 0 2px 8px rgba(23, 23, 20, 0.08), 0 32px 64px -16px rgba(23, 23, 20, 0.28);
+  --shadow-glass: 0 1px 2px rgba(16, 24, 40, 0.06), 0 12px 32px -12px rgba(16, 24, 40, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --glass-scrim: rgba(16, 16, 14, 0.38);
-    --glass-scrim-strong: rgba(16, 16, 14, 0.78);
-    --glass: rgba(34, 33, 30, 0.72);
-    --glass-hover: rgba(44, 43, 39, 0.82);
+    --glass-scrim: rgba(11, 12, 15, 0.38);
+    --glass-scrim-strong: rgba(11, 12, 15, 0.78);
+    --glass: rgba(20, 22, 26, 0.72);
+    --glass-hover: rgba(27, 30, 36, 0.82);
     --glass-line: rgba(255, 255, 255, 0.12);
-    --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.5), 0 32px 64px -16px rgba(0, 0, 0, 0.75);
+    --shadow-glass: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
   }
 }
 
 [data-theme='dark'] {
-  --glass-scrim: rgba(16, 16, 14, 0.38);
-  --glass-scrim-strong: rgba(16, 16, 14, 0.78);
-  --glass: rgba(34, 33, 30, 0.72);
-  --glass-hover: rgba(44, 43, 39, 0.82);
+  --glass-scrim: rgba(11, 12, 15, 0.38);
+  --glass-scrim-strong: rgba(11, 12, 15, 0.78);
+  --glass: rgba(20, 22, 26, 0.72);
+  --glass-hover: rgba(27, 30, 36, 0.82);
   --glass-line: rgba(255, 255, 255, 0.12);
-  --shadow-glass: 0 2px 8px rgba(0, 0, 0, 0.5), 0 32px 64px -16px rgba(0, 0, 0, 0.75);
+  --shadow-glass: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
 }
 
 /*

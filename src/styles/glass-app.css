@@ -160,6 +160,13 @@
   background: var(--glass-solid);
 }
 
+/* The one text field that is not a box: the command bar's query sits directly
+   on the palette, which is already solid, and a white slab inside it reads as a
+   second control rather than as where you type. */
+[data-glass-app='on'] .palette__input {
+  background: transparent;
+}
+
 /* ----------------------------------------------------------- performance */
 
 /*
