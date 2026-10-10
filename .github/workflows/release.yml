@@ -299,7 +299,7 @@ jobs:
 
       - name: Build and bundle, signed
         if: steps.signing.outputs.apple == 'yes'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -314,7 +314,7 @@ jobs:
 
       - name: Build and bundle, unsigned
         if: steps.signing.outputs.apple != 'yes'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         with:
           args: --target ${{ matrix.target }}
 
