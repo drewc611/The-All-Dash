@@ -423,7 +423,7 @@ jobs:
             echo "::warning::desktop installers may be unsigned; the OS will warn on first open"
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         # A dry run proves the whole thing builds and publishes nothing.
         if: ${{ github.event_name == 'push' || !inputs.dry_run }}
         with:
