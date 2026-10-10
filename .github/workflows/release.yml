@@ -179,7 +179,7 @@ jobs:
       - run: npm run build
       - name: Pack the build
         run: tar -czf "the-all-dash-web-${{ needs.verify.outputs.version }}.tar.gz" -C dist .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web
           path: the-all-dash-web-*.tar.gz
@@ -318,7 +318,7 @@ jobs:
         with:
           args: --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.label }}
           path: |
